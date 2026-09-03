@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="XOv6C5xpFsgYfVIrd3emEp">
+<head data-page-node-id="flm5DxYHC5GKawJTWuh5OZ">
+<meta charset="UTF-8" data-page-node-id="2JtbOMKlZ4V9Mdk72t2kI8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="1vdAf0xiKvKOxAlysa1qSG">
+<title>NGX-CP · Nginx 集群管理平台 · 交互原型</title>
+<style>
+:root{
+  --bg:#f4f6f9;
+  --panel:#ffffff;
+  --panel-2:#fafbfc;
+  --border:#e4e7ec;
+  --border-2:#eef0f3;
+  --text:#111827;
+  --text-2:#5b6675;
+  --text-3:#98a2b3;
+  --primary:#2563eb;
+  --primary-soft:#eff4ff;
+  --primary-soft-2:#dbe7ff;
+  --success:#0f9d58;
+  --success-soft:#e7f6ee;
+  --warn:#e08600;
+  --warn-soft:#fdf3e2;
+  --danger:#dc2626;
+  --danger-soft:#fdecec;
+  --purple:#6d5efc;
+  --purple-soft:#efedff;
+  --cyan:#0891b2;
+  --cyan-soft:#e5f6fa;
+  --radius:10px;
+  --radius-sm:7px;
+  --shadow:0 1px 2px rgba(16,24,40,.05);
+  --shadow-md:0 4px 16px rgba(16,24,40,.08);
+  --mono:"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#d3d8e0;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- Layout ---------- */
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:216px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+}
+.logo{padding:16px 18px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--border-2)}
+.logo-mark{
+  width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#2563eb,#5b8def);
+  display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;letter-spacing:-.5px;
+}
+.logo-txt b{font-size:14px;letter-spacing:.2px}
+.logo-txt span{display:block;font-size:10.5px;color:var(--text-3);letter-spacing:.4px}
+.nav{flex:1;overflow-y:auto;padding:10px 10px 20px}
+.nav-group{margin-top:12px}
+.nav-group-t{
+  font-size:10.5px;color:var(--text-3);letter-spacing:.8px;font-weight:600;
+  padding:6px 10px;text-transform:uppercase;
+}
+.nav-item{
+  display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--radius-sm);
+  color:var(--text-2);cursor:pointer;font-size:12.5px;position:relative;margin-bottom:1px;
+  transition:background .12s,color .12s;user-select:none;
+}
+.nav-item:hover{background:var(--panel-2);color:var(--text)}
+.nav-item.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.nav-item.on::before{
+  content:"";position:absolute;left:-10px;top:6px;bottom:6px;width:3px;
+  background:var(--primary);border-radius:0 3px 3px 0;
+}
+.nav-item .ic{width:15px;height:15px;flex-shrink:0;opacity:.9}
+.nav-item .badge{
+  margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:600;
+  padding:1px 5px;border-radius:8px;line-height:1.5;
+}
+.nav-item .badge.gray{background:#e4e7ec;color:var(--text-2)}
+.side-foot{padding:10px 14px;border-top:1px solid var(--border-2);font-size:10.5px;color:var(--text-3)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  height:52px;background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;padding:0 20px;position:sticky;top:0;z-index:20;
+}
+.crumb{font-size:12px;color:var(--text-3)}
+.crumb b{color:var(--text);font-weight:600;font-size:13.5px}
+.crumb i{font-style:normal;margin:0 6px;color:#cbd2dc}
+.topbar .spacer{flex:1}
+.cluster-sel{
+  display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:5px 10px;font-size:12px;cursor:pointer;background:var(--panel);
+}
+.cluster-sel:hover{border-color:#c9d2e0}
+.env-chip{
+  font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.4px;
+  background:var(--danger-soft);color:var(--danger);
+}
+.env-chip.stg{background:var(--warn-soft);color:var(--warn)}
+.avatar{
+  width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#6d5efc,#9c8cfd);
+  color:#fff;display:grid;place-items:center;font-size:11px;font-weight:600;
+}
+.page{padding:20px;flex:1}
+.view{display:none}
+.view.on{display:block;animation:fade .2s ease}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* ---------- Common ---------- */
+.page-head{display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.page-head h1{font-size:19px;font-weight:650;letter-spacing:-.2px}
+.page-head p{font-size:12.5px;color:var(--text-2);margin-top:2px}
+.page-head .spacer{flex:1}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--panel);
+  color:var(--text);padding:6px 12px;border-radius:var(--radius-sm);font-size:12.5px;cursor:pointer;
+  font-family:inherit;transition:.12s;white-space:nowrap;
+}
+.btn:hover{border-color:#c3cbd8;background:var(--panel-2)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:#1d4fd7;border-color:#1d4fd7}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.danger:hover{background:#b91c1c}
+.btn.ghost-danger{color:var(--danger);border-color:#f3c6c6}
+.btn.ghost-danger:hover{background:var(--danger-soft)}
+.btn.sm{padding:3px 9px;font-size:11.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{
+  padding:12px 16px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;gap:10px;
+}
+.card-h h3{font-size:13.5px;font-weight:640}
+.card-h .spacer{flex:1}
+.card-h .sub{font-size:11.5px;color:var(--text-3)}
+.card-b{padding:16px}
+.card-b.nopad{padding:0}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{
+  text-align:left;font-weight:600;color:var(--text-2);font-size:11.5px;letter-spacing:.2px;
+  padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--border-2);white-space:nowrap;
+}
+td{padding:10px 14px;border-bottom:1px solid var(--border-2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fbfcfe}
+td.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono);font-size:11.5px}
+
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot.g{background:var(--success);box-shadow:0 0 0 3px rgba(15,157,88,.14)}
+.dot.r{background:var(--danger);box-shadow:0 0 0 3px rgba(220,38,38,.14)}
+.dot.y{background:var(--warn);box-shadow:0 0 0 3px rgba(224,134,0,.16)}
+.dot.gray{background:#c3cbd8}
+
+.tag{
+  display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 7px;border-radius:5px;
+  background:var(--border-2);color:var(--text-2);font-weight:500;white-space:nowrap;
+}
+.tag.g{background:var(--success-soft);color:var(--success)}
+.tag.r{background:var(--danger-soft);color:var(--danger)}
+.tag.y{background:var(--warn-soft);color:var(--warn)}
+.tag.b{background:var(--primary-soft);color:var(--primary)}
+.tag.p{background:var(--purple-soft);color:var(--purple)}
+.tag.c{background:var(--cyan-soft);color:var(--cyan)}
+
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g21{grid-template-columns:2fr 1fr}
+.g12{grid-template-columns:1fr 2fr}
+
+.stat{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.stat .lbl{font-size:11.5px;color:var(--text-2);display:flex;align-items:center;gap:6px}
+.stat .val{font-size:26px;font-weight:660;letter-spacing:-.8px;margin-top:6px;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .sub{font-size:11px;color:var(--text-3);margin-top:4px}
+.stat .sub b{font-weight:600}
+.stat .ico{
+  position:absolute;right:14px;top:14px;width:32px;height:32px;border-radius:8px;
+  display:grid;place-items:center;
+}
+.stat.ok .val{color:var(--success)}
+.stat.warn .val{color:var(--warn)}
+.stat.bad .val{color:var(--danger)}
+
+.bar{height:5px;background:var(--border-2);border-radius:3px;overflow:hidden;min-width:56px}
+.bar > i{display:block;height:100%;border-radius:3px;background:var(--primary)}
+.bar > i.g{background:var(--success)}
+.bar > i.y{background:var(--warn)}
+.bar > i.r{background:var(--danger)}
+
+input[type=text],input[type=search],select,textarea{
+  font-family:inherit;font-size:12.5px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:6px 10px;color:var(--text);background:var(--panel);outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.search{position:relative}
+.search input{padding-left:28px;width:200px}
+.search svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-3)}
+.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+
+code.inl{font-family:var(--mono);font-size:11.5px;background:var(--border-2);padding:1px 5px;border-radius:4px;color:#334}
+
+.hint{
+  background:var(--primary-soft);border:1px solid var(--primary-soft-2);border-radius:var(--radius-sm);
+  padding:9px 12px;font-size:12px;color:#1e429f;display:flex;gap:8px;align-items:flex-start;line-height:1.5;
+}
+.hint.warn{background:var(--warn-soft);border-color:#f7e0bd;color:#8a5200}
+.hint.danger{background:var(--danger-soft);border-color:#f6cfcf;color:#9f1d1d}
+.hint b{font-weight:640}
+
+.proto-banner{
+  background:linear-gradient(90deg,#fff7e6,#fffbf2);border:1px solid #f7e0bd;border-radius:var(--radius-sm);
+  padding:8px 14px;font-size:12px;color:#8a5200;margin-bottom:16px;display:flex;gap:8px;align-items:center;
+}
+
+/* ---------- Tree / Editor ---------- */
+.tree-item{
+  display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:12.5px;
+  cursor:pointer;color:var(--text-2);
+}
+.tree-item:hover{background:var(--panel-2);color:var(--text)}
+.tree-item.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+
+.editor{display:flex;font-family:var(--mono);font-size:12px;line-height:1.65;overflow:auto;max-height:460px;background:#fff}
+.ed-gutter{
+  padding:12px 8px 12px 14px;text-align:right;color:#b6bec9;user-select:none;
+  background:var(--panel-2);border-right:1px solid var(--border-2);min-width:44px;
+}
+.ed-code{padding:12px 14px;white-space:pre;color:#24292f;flex:1;min-width:0}
+.k{color:#8250df;font-weight:600}      /* 指令 */
+.v{color:#0a7d36}                       /* 值 */
+.c{color:#8c959f;font-style:italic}     /* 注释 */
+.s{color:#0a3069}                       /* 字符串/域名 */
+.n{color:#b95000}                       /* 数字 */
+.tpl{color:#8250df;background:#f6f0ff;border-radius:3px;padding:0 3px}
+
+.validate-panel{border-top:1px solid var(--border-2);background:var(--panel-2)}
+.vp-head{padding:8px 14px;font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border-2)}
+.vp-body{padding:8px 14px;display:flex;flex-direction:column;gap:5px}
+.vp-line{font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+
+.ver-item{padding:9px 14px;border-bottom:1px solid var(--border-2);cursor:pointer}
+.ver-item:hover{background:var(--panel-2)}
+.ver-item.on{background:var(--primary-soft);border-left:2px solid var(--primary);padding-left:12px}
+
+/* ---------- Deploy batches ---------- */
+.batch{border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;background:var(--panel)}
+.batch.done{border-color:#a8e0c3;background:#fbfefc}
+.batch.running{border-color:#9dbaf5;background:#fbfcff}
+.batch.pending{background:var(--panel-2);border-style:dashed}
+.b-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-2)}
+.b-idx{font-weight:650;color:var(--text);font-size:12.5px}
+.b-nodes{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.node-pill{
+  font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:5px;
+  border:1px solid var(--border);background:var(--panel);color:var(--text-2);white-space:nowrap;
+}
+.node-pill.ok{border-color:#a8e0c3;background:var(--success-soft);color:#0b7a45}
+.node-pill.run{border-color:#9dbaf5;background:var(--primary-soft);color:var(--primary);font-weight:600;animation:pulse 1.4s infinite}
+.node-pill.pending{background:var(--panel-2);color:var(--text-3);border-style:dashed}
+.b-steps{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.st{
+  font-size:11px;padding:3px 9px;border-radius:20px;background:var(--border-2);color:var(--text-3);
+  display:flex;align-items:center;gap:5px;
+}
+.st span{font-family:var(--mono);font-size:10px;opacity:.75}
+.st.done{background:var(--success-soft);color:#0b7a45}
+.st.act{background:var(--primary);color:#fff;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* ---------- Misc rows ---------- */
+.log-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--text-2)}
+.kv{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11.5px}
+.kv code{flex:1}
+.kv b{color:var(--text)}
+.cfg-row{
+  display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--border-2);flex-wrap:wrap;
+}
+.cfg-row:last-child{border-bottom:none}
+.cfg-row > span:first-child{color:var(--text-2);min-width:104px}
+.rule-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;cursor:pointer;flex-wrap:wrap}
+.vs-row{cursor:pointer}
+.vs-row.on{background:var(--primary-soft) !important}
+.vs-row.on td{font-weight:600}
+
+/* ---------- Modal ---------- */
+.mask{
+  position:fixed;inset:0;background:rgba(16,24,40,.4);backdrop-filter:blur(2px);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:24px;
+}
+.mask.on{display:flex}
+.modal{
+  background:var(--panel);border-radius:12px;box-shadow:0 20px 50px rgba(16,24,40,.25);
+  width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+  animation:pop .18s ease;
+}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
+.modal-h{padding:14px 18px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;gap:10px}
+.modal-h h3{font-size:15px;font-weight:650}
+.modal-h .x{margin-left:auto;cursor:pointer;color:var(--text-3);font-size:18px;line-height:1;padding:0 4px}
+.modal-h .x:hover{color:var(--text)}
+.modal-b{padding:18px;overflow-y:auto;flex:1}
+.modal-f{padding:12px 18px;border-top:1px solid var(--border-2);display:flex;gap:8px;align-items:center;background:var(--panel-2)}
+.modal-f .spacer{flex:1}
+
+.steps-bar{display:flex;align-items:center;gap:0;margin-bottom:18px}
+.step-chip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3);white-space:nowrap}
+.step-chip i{
+  width:20px;height:20px;border-radius:50%;background:var(--border-2);color:var(--text-3);
+  display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:600;flex-shrink:0;
+}
+.step-chip.done{color:var(--success)}
+.step-chip.done i{background:var(--success-soft);color:var(--success)}
+.step-chip.act{color:var(--primary);font-weight:600}
+.step-chip.act i{background:var(--primary);color:#fff}
+.step-line{flex:1;height:1px;background:var(--border);margin:0 10px;min-width:16px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px;font-weight:500}
+.field input[type=text],.field select{width:100%}
+.field .desc{font-size:11px;color:var(--text-3);margin-top:4px}
+.radio-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.radio-card{
+  border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;cursor:pointer;transition:.12s;
+}
+.radio-card:hover{border-color:#c3cbd8}
+.radio-card.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.radio-card b{font-size:12.5px;display:block}
+.radio-card span{font-size:11px;color:var(--text-2)}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#111827;color:#fff;padding:10px 18px;border-radius:8px;font-size:12.5px;z-index:200;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);transition:transform .25s ease,opacity .25s;opacity:0;pointer-events:none;
+  display:flex;align-items:center;gap:8px;
+}
+.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* ---------- 日志中心 / 安全预警 追加样式 ---------- */
+.dot{background:#d0d5dd}
+.dot.on{background:var(--success)}
+.tabs-mini{display:flex;gap:2px;background:var(--bg-2, #f2f4f7);padding:3px;border-radius:8px}
+.tabs-mini span{padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;color:var(--text-3)}
+.tabs-mini span.on{background:#fff;color:var(--text-1);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.06)}
+.trace-steps{display:flex;flex-direction:column;gap:2px}
+.ts-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:8px;position:relative}
+.ts-item.hi{background:#f0fdf4;border:1px solid #bbf7d0}
+.ts-item:not(:last-child):after{content:'';position:absolute;left:27px;top:44px;bottom:-6px;width:1px;background:var(--line)}
+.ts-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;z-index:1}
+.ts-body{flex:1;min-width:0}
+.ts-t{font-size:13px;font-weight:600;margin-bottom:3px}
+.ts-m{font-size:11.5px;color:var(--text-3);font-family:var(--mono, ui-monospace, Menlo, monospace)}
+.ts-ms{font-size:13px;font-weight:600;color:var(--text-2);flex-shrink:0;font-variant-numeric:tabular-nums}
+.trace-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:14px 0 10px;background:var(--bg-2,#f2f4f7)}
+.tb-seg{height:100%}
+.trace-legend{display:flex;gap:16px;font-size:11.5px;color:var(--text-3);flex-wrap:wrap;align-items:center}
+.trace-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.raw-toggle{font-size:12px;color:var(--primary);cursor:pointer;margin-top:12px;user-select:none}
+.raw-toggle:hover{text-decoration:underline}
+
+/* ---- 监控中心 Grafana mock ---- */
+.grafana-wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.gf-panel{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--panel-2)}
+.gf-t{font-size:12px;color:var(--text-2);margin-bottom:8px}
+.gf-bars{display:flex;align-items:flex-end;gap:5px;height:80px}
+.gf-bars i{flex:1;background:linear-gradient(180deg,var(--primary),var(--primary-soft));border-radius:3px 3px 0 0;opacity:.85}
+.gf-bars.alt i{background:linear-gradient(180deg,#34c759,#d8f5e0)}
+/* ---- 升级编排流 ---- */
+.upgrade-flow{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.uf-node{flex:1;min-width:120px;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--panel-2);position:relative}
+.uf-node.done{border-color:var(--success);background:#f0fbf3}
+.uf-node.active{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
+.uf-dot{width:10px;height:10px;border-radius:50%;background:var(--border);margin-bottom:8px}
+.uf-node.done .uf-dot{background:var(--success)}
+.uf-node.active .uf-dot{background:var(--primary)}
+.uf-t{font-weight:600;font-size:13px;margin-bottom:4px}
+.uf-s{font-size:11px;color:var(--text-2)}
+.uf-arrow{display:flex;align-items:center;color:var(--text-3);font-size:18px}
+@media(max-width:1100px){.grafana-wrap{grid-template-columns:repeat(2,1fr)}}
+
+</style>
+</head>
+<body data-page-node-id="gEDsLyHNGAHqH56MYMRfOD">
+<div class="app" data-page-node-id="M1PxRyWMCAj6VHBd1Pj83s">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" data-page-node-id="vyrvE2V6mBuRdjjtktIjJN">
+    <div class="logo" data-page-node-id="08dVES6opa6KA19eixizFE">
+      <div class="logo-mark" data-page-node-id="6WrKzr5vJUOnyFC7ZeO0G8">NX</div>
+      <div class="logo-txt" data-page-node-id="VdDIEW67IXTOQyhzKGM5Nf"><b data-page-node-id="vYj7QO8ucrwSPtkSXWGjIv">NGX-CP</b><span data-page-node-id="FZ21yecdLAByTjq0vWP4CR">Nginx Control Plane</span></div>
+    </div>
+    <nav class="nav" id="nav" data-page-node-id="aRvSNCiKC34n83N0Ng9uEa">
+      <div class="nav-group" data-page-node-id="sKkoBkQ2IvcAasDDvAgwCQ">
+        <div class="nav-group-t" data-page-node-id="aSKKBnzfAE3jT2CAnPxcYR">概览</div>
+        <div class="nav-item on" data-v="dashboard" data-page-node-id="FXGKMN9lcMXzgPr1TTEKJS">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="gM1Ds1bAgWKrjkkwxCfk8J"><rect x="3" y="3" width="7" height="9" data-page-node-id="v0NDYLj6Hx1mUfI5HHaN0U"/><rect x="14" y="3" width="7" height="5" data-page-node-id="5i5xjDj8PJtuzzvKH36gY2"/><rect x="14" y="12" width="7" height="9" data-page-node-id="ECovVuNMKblZ5yPw47owZQ"/><rect x="3" y="16" width="7" height="5" data-page-node-id="iGHNlxc2sXkoyZJylNR5Bf"/></svg>
+          仪表盘
+        </div>
+      </div>
+
+      <div class="nav-group" data-page-node-id="3NoErT0DB7P30DiNrw8KRd">
+        <div class="nav-group-t" data-page-node-id="N6b89ttGOwjVTv4JpZWf6k">资源</div>
+        <div class="nav-item" data-v="clusters" data-page-node-id="A1D0gVyfVFkd5CeUGDeF1b">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="PjLVI7JSIWs9FWehznYb76"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" data-page-node-id="ZVp0kQN8Vx0fhiFkgs6Etr"/><circle cx="9" cy="7" r="4" data-page-node-id="4NmuiOur3CLCA2HLT5uUGI"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" data-page-node-id="DhxbeKnUFDKFJvDsfPAkvf"/></svg>
+          集群分组
+        </div>
+        <div class="nav-item" data-v="nodes" data-page-node-id="C1UB8Oz8F5PtiX7Q2PCBny">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="DtFF7b2i5ln1ljCaKijQtl"><rect x="2" y="3" width="20" height="8" rx="2" data-page-node-id="QlBPCagzHkAoAqzuyJMLZJ"/><rect x="2" y="13" width="20" height="8" rx="2" data-page-node-id="oEodefCBhW8idIzJ3kedIb"/><path d="M6 7h.01M6 17h.01" data-page-node-id="7REFHREdYfyyQtTMSFUXQE"/></svg>
+          节点管理 <span class="badge gray" data-page-node-id="oEEXSmYQsGQaK6yONclmin">86</span>
+        </div>
+      </div>
+
+      <div class="nav-group" data-page-node-id="RApfe8c54drXUHeGpUloQR">
+        <div class="nav-group-t" data-page-node-id="hsHj3BHUP8DtVutGXiLsTw">配置</div>
+        <div class="nav-item" data-v="configs" data-page-node-id="vWR4OIvBdEJ35hdYnOiP1W">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="gum0EDUWpL5ldNlUJ9Z0Az"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" data-page-node-id="pRQkBYcCNafcn2qACaRiYK"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" data-page-node-id="pAj0qLEjXGJzskeaRmH63z"/></svg>
+          配置中心
+        </div>
+        <div class="nav-item" data-v="deploy" data-page-node-id="GTreQbPKNnAXG4ZiQgCC8c">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="0YX2HYNQSXyh0nvxYKbQyE"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z" data-page-node-id="hOG9zHUegEKHFs6tRyLebQ"/></svg>
+          发布任务 <span class="badge" data-page-node-id="QyNrKKg0fxlJzG2CGCFuV7">3</span>
+        </div>
+        <div class="nav-item" data-v="backup" data-page-node-id="GzUAOkQj6Ob0OJ1YzNCy45">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="sqO7x7VZCqLEsCpyyrr0DN"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" data-page-node-id="FrarcC52lt1odDUJaKJfBW"/></svg>
+          备份与恢复
+        </div>
+      </div>
+
+      <div class="nav-group" data-page-node-id="rzjpAOdrmXCgk2uFj80UDL">
+        <div class="nav-group-t" data-page-node-id="BIUEkf9ZnJXL0iBFFORTRk">证书与负载</div>
+        <div class="nav-item" data-v="certs" data-page-node-id="b9bPvAVGVFta69mIkqh7uN">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="hF6bAOXo0M6v4F81IrPD5w"><rect x="3" y="11" width="18" height="11" rx="2" data-page-node-id="zZMfGB4xEJUDal76lLfAlR"/><path d="M7 11V7a5 5 0 0 1 10 0v4" data-page-node-id="luPNRuTcdO1jHLRjxCPmU7"/></svg>
+          证书管理 <span class="badge" data-page-node-id="mGZpKylJOy6SdM9FW4Lanw">2</span>
+        </div>
+        <div class="nav-item" data-v="lvs" data-page-node-id="koIhdFbzroreeJCBABuhRU">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="OvkQkU8aTfm32wWFOxlBbx"><circle cx="12" cy="5" r="2.5" data-page-node-id="yakrhiJGa7bQKfSD9totZ9"/><circle cx="5" cy="19" r="2.5" data-page-node-id="VFSmcBvTPDDn5CYZesvgYs"/><circle cx="19" cy="19" r="2.5" data-page-node-id="XXPKMHLNf2nS67HIKz0Qnr"/><path d="M12 7.5v4M12 11.5L5 17M12 11.5l7 5.5" data-page-node-id="Kihsir6XPjJSACGRAfTJHA"/></svg>
+          LVS 管理
+        </div>
+      </div>
+
+      <div class="nav-group" data-page-node-id="ngxNavObs">
+        <div class="nav-group-t">观测与安全</div>
+        <div class="nav-item" data-v="logs">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="20" cy="18" r="2"/></svg>
+          日志中心
+        </div>
+        <div class="nav-item" data-v="security">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+          安全预警 <span class="badge">3</span>
+        </div>
+      </div>
+
+      <div class="nav-group" data-page-node-id="6DmpXLf0cHrmcA4Gk5QcET">
+        <div class="nav-group-t">监控与升级</div>
+        <div class="nav-item" data-v="monitor">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+          监控中心
+        </div>
+        <div class="nav-item" data-v="build">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 7l-1 6-4 1-3-3-3 1 2 5 5 2 8-3 2-9-3-1z"/></svg>
+          构建与升级
+        </div>
+
+        <div class="nav-group-t" data-page-node-id="iZZMYsSWB7bGUGrTr8xLoR">系统</div>
+        <div class="nav-item" data-v="audit" data-page-node-id="917Qk2HLuVqYObL4obwwhi">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="7dYG9xXtUQBcYnCmHSdKEI"><path d="M12 8v4l3 2" data-page-node-id="rDSf3K5g16hbX5KTiGwoHV"/><circle cx="12" cy="12" r="9" data-page-node-id="j4fdBsSIeYajQ9HPnFsema"/></svg>
+          审计日志
+        </div>
+        <div class="nav-item" data-v="settings" data-page-node-id="QDlYJQtlG98Z3MwckmQj4e">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="AJcvWMo07EfZLLliUoJ38w"><circle cx="12" cy="12" r="3" data-page-node-id="DKKEH5srdKSnANZOJZjIFg"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" data-page-node-id="eAE5B5lDZPZm9GMM47CRw9"/></svg>
+          系统设置
+        </div>
+      </div>
+    </nav>
+    <div class="side-foot" data-page-node-id="RBut7Y2NTtWFsFBazcC5Ee">v0.1.0-prototype · 交互演示</div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main" data-page-node-id="voao0TxIqQAQ0Rpk2mKZmG">
+    <header class="topbar" data-page-node-id="XlyG1JgaejstSXm8zTUhIv">
+      <div class="crumb" data-page-node-id="CsDqxfzOwH7K9KASF0idbY"><b id="crumbMain" data-page-node-id="RvHCv7DPGBaW2nPWrmlMn7">仪表盘</b><i data-page-node-id="xTGGdQhlgGWOx3AsGksANg">/</i><span id="crumbSub" data-page-node-id="hcU4DLsXtfsgQLLI8y2Skp">全局概览</span></div>
+      <div class="spacer" data-page-node-id="hZBHswCZIZqKPqX44WQKKD"></div>
+      <span class="tag b" title="当前集群上下文" data-page-node-id="mFS2ejLH0n2BWHombVpp3A">prod-web</span>
+      <span class="env-chip" data-page-node-id="riZXtuyItNRp9zmrC62NbV">PRODUCTION</span>
+      <div class="cluster-sel" data-page-node-id="hmsPVaC3IpUkGXSEP3nHdp">
+        <span style="color:var(--text-3)" data-page-node-id="iF6YDrvHFfWlOCfCL18W9i">集群</span> prod-web
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" data-page-node-id="A4LRMJnmizh54qQsZUvlxb"><path d="M6 9l6 6 6-6" data-page-node-id="nXoGOFCMATGabMRlEa1Sq4"/></svg>
+      </div>
+      <div class="avatar" title="田昊" data-page-node-id="JcfSusFhhu2jRUlobTFuV6">TH</div>
+    </header>
+
+    <div class="page" data-page-node-id="SgmcW3eS86RoYLpeOMENRD">
+      <div class="proto-banner" data-page-node-id="GM3HHv8AN7SSzFGlv1TGSU">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="GnncMTfuvuAnr9eu5H3Y89"><circle cx="12" cy="12" r="10" data-page-node-id="2JuG5UBt5bDQ4j1xTBX6YZ"/><path d="M12 16v-4M12 8h.01" data-page-node-id="olHpaBe1p9YYqFfhW8CbQY"/></svg>
+        <span data-page-node-id="4Dtj1DrYNhzJvACrYWC0ps">这是<b data-page-node-id="wP3kVFdxNw3m0eK0ThEKQ6">交互原型</b>（v0.1 方案演示），数据为模拟数据。左侧导航可切换全部页面，表格、按钮均可点击体验。</span>
+      </div>
+      <!-- ================= DASHBOARD ================= -->
+      <section class="view on" id="v-dashboard">
+        <div class="page-head">
+          <div><h1>仪表盘</h1><p>全局健康视图 · 数据更新于 12 秒前</p></div>
+          <div class="spacer"></div>
+          <button class="btn" onclick="go('nodes')">节点健康</button>
+          <button class="btn primary" onclick="go('configs')">新建配置</button>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:14px">
+          <div class="stat">
+            <div class="lbl">纳管节点</div><div class="val">4</div>
+            <div class="sub"><b style="color:var(--success)">4</b> 在线 · <b style="color:var(--text-3)">0</b> 离线 · 2 Nginx + 2 Keepalived</div>
+            <div class="ico" style="background:var(--primary-soft)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/></svg></div>
+          </div>
+          <div class="stat warn">
+            <div class="lbl">临期证书</div><div class="val">2</div>
+            <div class="sub">7 天内到期 <b>1</b> 张 · 30 天内 <b>1</b> 张</div>
+            <div class="ico" style="background:var(--warn-soft)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e08600" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          </div>
+          <div class="stat bad">
+            <div class="lbl">待处置告警</div><div class="val">3</div>
+            <div class="sub">CRITICAL · 含 1 条已自动封禁</div>
+            <div class="ico" style="background:var(--danger-soft)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
+          </div>
+          <div class="stat ok">
+            <div class="lbl">今日发布成功率</div><div class="val">100%</div>
+            <div class="sub">今日 <b>3</b> 次发布 · 0 次回滚</div>
+            <div class="ico" style="background:var(--success-soft)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f9d58" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+          </div>
+        </div>
+
+        <div class="grid g21" style="margin-bottom:14px">
+          <div class="card">
+            <div class="card-h"><h3>最近发布任务</h3><div class="spacer"></div>
+              <span class="sub">近 24 小时</span>
+              <button class="btn sm" onclick="go('deploy')">全部任务</button>
+            </div>
+            <div class="card-b nopad">
+              <table>
+                <thead><tr><th>任务</th><th>类型</th><th>集群</th><th>进度</th><th>状态</th><th>操作人</th><th>时间</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><b>新增 api-gateway 反代配置</b><div class="mono" style="color:var(--text-3)">#DP-20481</div></td>
+                    <td><span class="tag b">配置</span></td><td>prod-web</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">24/24</span></div></td>
+                    <td><span class="dot g"></span> <span style="color:var(--success)">成功</span></td>
+                    <td>田昊</td><td class="mono" style="color:var(--text-3)">08:12</td>
+                  </tr>
+                  <tr>
+                    <td><b>shop.tianhao.tech 证书续期</b><div class="mono" style="color:var(--text-3)">#DP-20480</div></td>
+                    <td><span class="tag p">证书</span></td><td>prod-web</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">18/18</span></div></td>
+                    <td><span class="dot g"></span> <span style="color:var(--success)">成功</span></td>
+                    <td>自动任务</td><td class="mono" style="color:var(--text-3)">03:00</td>
+                  </tr>
+                  <tr>
+                    <td><b>摘除 nginx-01（LVS 联动）</b><div class="mono" style="color:var(--text-3)">#DP-20479</div></td>
+                    <td><span class="tag c">LVS</span></td><td>prod-lvs</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">2/2</span></div></td>
+                    <td><span class="dot g"></span> <span style="color:var(--success)">成功</span></td>
+                    <td>张伟</td><td class="mono" style="color:var(--text-3)">昨日 22:41</td>
+                  </tr>
+                  <tr>
+                    <td><b>调整 upstream 权重（灰度 10%）</b><div class="mono" style="color:var(--text-3)">#DP-20478</div></td>
+                    <td><span class="tag b">配置</span></td><td>prod-web</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="r" style="width:10%"></i></div><span class="mono">2/24</span></div></td>
+                    <td><span class="dot r"></span> <span style="color:var(--danger)">已中止·已回滚</span></td>
+                    <td>李明</td><td class="mono" style="color:var(--text-3)">昨日 16:07</td>
+                  </tr>
+                  <tr>
+                    <td><b>开启 gzip + Brotli</b><div class="mono" style="color:var(--text-3)">#DP-20477</div></td>
+                    <td><span class="tag b">配置</span></td><td>prod-static</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">12/12</span></div></td>
+                    <td><span class="dot g"></span> <span style="color:var(--success)">成功</span></td>
+                    <td>田昊</td><td class="mono" style="color:var(--text-3)">昨日 14:30</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>待办与告警</h3></div>
+            <div class="card-b" style="display:flex;flex-direction:column;gap:9px">
+              <div class="hint danger" style="cursor:pointer" onclick="go('certs')">
+                <span>🔴</span>
+                <div><b>api.tianhao.tech 证书 6 天后到期</b><br>ACME 自动续期应在 T-20 天触发但未成功，请检查 DNS-01 凭据。</div>
+              </div>
+              <div class="hint warn" style="cursor:pointer" onclick="go('nodes')">
+                <span>🟠</span>
+                <div><b>3 个节点配置漂移</b><br>nginx-01 / nginx-02 / rs-static-08 的配置哈希与期望版本不一致。</div>
+              </div>
+              <div class="hint" style="cursor:pointer" onclick="go('lvs')">
+                <span>🔵</span>
+                <div><b>nginx-01 已摘除待确认</b><br>维护窗口结束后记得重新上线（权重恢复为 10）。</div>
+              </div>
+              <div class="hint warn" style="cursor:pointer" onclick="go('nodes')">
+                <span>🟠</span>
+                <div><b>2 个节点离线</b><br>rs-static-15、rs-static-16 心跳丢失已 12 分钟。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid g2">
+          <div class="card">
+            <div class="card-h"><h3>证书到期时间线</h3><div class="spacer"></div><button class="btn sm" onclick="go('certs')">管理证书</button></div>
+            <div class="card-b">
+              <div style="display:flex;flex-direction:column;gap:11px">
+                <div>
+                  <div style="display:flex;font-size:12px;margin-bottom:5px"><span class="mono">api.tianhao.tech</span><div style="flex:1"></div><span style="color:var(--danger);font-weight:600">6 天</span></div>
+                  <div class="bar"><i class="r" style="width:5%"></i></div>
+                </div>
+                <div>
+                  <div style="display:flex;font-size:12px;margin-bottom:5px"><span class="mono">m.tianhao.tech</span><div style="flex:1"></div><span style="color:var(--warn);font-weight:600">23 天</span></div>
+                  <div class="bar"><i class="y" style="width:19%"></i></div>
+                </div>
+                <div>
+                  <div style="display:flex;font-size:12px;margin-bottom:5px"><span class="mono">shop.tianhao.tech</span><div style="flex:1"></div><span style="color:var(--success);font-weight:600">90 天</span></div>
+                  <div class="bar"><i class="g" style="width:75%"></i></div>
+                </div>
+                <div>
+                  <div style="display:flex;font-size:12px;margin-bottom:5px"><span class="mono">www.tianhao.tech</span><div style="flex:1"></div><span style="color:var(--success);font-weight:600">88 天</span></div>
+                  <div class="bar"><i class="g" style="width:73%"></i></div>
+                </div>
+                <div>
+                  <div style="display:flex;font-size:12px;margin-bottom:5px"><span class="mono">*.static.tianhao.tech</span><div style="flex:1"></div><span style="color:var(--success);font-weight:600">61 天</span></div>
+                  <div class="bar"><i class="g" style="width:51%"></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>集群健康分布</h3></div>
+            <div class="card-b nopad">
+              <table>
+                <thead><tr><th>集群</th><th>节点</th><th>在线率</th><th>配置版本</th><th>漂移</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td><b>prod-web</b><div class="tag" style="margin-top:3px">生产</div></td><td class="num">24</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">24/24</span></div></td>
+                    <td class="mono">v142</td><td><span style="color:var(--danger);font-weight:600">2</span></td><td><span class="dot y"></span> 需关注</td></tr>
+                  <tr><td><b>prod-static</b><div class="tag" style="margin-top:3px">生产</div></td><td class="num">18</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="y" style="width:89%"></i></div><span class="mono">16/18</span></div></td>
+                    <td class="mono">v88</td><td><span style="color:var(--danger);font-weight:600">1</span></td><td><span class="dot r"></span> 异常</td></tr>
+                  <tr><td><b>prod-lvs</b><div class="tag c" style="margin-top:3px">LVS Director</div></td><td class="num">2</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">2/2</span></div></td>
+                    <td class="mono">v31</td><td>0</td><td><span class="dot g"></span> 正常</td></tr>
+                  <tr><td><b>stg-web</b><div class="tag y" style="margin-top:3px">预发</div></td><td class="num">8</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">8/8</span></div></td>
+                    <td class="mono">v57</td><td>0</td><td><span class="dot g"></span> 正常</td></tr>
+                  <tr><td><b>dev-sandbox</b><div class="tag" style="margin-top:3px">开发</div></td><td class="num">34</td>
+                    <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="flex:1"><i class="g" style="width:100%"></i></div><span class="mono">34/34</span></div></td>
+                    <td class="mono">v12</td><td>0</td><td><span class="dot g"></span> 正常</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CLUSTERS ================= -->
+      <section class="view" id="v-clusters">
+        <div class="page-head">
+          <div><h1>集群分组</h1><p>按机房 / 环境 / 业务线组织节点，是配置下发与灰度的最小作用域</p></div>
+          <div class="spacer"></div>
+          <button class="btn">同步 CMDB</button>
+          <button class="btn primary">+ 新建集群</button>
+        </div>
+
+        <div class="grid g3">
+          <div class="card">
+            <div class="card-h"><span class="dot g"></span><h3>prod-web</h3><div class="spacer"></div><span class="tag r">生产</span></div>
+            <div class="card-b" style="padding-top:12px">
+              <div style="display:flex;gap:18px;margin-bottom:12px">
+                <div><div style="font-size:11px;color:var(--text-3)">节点</div><div style="font-size:19px;font-weight:650">24</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">配置版本</div><div style="font-size:19px;font-weight:650" class="mono">v142</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">漂移</div><div style="font-size:19px;font-weight:650;color:var(--danger)">2</div></div>
+              </div>
+              <div style="font-size:11.5px;color:var(--text-2);display:flex;flex-direction:column;gap:5px">
+                <div>机房：<span class="tag">北京-BJP3</span> <span class="tag">上海-SHA1</span></div>
+                <div>负责人：<b>田昊</b></div>
+                <div class="mono">IDC: cn-north-1 · 标签: web,public</div>
+                <div>变量：<code class="inl">worker_processes=auto</code> <code class="inl">upstream_port=8080</code></div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:12px">
+                <button class="btn sm" onclick="go('nodes')">查看节点</button>
+                <button class="btn sm" onclick="go('configs')">配置</button>
+                <button class="btn sm">编辑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="dot y"></span><h3>prod-static</h3><div class="spacer"></div><span class="tag r">生产</span></div>
+            <div class="card-b" style="padding-top:12px">
+              <div style="display:flex;gap:18px;margin-bottom:12px">
+                <div><div style="font-size:11px;color:var(--text-3)">节点</div><div style="font-size:19px;font-weight:650">18</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">配置版本</div><div style="font-size:19px;font-weight:650" class="mono">v88</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">漂移</div><div style="font-size:19px;font-weight:650;color:var(--danger)">1</div></div>
+              </div>
+              <div style="font-size:11.5px;color:var(--text-2);display:flex;flex-direction:column;gap:5px">
+                <div>机房：<span class="tag">广州-CAN2</span></div>
+                <div>负责人：<b>张伟</b></div>
+                <div class="mono">IDC: cn-south-1 · 标签: static,cdn</div>
+                <div>变量：<code class="inl">cache_size=12g</code> <code class="inl">expires=30d</code></div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:12px">
+                <button class="btn sm" onclick="go('nodes')">查看节点</button>
+                <button class="btn sm" onclick="go('configs')">配置</button>
+                <button class="btn sm">编辑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="border-color:#bcd7f5">
+            <div class="card-h" style="background:var(--cyan-soft)"><span class="dot g"></span><h3>prod-lvs</h3><div class="spacer"></div><span class="tag c">LVS Director</span></div>
+            <div class="card-b" style="padding-top:12px">
+              <div style="display:flex;gap:18px;margin-bottom:12px">
+                <div><div style="font-size:11px;color:var(--text-3)">Director</div><div style="font-size:19px;font-weight:650">2</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">VIP</div><div style="font-size:19px;font-weight:650">4</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">RS</div><div style="font-size:19px;font-weight:650">42</div></div>
+              </div>
+              <div style="font-size:11.5px;color:var(--text-2);display:flex;flex-direction:column;gap:5px">
+                <div>模式：<span class="tag c">DR（直接路由）</span></div>
+                <div>主备：<b>lvs-dir-01</b>(MASTER) / <b>lvs-dir-02</b>(BACKUP)</div>
+                <div class="mono">scheduler: wlc · persist: 300s</div>
+                <div>变量：<code class="inl">vrrp_priority=110/100</code></div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:12px">
+                <button class="btn sm primary" onclick="go('lvs')">LVS 拓扑</button>
+                <button class="btn sm">编辑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="dot g"></span><h3>stg-web</h3><div class="spacer"></div><span class="tag y">预发</span></div>
+            <div class="card-b" style="padding-top:12px">
+              <div style="display:flex;gap:18px;margin-bottom:12px">
+                <div><div style="font-size:11px;color:var(--text-3)">节点</div><div style="font-size:19px;font-weight:650">8</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">配置版本</div><div style="font-size:19px;font-weight:650" class="mono">v57</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">漂移</div><div style="font-size:19px;font-weight:650">0</div></div>
+              </div>
+              <div style="font-size:11.5px;color:var(--text-2);display:flex;flex-direction:column;gap:5px">
+                <div>机房：<span class="tag">北京-BJP3</span></div>
+                <div>负责人：<b>李明</b></div>
+                <div class="mono">IDC: cn-north-1 · 标签: web,staging</div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:12px">
+                <button class="btn sm" onclick="go('nodes')">查看节点</button>
+                <button class="btn sm">编辑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="dot g"></span><h3>dev-sandbox</h3><div class="spacer"></div><span class="tag">开发</span></div>
+            <div class="card-b" style="padding-top:12px">
+              <div style="display:flex;gap:18px;margin-bottom:12px">
+                <div><div style="font-size:11px;color:var(--text-3)">节点</div><div style="font-size:19px;font-weight:650">34</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">配置版本</div><div style="font-size:19px;font-weight:650" class="mono">v12</div></div>
+                <div><div style="font-size:11px;color:var(--text-3)">漂移</div><div style="font-size:19px;font-weight:650">0</div></div>
+              </div>
+              <div style="font-size:11.5px;color:var(--text-2);display:flex;flex-direction:column;gap:5px">
+                <div>机房：<span class="tag">本地/云上混合</span></div>
+                <div>负责人：<b>开发者自助</b></div>
+                <div class="mono">标签: dev,sandbox · 免审批</div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:12px">
+                <button class="btn sm" onclick="go('nodes')">查看节点</button>
+                <button class="btn sm">编辑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="border-style:dashed;background:var(--panel-2);box-shadow:none;display:grid;place-items:center;min-height:190px;cursor:pointer">
+            <div style="text-align:center;color:var(--text-3)">
+              <div style="font-size:24px;margin-bottom:6px">＋</div>
+              <div style="font-size:12.5px">新建集群</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= NODES ================= -->
+      <section class="view" id="v-nodes">
+        <div class="page-head">
+          <div><h1>节点管理</h1><p>86 个纳管节点 · 84 在线 · 2 离线 · 3 漂移</p></div>
+          <div class="spacer"></div>
+          <button class="btn">批量操作 ▾</button>
+          <button class="btn primary">+ 纳管节点</button>
+        </div>
+
+        <div class="hint" style="margin-bottom:12px">
+          <span>🛰️</span>
+          <div><b>节点接入</b>：控制台生成一次性令牌，目标机器执行一条命令即可纳管——
+          <code class="inl">curl -fsSL https://ngxcp/api/v1/enroll.sh | NGXCP_TOKEN=xxx sh -</code>
+          Agent 主动外连（mTLS），控制面无需 SSH 到节点，跨机房 / NAT 场景友好。</div>
+        </div>
+
+        <div class="filters">
+          <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="搜索主机名 / IP"></div>
+          <select><option>全部集群</option><option>prod-web</option><option>prod-static</option><option>prod-lvs</option><option>stg-web</option></select>
+          <select><option>全部状态</option><option>在线</option><option>离线</option><option>配置漂移</option></select>
+          <select><option>全部 Nginx 版本</option><option>1.24.0</option><option>1.22.1</option><option>1.20.2</option></select>
+          <div style="flex:1"></div>
+          <button class="btn sm">全选</button>
+          <button class="btn sm" onclick="doTest()">nginx -t</button>
+          <button class="btn sm">reload</button>
+        </div>
+
+        <div class="card">
+          <div class="card-b nopad">
+            <table>
+              <thead><tr>
+                <th style="width:32px"><input type="checkbox"></th>
+                <th>主机</th><th>集群</th><th>Nginx</th><th>状态</th><th>配置</th>
+                <th>连接数</th><th>CPU</th><th>Agent</th><th>DR 合规</th><th>操作</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox"></td>
+                  <td><b class="mono">nginx-01</b><div class="mono" style="color:var(--text-3)">10.20.1.11</div></td>
+                  <td><span class="tag b">prod-web</span></td><td class="mono">1.24.0</td>
+                  <td><span class="dot g"></span> 在线</td>
+                  <td><span class="mono">v142</span> <span class="tag g">一致</span></td>
+                  <td class="num mono">1,284</td>
+                  <td><div class="bar" style="width:44px"><i class="g" style="width:38%"></i></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">38%</span></td>
+                  <td class="mono">v0.1.4</td>
+                  <td><span class="tag g">✓ 通过</span></td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox"></td>
+                  <td><b class="mono">nginx-02</b><div class="mono" style="color:var(--text-3)">10.20.1.12</div></td>
+                  <td><span class="tag b">prod-web</span></td><td class="mono">1.24.0</td>
+                  <td><span class="dot g"></span> 在线</td>
+                  <td><span class="mono">v142</span> <span class="tag g">一致</span></td>
+                  <td class="num mono">1,197</td>
+                  <td><div class="bar" style="width:44px"><i class="g" style="width:41%"></i></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">41%</span></td>
+                  <td class="mono">v0.1.4</td>
+                  <td><span class="tag g">✓ 通过</span></td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr style="background:#fffbf7">
+                  <td><input type="checkbox"></td>
+                  <td><b class="mono">nginx-01</b><div class="mono" style="color:var(--text-3)">10.20.1.51</div></td>
+                  <td><span class="tag b">prod-web</span></td><td class="mono">1.22.1</td>
+                  <td><span class="dot g"></span> 在线</td>
+                  <td><span class="mono">v139</span> <span class="tag r">漂移</span></td>
+                  <td class="num mono">892</td>
+                  <td><div class="bar" style="width:44px"><i class="y" style="width:64%"></i></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">64%</span></td>
+                  <td class="mono">v0.1.4</td>
+                  <td><span class="tag g">✓ 通过</span></td>
+                  <td><button class="btn sm ghost-danger">修复漂移</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox"></td>
+                  <td><b class="mono">nginx-01</b><div class="mono" style="color:var(--text-3)">10.20.1.47</div></td>
+                  <td><span class="tag b">prod-web</span></td><td class="mono">1.24.0</td>
+                  <td><span class="dot y"></span> 在线·已摘除</td>
+                  <td><span class="mono">v142</span> <span class="tag g">一致</span></td>
+                  <td class="num mono">0</td>
+                  <td><div class="bar" style="width:44px"><i class="g" style="width:6%"></i></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">6%</span></td>
+                  <td class="mono">v0.1.4</td>
+                  <td><span class="tag g">✓ 通过</span></td>
+                  <td><button class="btn sm">恢复上线</button></td>
+                </tr>
+                <tr style="background:#fffbf7;opacity:.75">
+                  <td><input type="checkbox"></td>
+                  <td><b class="mono">rs-static-15</b><div class="mono" style="color:var(--text-3)">10.30.2.15</div></td>
+                  <td><span class="tag b">prod-static</span></td><td class="mono">1.20.2</td>
+                  <td><span class="dot r"></span> 离线 <span style="color:var(--text-3);font-size:11px">12m</span></td>
+                  <td><span class="mono">v86</span> <span class="tag">未知</span></td>
+                  <td class="num mono">—</td>
+                  <td>—</td>
+                  <td class="mono">v0.1.3</td>
+                  <td><span class="tag">—</span></td>
+                  <td><button class="btn sm">排查</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox"></td>
+                  <td><b class="mono">lvs-dir-01</b><div class="mono" style="color:var(--text-3)">10.20.0.2</div></td>
+                  <td><span class="tag c">prod-lvs</span></td><td class="mono">—</td>
+                  <td><span class="dot g"></span> 在线</td>
+                  <td><span class="mono">v31</span> <span class="tag g">一致</span></td>
+                  <td class="num mono">ipvs · 42 RS</td>
+                  <td><div class="bar" style="width:44px"><i class="g" style="width:22%"></i></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">22%</span></td>
+                  <td class="mono">v0.1.4</td>
+                  <td><span class="tag c">MASTER</span></td>
+                  <td><button class="btn sm" onclick="go('lvs')">LVS</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="padding:10px 14px;border-top:1px solid var(--border-2);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)">
+            共 86 条 · 每页 20 条
+            <div style="flex:1"></div>
+            <button class="btn sm" disabled>上一页</button>
+            <button class="btn sm primary">1</button>
+            <button class="btn sm">2</button><button class="btn sm">3</button><button class="btn sm">…</button><button class="btn sm">5</button>
+            <button class="btn sm">下一页</button>
+          </div>
+        </div>
+      </section>
+      <!-- ================= CONFIGS ================= -->
+      <section class="view" id="v-configs">
+        <div class="page-head">
+          <div><h1>配置中心</h1><p>配置以「模板 + 三级变量」集中定义，节点只消费渲染结果 · 保存即生成版本，不影响线上</p></div>
+          <div class="spacer"></div>
+          <button class="btn" onclick="runValidate()">校验</button>
+          <button class="btn">版本历史</button>
+          <button class="btn primary" onclick="openDeployWizard()">保存并发布</button>
+        </div>
+
+        <div class="grid" style="grid-template-columns:216px 1fr 268px;gap:14px;align-items:start">
+
+          <div class="card">
+            <div class="card-h"><h3>配置文件</h3><div class="spacer"></div><button class="btn sm">＋</button></div>
+            <div class="card-b" style="padding:8px">
+              <div style="font-size:11px;color:var(--text-3);padding:4px 8px;letter-spacing:.5px">全局（global）</div>
+              <div class="tree-item" onclick="pickFile(this,'nginx.conf')"><span>📄</span> nginx.conf</div>
+              <div class="tree-item" onclick="pickFile(this,'mime.types')"><span>📄</span> mime.types</div>
+              <div style="font-size:11px;color:var(--text-3);padding:8px 8px 4px;letter-spacing:.5px">prod-web（24 节点）</div>
+              <div class="tree-item" onclick="pickFile(this,'conf.d/tianhao.tech.conf')"><span>📄</span> tianhao.tech.conf</div>
+              <div class="tree-item on" onclick="pickFile(this,'conf.d/api-gateway.conf')"><span>📄</span> api-gateway.conf <span class="tag b" style="margin-left:auto">模板</span></div>
+              <div class="tree-item" onclick="pickFile(this,'conf.d/upstream.conf')"><span>📄</span> upstream.conf <span class="tag b" style="margin-left:auto">模板</span></div>
+              <div class="tree-item" onclick="pickFile(this,'conf.d/ssl.conf')"><span>📄</span> ssl.conf</div>
+              <div style="font-size:11px;color:var(--text-3);padding:8px 8px 4px;letter-spacing:.5px">prod-lvs（2 Director）</div>
+              <div class="tree-item" onclick="pickFile(this,'keepalived.conf')"><span>📄</span> keepalived.conf <span class="tag b" style="margin-left:auto">模板</span></div>
+              <div class="tree-item" onclick="pickFile(this,'ipvs.rules')"><span>📄</span> ipvs.rules</div>
+              <div style="font-size:11px;color:var(--text-3);padding:8px 8px 4px;letter-spacing:.5px">模板仓库</div>
+              <div class="tree-item"><span>🧩</span> Snippets <span class="tag" style="margin-left:auto">12</span></div>
+              <div class="tree-item"><span>🔧</span> 变量管理</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <span class="mono" style="font-size:12.5px">conf.d/api-gateway.conf</span>
+              <span class="tag b">模板</span>
+              <span class="tag">v142</span>
+              <div class="spacer"></div>
+              <span class="sub">上次修改：田昊 · 08:05</span>
+              <button class="btn sm">渲染预览</button>
+            </div>
+            <div class="card-b nopad">
+              <div class="editor" id="editor">
+                <div class="ed-gutter" id="gutter"></div>
+                <pre class="ed-code" id="edcode"></pre>
+              </div>
+              <div class="validate-panel" id="vpanel">
+                <div class="vp-head">
+                  <span><b style="color:var(--success)">✓ 语法校验通过</b> · nginx -t（在 24 个节点本地沙箱执行）</span>
+                  <div style="flex:1"></div>
+                  <span class="tag g">24/24 通过</span>
+                  <span class="tag y">2 条语义警告</span>
+                </div>
+                <div class="vp-body">
+                  <div class="vp-line"><span class="tag y">警告</span> <span class="mono">L18</span> <code class="inl">proxy_pass http://backend</code> 尾部缺少 <code class="inl">/</code>，URI 拼接可能与预期不符</div>
+                  <div class="vp-line"><span class="tag y">警告</span> <span class="mono">L31</span> 未配置 <code class="inl">proxy_next_upstream</code>，单台后端 502 时会直接返回错误</div>
+                  <div class="vp-line"><span class="tag g">通过</span> <span class="mono">—</span> upstream 引用存在、证书路径存在、无端口冲突、无重复 server_name</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-h"><h3>版本历史</h3><div class="spacer"></div><span class="sub">Git</span></div>
+              <div class="card-b nopad">
+                <div class="ver-item on">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="tag b">v142</span><span class="tag g">当前</span>
+                    <div style="flex:1"></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">08:05</span>
+                  </div>
+                  <div style="font-size:11.5px;color:var(--text-2);margin-top:3px">新增 /api/v2 路由到 backend-v2</div>
+                  <div style="font-size:11px;color:var(--text-3);margin-top:2px">田昊 · <span class="mono">a3f9c21</span></div>
+                </div>
+                <div class="ver-item">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="tag">v141</span>
+                    <div style="flex:1"></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">昨日 19:22</span>
+                  </div>
+                  <div style="font-size:11.5px;color:var(--text-2);margin-top:3px">调整 keepalive_timeout 至 65s</div>
+                  <div style="font-size:11px;color:var(--text-3);margin-top:2px">张伟 · <span class="mono">7b1e4d0</span></div>
+                </div>
+                <div class="ver-item">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="tag">v140</span>
+                    <div style="flex:1"></div><span class="mono" style="font-size:10.5px;color:var(--text-3)">9 月 1 日</span>
+                  </div>
+                  <div style="font-size:11.5px;color:var(--text-2);margin-top:3px">开启 HTTP/2</div>
+                  <div style="font-size:11px;color:var(--text-3);margin-top:2px">田昊 · <span class="mono">c02af55</span></div>
+                </div>
+                <div style="padding:10px 14px;display:flex;gap:6px">
+                  <button class="btn sm" style="flex:1">对比 Diff</button>
+                  <button class="btn sm" style="flex:1">回滚到…</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h3>变量（三级覆盖）</h3></div>
+              <div class="card-b" style="padding:10px 14px;font-size:11.5px">
+                <div style="color:var(--text-3);font-size:10.5px;letter-spacing:.4px;margin-bottom:5px">节点级（最高优先级）</div>
+                <div class="kv"><code class="inl">weight</code><span>=</span><b>10</b></div>
+                <div style="color:var(--text-3);font-size:10.5px;letter-spacing:.4px;margin:9px 0 5px">集群级 · prod-web</div>
+                <div class="kv"><code class="inl">upstream_port</code><span>=</span><b>8080</b></div>
+                <div class="kv"><code class="inl">worker_processes</code><span>=</span><b>auto</b></div>
+                <div style="color:var(--text-3);font-size:10.5px;letter-spacing:.4px;margin:9px 0 5px">全局</div>
+                <div class="kv"><code class="inl">keepalive</code><span>=</span><b>64</b></div>
+                <div class="kv"><code class="inl">client_max_body</code><span>=</span><b>20m</b></div>
+                <div style="margin-top:10px"><button class="btn sm" style="width:100%">编辑变量</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= DEPLOY ================= -->
+      <section class="view" id="v-deploy">
+        <div class="page-head">
+          <div><h1>发布任务</h1><p>所有变更必须走这条流水线：备份 → 下发 → 校验 → reload → 探活 → 观测</p></div>
+          <div class="spacer"></div>
+          <button class="btn">定时发布</button>
+          <button class="btn primary" onclick="openDeployWizard()">+ 新建发布</button>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:14px">
+          <div class="stat"><div class="lbl">进行中</div><div class="val" style="color:var(--primary)">1</div><div class="sub">批次 2/3 · 观测中</div></div>
+          <div class="stat"><div class="lbl">待审批</div><div class="val" style="color:var(--warn)">2</div><div class="sub">生产环境需 Leader 审批</div></div>
+          <div class="stat"><div class="lbl">今日成功</div><div class="val" style="color:var(--success)">7</div><div class="sub">涉及 56 个节点</div></div>
+          <div class="stat"><div class="lbl">今日回滚</div><div class="val">0</div><div class="sub">自动回滚触发 1 次（已恢复）</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px;border-color:#bcd7f5">
+          <div class="card-h" style="background:var(--primary-soft)">
+            <span class="dot" style="background:var(--primary);animation:pulse 1.4s infinite"></span>
+            <h3>#DP-20482 · 全站开启 HTTP/3 (QUIC)</h3>
+            <span class="tag b">运行中</span>
+            <div class="spacer"></div>
+            <button class="btn sm" onclick="toggleRun()">暂停</button>
+            <button class="btn sm ghost-danger" onclick="stopRun()">中止并回滚</button>
+          </div>
+          <div class="card-b">
+            <div style="display:flex;gap:20px;font-size:12px;color:var(--text-2);margin-bottom:12px;flex-wrap:wrap">
+              <span>类型：<b>配置</b></span><span>集群：<b>prod-web</b></span>
+              <span>灰度：<b>10% → 50% → 100%</b></span><span>操作人：<b>田昊</b></span>
+              <span>开始：<b class="mono">08:31:02</b></span><span>已用时：<b class="mono" id="elapsed">03:47</b></span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div class="batch done">
+                <div class="b-head"><span class="b-idx">批次 1</span><span class="tag">10% · 3 节点</span><div style="flex:1"></div><span class="tag g">✓ 已完成 · 观测通过</span><span class="mono" style="font-size:11px;color:var(--text-3)">用时 24s</span></div>
+                <div class="b-nodes">
+                  <span class="node-pill ok">nginx-01</span><span class="node-pill ok">nginx-02</span><span class="node-pill ok">nginx-01</span>
+                </div>
+              </div>
+
+              <div class="batch running">
+                <div class="b-head"><span class="b-idx">批次 2</span><span class="tag">50% · 12 节点</span><div style="flex:1"></div><span class="tag b" id="b2state">执行中 7/12</span><span class="mono" style="font-size:11px;color:var(--text-3)">观测窗口 60s</span></div>
+                <div class="b-nodes">
+                  <span class="node-pill ok">nginx-02</span><span class="node-pill ok">nginx-01</span><span class="node-pill ok">nginx-02</span>
+                  <span class="node-pill ok">nginx-01</span><span class="node-pill ok">nginx-02</span><span class="node-pill ok">nginx-01</span>
+                  <span class="node-pill run" id="liveNode">nginx-02 · reload</span>
+                  <span class="node-pill pending">nginx-01</span><span class="node-pill pending">nginx-02</span>
+                  <span class="node-pill pending">nginx-01</span><span class="node-pill pending">nginx-02</span>
+                  <span class="node-pill pending">nginx-01</span>
+                </div>
+                <div class="b-steps" id="steps">
+                  <div class="st done">备份 <span>320ms</span></div><div class="st done">下发 <span>180ms</span></div>
+                  <div class="st done">nginx -t <span>620ms</span></div><div class="st act">reload</div>
+                  <div class="st">探活</div><div class="st">校验 hash</div>
+                </div>
+              </div>
+
+              <div class="batch pending">
+                <div class="b-head"><span class="b-idx">批次 3</span><span class="tag">100% · 9 节点</span><div style="flex:1"></div><span class="tag">等待中</span></div>
+                <div class="b-nodes">
+                  <span class="node-pill pending">nginx-02</span><span class="node-pill pending">nginx-01</span>
+                  <span class="node-pill pending">nginx-02</span><span class="node-pill pending">nginx-01</span>
+                  <span class="node-pill pending">+5 个节点</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="hint" style="margin-top:12px">
+              <span>📊</span>
+              <div><b>发布期观测</b>：批次 1 完成后 QPS 3,412 → 3,388（-0.7%），5xx 率 0.02% → 0.03%，P99 118ms → 121ms，
+              指标平稳，自动放行批次 2。若 5xx 率上升超过 1% 将自动中止并回滚。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>历史任务</h3><div class="spacer"></div>
+            <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="搜索任务 / 编号"></div>
+            <select><option>全部类型</option><option>配置</option><option>证书</option><option>LVS</option><option>回滚</option></select>
+          </div>
+          <div class="card-b nopad">
+            <table>
+              <thead><tr><th>任务</th><th>类型</th><th>集群</th><th>范围</th><th>进度</th><th>状态</th><th>操作人</th><th>耗时</th><th>时间</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><b>新增 api-gateway 反代配置</b><div class="mono" style="color:var(--text-3)">#DP-20481</div></td>
+                  <td><span class="tag b">配置</span></td><td>prod-web</td><td class="mono">24 节点</td>
+                  <td><div class="bar" style="width:70px"><i class="g" style="width:100%"></i></div></td>
+                  <td><span class="tag g">成功</span></td><td>田昊</td><td class="mono">1m 52s</td><td class="mono" style="color:var(--text-3)">08:12</td>
+                  <td><button class="btn sm">回滚</button></td>
+                </tr>
+                <tr>
+                  <td><b>shop.tianhao.tech 证书续期</b><div class="mono" style="color:var(--text-3)">#DP-20480</div></td>
+                  <td><span class="tag p">证书</span></td><td>prod-web</td><td class="mono">18 节点</td>
+                  <td><div class="bar" style="width:70px"><i class="g" style="width:100%"></i></div></td>
+                  <td><span class="tag g">成功</span></td><td>自动任务</td><td class="mono">46s</td><td class="mono" style="color:var(--text-3)">03:00</td>
+                  <td><button class="btn sm">回滚</button></td>
+                </tr>
+                <tr>
+                  <td><b>摘除 nginx-01（LVS 联动）</b><div class="mono" style="color:var(--text-3)">#DP-20479</div></td>
+                  <td><span class="tag c">LVS</span></td><td>prod-lvs</td><td class="mono">2 Director</td>
+                  <td><div class="bar" style="width:70px"><i class="g" style="width:100%"></i></div></td>
+                  <td><span class="tag g">成功</span></td><td>张伟</td><td class="mono">12s</td><td class="mono" style="color:var(--text-3)">昨日 22:41</td>
+                  <td><button class="btn sm">回滚</button></td>
+                </tr>
+                <tr style="background:#fffafa">
+                  <td><b>调整 upstream 权重（灰度 10%）</b><div class="mono" style="color:var(--text-3)">#DP-20478</div></td>
+                  <td><span class="tag b">配置</span></td><td>prod-web</td><td class="mono">24 节点</td>
+                  <td><div class="bar" style="width:70px"><i class="r" style="width:10%"></i></div></td>
+                  <td><span class="tag r">中止·已回滚</span></td><td>李明</td><td class="mono">38s</td><td class="mono" style="color:var(--text-3)">昨日 16:07</td>
+                  <td><button class="btn sm">查看</button></td>
+                </tr>
+                <tr>
+                  <td><b>开启 gzip + Brotli</b><div class="mono" style="color:var(--text-3)">#DP-20477</div></td>
+                  <td><span class="tag b">配置</span></td><td>prod-static</td><td class="mono">18 节点</td>
+                  <td><div class="bar" style="width:70px"><i class="g" style="width:100%"></i></div></td>
+                  <td><span class="tag g">成功</span></td><td>田昊</td><td class="mono">2m 10s</td><td class="mono" style="color:var(--text-3)">昨日 14:30</td>
+                  <td><button class="btn sm">回滚</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= BACKUP ================= -->
+      <section class="view" id="v-backup">
+        <div class="page-head">
+          <div><h1>备份与恢复</h1><p>每次发布前自动快照 · 支持按节点 / 按集群一键恢复到任意历史快照</p></div>
+          <div class="spacer"></div>
+          <button class="btn">保留策略</button>
+          <button class="btn primary">立即创建快照</button>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:14px">
+          <div class="stat"><div class="lbl">快照总数</div><div class="val">1,284</div><div class="sub">占用 <b>4.2 GB</b></div></div>
+          <div class="stat"><div class="lbl">自动快照</div><div class="val">1,190</div><div class="sub">发布前触发</div></div>
+          <div class="stat"><div class="lbl">手动快照</div><div class="val">94</div><div class="sub">运维主动创建</div></div>
+          <div class="stat"><div class="lbl">最近恢复</div><div class="val" style="font-size:19px;padding-top:6px">昨日 16:08</div><div class="sub">#DP-20478 自动回滚</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>快照列表</h3><div class="spacer"></div>
+            <select><option>全部集群</option><option>prod-web</option><option>prod-static</option><option>prod-lvs</option></select>
+            <select><option>全部类型</option><option>发布前自动</option><option>手动</option><option>定时</option></select>
+          </div>
+          <div class="card-b nopad">
+            <table>
+              <thead><tr><th>快照 ID</th><th>类型</th><th>范围</th><th>大小</th><th>关联任务</th><th>创建时间</th><th>保留至</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="mono">snap-20260903-083102</td>
+                  <td><span class="tag b">发布前</span></td><td>prod-web · 2 节点</td><td class="mono">84.2 MB</td>
+                  <td class="mono">#DP-20482</td><td class="mono">09-03 08:31</td><td class="mono" style="color:var(--text-3)">12-02</td>
+                  <td><button class="btn sm">恢复</button> <button class="btn sm">下载</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">snap-20260903-081152</td>
+                  <td><span class="tag b">发布前</span></td><td>prod-web · 2 节点</td><td class="mono">84.1 MB</td>
+                  <td class="mono">#DP-20481</td><td class="mono">09-03 08:11</td><td class="mono" style="color:var(--text-3)">12-02</td>
+                  <td><button class="btn sm">恢复</button> <button class="btn sm">下载</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">snap-20260903-030004</td>
+                  <td><span class="tag p">发布前</span></td><td>prod-web · 18 节点</td><td class="mono">62.8 MB</td>
+                  <td class="mono">#DP-20480</td><td class="mono">09-03 03:00</td><td class="mono" style="color:var(--text-3)">12-02</td>
+                  <td><button class="btn sm">恢复</button> <button class="btn sm">下载</button></td>
+                </tr>
+                <tr style="background:#fffbf7">
+                  <td class="mono">snap-20260902-224108</td>
+                  <td><span class="tag c">发布前</span></td><td>prod-lvs · 2 Director</td><td class="mono">1.1 MB</td>
+                  <td class="mono">#DP-20479</td><td class="mono">09-02 22:41</td><td class="mono" style="color:var(--text-3)">12-01</td>
+                  <td><button class="btn sm ghost-danger">恢复（已用于回滚）</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">snap-20260902-150000</td>
+                  <td><span class="tag g">定时</span></td><td>全部集群 · 86 节点</td><td class="mono">312 MB</td>
+                  <td>—</td><td class="mono">09-02 15:00</td><td class="mono" style="color:var(--text-3)">永久</td>
+                  <td><button class="btn sm">恢复</button> <button class="btn sm">下载</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">snap-20260902-140512</td>
+                  <td><span class="tag">手动</span></td><td>prod-static · 18 节点</td><td class="mono">71.4 MB</td>
+                  <td>—</td><td class="mono">09-02 14:05</td><td class="mono" style="color:var(--text-3)">永久</td>
+                  <td><button class="btn sm">恢复</button> <button class="btn sm">下载</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="hint" style="margin-top:12px">
+          <span>🛟</span>
+          <div><b>恢复流程</b>：选择快照 → 选择恢复范围（单节点 / 集群 / 自定义）→ 平台自动走标准发布流水线（下发 → <code class="inl">nginx -t</code> → reload → 探活），
+          恢复过程同样可灰度、可观测、可再回滚。<b>目标 SLA：100 节点内 ≤ 60 秒全部生效。</b></div>
+        </div>
+      </section>
+
+      <!-- ================= CERTS ================= -->
+      <section class="view" id="v-certs">
+        <div class="page-head">
+          <div><h1>证书管理</h1><p>集中签发（ACME）→ 加密存储 → 分发 → 自动续期 → 到期告警 · 全生命周期</p></div>
+          <div class="spacer"></div>
+          <button class="btn">上传证书</button>
+          <button class="btn primary">+ ACME 申请</button>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:14px">
+          <div class="stat"><div class="lbl">纳管证书</div><div class="val">18</div><div class="sub">覆盖 <b>27</b> 个域名</div></div>
+          <div class="stat bad"><div class="lbl">7 天内到期</div><div class="val">1</div><div class="sub">api.tianhao.tech · 需人工介入</div></div>
+          <div class="stat warn"><div class="lbl">30 天内到期</div><div class="val">1</div><div class="sub">m.tianhao.tech</div></div>
+          <div class="stat ok"><div class="lbl">自动续期</div><div class="val">16</div><div class="sub">T-20 天自动触发</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><h3>证书清单</h3><div class="spacer"></div>
+            <select><option>全部状态</option><option>正常</option><option>临期</option><option>已过期</option></select>
+            <select><option>全部签发者</option><option>Let's Encrypt</option><option>ZeroSSL</option><option>手动上传</option></select>
+          </div>
+          <div class="card-b nopad">
+            <table>
+              <thead><tr><th>域名</th><th>签发者</th><th>到期</th><th>剩余</th><th>密钥算法</th><th>绑定集群</th><th>自动续期</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr style="background:#fffafa">
+                  <td><b class="mono">api.tianhao.tech</b><div class="mono" style="font-size:11px;color:var(--text-3)">SAN: *.api.tianhao.tech</div></td>
+                  <td>Let's Encrypt</td><td class="mono">2026-09-09</td>
+                  <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:52px"><i class="r" style="width:7%"></i></div><b style="color:var(--danger)">6 天</b></div></td>
+                  <td class="mono">ECDSA P-256</td><td><span class="tag b">prod-web</span></td>
+                  <td><span class="tag r">续期失败 ×2</span></td>
+                  <td><span class="dot r"></span> <b style="color:var(--danger)">危险</b></td>
+                  <td><button class="btn sm primary">立即续期</button> <button class="btn sm">排查</button></td>
+                </tr>
+                <tr style="background:#fffdf7">
+                  <td><b class="mono">m.tianhao.tech</b></td>
+                  <td>Let's Encrypt</td><td class="mono">2026-09-26</td>
+                  <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:52px"><i class="y" style="width:26%"></i></div><b style="color:var(--warn)">23 天</b></div></td>
+                  <td class="mono">RSA 2048</td><td><span class="tag b">prod-web</span></td>
+                  <td><span class="tag g">已开启</span></td>
+                  <td><span class="dot y"></span> 即将续期</td>
+                  <td><button class="btn sm">立即续期</button> <button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td><b class="mono">shop.tianhao.tech</b></td>
+                  <td>Let's Encrypt</td><td class="mono">2026-12-02</td>
+                  <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:52px"><i class="g" style="width:75%"></i></div><span>90 天</span></div></td>
+                  <td class="mono">ECDSA P-256</td><td><span class="tag b">prod-web</span></td>
+                  <td><span class="tag g">已开启</span></td>
+                  <td><span class="dot g"></span> 正常</td>
+                  <td><button class="btn sm">分发</button> <button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td><b class="mono">www.tianhao.tech</b><div class="mono" style="font-size:11px;color:var(--text-3)">SAN: tianhao.tech</div></td>
+                  <td>Let's Encrypt</td><td class="mono">2026-11-30</td>
+                  <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:52px"><i class="g" style="width:73%"></i></div><span>88 天</span></div></td>
+                  <td class="mono">ECDSA P-256</td><td><span class="tag b">prod-web</span></td>
+                  <td><span class="tag g">已开启</span></td>
+                  <td><span class="dot g"></span> 正常</td>
+                  <td><button class="btn sm">分发</button> <button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td><b class="mono">*.static.tianhao.tech</b><div class="mono" style="font-size:11px;color:var(--text-3)">通配符 · DNS-01</div></td>
+                  <td>ZeroSSL</td><td class="mono">2026-11-03</td>
+                  <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:52px"><i class="g" style="width:51%"></i></div><span>61 天</span></div></td>
+                  <td class="mono">RSA 4096</td><td><span class="tag b">prod-static</span></td>
+                  <td><span class="tag g">已开启</span></td>
+                  <td><span class="dot g"></span> 正常</td>
+                  <td><button class="btn sm">分发</button> <button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td><b class="mono">internal-ca-vpn</b><div class="mono" style="font-size:11px;color:var(--text-3)">内网自签</div></td>
+                  <td>手动上传</td><td class="mono">2027-03-15</td>
+                  <td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:52px"><i class="g" style="width:95%"></i></div><span>193 天</span></div></td>
+                  <td class="mono">RSA 2048</td><td><span class="tag">dev-sandbox</span></td>
+                  <td><span class="tag">关闭</span></td>
+                  <td><span class="dot g"></span> 正常</td>
+                  <td><button class="btn sm">分发</button> <button class="btn sm">详情</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid g2">
+          <div class="card">
+            <div class="card-h"><h3>续期任务日志</h3></div>
+            <div class="card-b" style="padding:12px 16px;font-size:12px;display:flex;flex-direction:column;gap:8px">
+              <div class="log-line"><span class="mono" style="color:var(--text-3)">09-03 03:00:04</span> <span class="tag g">成功</span> shop.tianhao.tech 自动续期完成（T-21 天触发）</div>
+              <div class="log-line"><span class="mono" style="color:var(--text-3)">09-03 03:00:41</span> <span class="tag g">成功</span> 证书已分发至 prod-web 18 节点并 reload</div>
+              <div class="log-line"><span class="mono" style="color:var(--text-3)">09-03 03:01:12</span> <span class="tag r">失败</span> api.tianhao.tech · DNS-01 挑战超时（第 2 次重试）</div>
+              <div class="log-line"><span class="mono" style="color:var(--text-3)">09-03 03:01:12</span> <span class="tag r">失败</span> 错误：<code class="inl">acme: error presenting token: DNSPod API 401 Unauthorized</code></div>
+              <div class="log-line"><span class="mono" style="color:var(--text-3)">09-03 03:01:13</span> <span class="tag y">告警</span> 已推送钉钉 &amp; 邮件至负责人（田昊）</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>ACME 配置</h3></div>
+            <div class="card-b" style="padding:12px 16px;font-size:12px">
+              <div class="cfg-row"><span>CA 服务商</span><b>Let's Encrypt</b></div>
+              <div class="cfg-row"><span>挑战方式</span><b>DNS-01（推荐）</b> <span class="tag">支持通配符</span></div>
+              <div class="cfg-row"><span>DNS 插件</span><b>腾讯云 DNSPod</b> <span class="tag r">凭据失效</span></div>
+              <div class="cfg-row"><span>备用方式</span>HTTP-01（临时 location 自动下发）</div>
+              <div class="cfg-row"><span>自动续期</span><b>到期前 20 天</b> · 每日 03:00 扫描</div>
+              <div class="cfg-row"><span>失败重试</span>3 次，间隔 1 小时</div>
+              <div class="cfg-row"><span>私钥存储</span>AES-256-GCM 加密 · 不下发到浏览器</div>
+              <div style="margin-top:10px;display:flex;gap:6px">
+                <button class="btn sm primary">更新 DNS 凭据</button>
+                <button class="btn sm">测试挑战</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= LVS ================= -->
+      <section class="view" id="v-lvs">
+        <div class="page-head">
+          <div><h1>LVS 管理</h1><p>Keepalived 主备 + LVS-DR · 2 Director / 1 VIP / 2 RealServer · 与 Nginx 配置共享同一条发布流水线</p></div>
+          <div class="spacer"></div>
+          <button class="btn">DR 合规自检</button>
+          <button class="btn primary">下发 LVS 变更</button>
+        </div>
+
+                <div class="grid g4" style="margin-bottom:14px">
+          <div class="stat"><div class="lbl">Director</div><div class="val">2</div><div class="sub">主备正常 · VRRP ID 51 · 单播</div></div>
+          <div class="stat"><div class="lbl">VIP</div><div class="val">1</div><div class="sub">2 个虚拟服务（:80 :443）</div></div>
+          <div class="stat ok"><div class="lbl">RealServer</div><div class="val">2</div><div class="sub"><b>2</b> 在服 · <b>0</b> 摘除</div></div>
+          <div class="stat ok"><div class="lbl">DR 合规</div><div class="val">2<span style="font-size:15px;color:var(--text-3)">/2</span></div><div class="sub">6 项硬约束全部通过</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><h3>链路拓扑</h3><div class="spacer"></div><span class="tag c">DR 模式</span><span class="sub">请求经 Director 调度 · 回包由 RS 直返客户端</span></div>
+          <div class="card-b" style="padding:8px 16px 16px">
+            <svg viewBox="0 0 980 340" style="width:100%;height:auto">
+              <defs>
+                <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#98a2b3"/>
+                </marker>
+                <marker id="arb" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#2563eb"/>
+                </marker>
+                <marker id="arg" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#0b7a45"/>
+                </marker>
+              </defs>
+
+              <!-- 客户端 -->
+              <rect x="10" y="140" width="100" height="60" rx="10" fill="#f4f6f9" stroke="#e4e7ec"/>
+              <circle cx="60" cy="160" r="11" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/>
+              <path d="M50 180 q10 -9 20 0" fill="none" stroke="#98a2b3" stroke-width="1.6"/>
+              <text x="60" y="194" text-anchor="middle" font-size="11.5" fill="#5b6675">客户端</text>
+
+              <!-- 请求主线 -->
+              <line x1="110" y1="170" x2="164" y2="170" stroke="#98a2b3" stroke-width="1.6" marker-end="url(#ar)"/>
+              <text x="132" y="162" text-anchor="middle" font-size="9.5" fill="#98a2b3">请求</text>
+
+              <!-- VIP -->
+              <rect x="170" y="130" width="124" height="80" rx="10" fill="#efedff" stroke="#c3bbff"/>
+              <text x="232" y="152" text-anchor="middle" font-size="12" fill="#6d5efc" font-weight="700">VIP</text>
+              <text x="232" y="170" text-anchor="middle" font-size="11.5" fill="#5b6675" font-family="monospace">10.0.0.100</text>
+              <text x="232" y="186" text-anchor="middle" font-size="10" fill="#98a2b3" font-family="monospace">:80 :443 · wrr</text>
+              <text x="232" y="201" text-anchor="middle" font-size="9.5" fill="#0b7a45">当前持有 kpl-01</text>
+
+              <!-- VIP → Director -->
+              <line x1="294" y1="158" x2="356" y2="82" stroke="#2563eb" stroke-width="1.9" marker-end="url(#arb)"/>
+              <line x1="294" y1="182" x2="356" y2="258" stroke="#98a2b3" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+
+              <!-- Director MASTER -->
+              <rect x="360" y="44" width="180" height="72" rx="10" fill="#e5f6fa" stroke="#9bd7e8"/>
+              <circle cx="380" cy="64" r="4" fill="#0f9d58"/>
+              <text x="392" y="68" font-size="12" fill="#111827" font-weight="600">kpl-01</text>
+              <text x="378" y="88" font-size="10.5" fill="#0891b2">MASTER · priority 110</text>
+              <text x="378" y="102" font-size="9.5" fill="#98a2b3" font-family="monospace">ipvsadm · keepalived 2.x · unicast</text>
+
+              <!-- Director BACKUP -->
+              <rect x="360" y="224" width="180" height="72" rx="10" fill="#fafbfc" stroke="#e4e7ec"/>
+              <circle cx="380" cy="244" r="4" fill="#98a2b3"/>
+              <text x="392" y="248" font-size="12" fill="#5b6675" font-weight="600">kpl-02</text>
+              <text x="378" y="268" font-size="10.5" fill="#98a2b3">BACKUP · priority 100</text>
+              <text x="378" y="282" font-size="9.5" fill="#98a2b3">待命 · VRRP 心跳正常</text>
+
+              <!-- VRRP 心跳 -->
+              <line x1="450" y1="116" x2="450" y2="222" stroke="#98a2b3" stroke-width="1.2" stroke-dasharray="3 3"/>
+              <text x="458" y="172" font-size="9.5" fill="#98a2b3">VRRP 单播心跳</text>
+              <text x="458" y="184" font-size="9.5" fill="#98a2b3">（云厂商禁组播）</text>
+
+              <!-- Director → RS -->
+              <line x1="540" y1="80" x2="642" y2="86" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arb)"/>
+              <line x1="540" y1="92" x2="642" y2="250" stroke="#2563eb" stroke-width="1.7" marker-end="url(#arb)"/>
+              <text x="584" y="146" text-anchor="middle" font-size="9.5" fill="#2563eb">DR 转发</text>
+              <text x="584" y="158" text-anchor="middle" font-size="9.5" fill="#2563eb">（仅改写 MAC）</text>
+
+              <!-- RS nginx-01 -->
+              <rect x="646" y="52" width="206" height="80" rx="10" fill="#e7f6ee" stroke="#a8e0c3"/>
+              <circle cx="666" cy="72" r="4" fill="#0b7a45"/>
+              <text x="678" y="76" font-size="12" fill="#0b7a45" font-weight="600">nginx-01 · RS1</text>
+              <text x="662" y="94" font-size="10" fill="#5b6675" font-family="monospace">10.0.0.11 · w=1 · 健康</text>
+              <text x="662" y="108" font-size="9.5" fill="#0b7a45" font-family="monospace">lo:0 10.0.0.100/32 ✓</text>
+              <text x="662" y="121" font-size="9.5" fill="#0b7a45" font-family="monospace">arp_ignore=1 / announce=2 ✓</text>
+
+              <!-- RS nginx-02 -->
+              <rect x="646" y="216" width="206" height="80" rx="10" fill="#e7f6ee" stroke="#a8e0c3"/>
+              <circle cx="666" cy="236" r="4" fill="#0b7a45"/>
+              <text x="678" y="240" font-size="12" fill="#0b7a45" font-weight="600">nginx-02 · RS2</text>
+              <text x="662" y="258" font-size="10" fill="#5b6675" font-family="monospace">10.0.0.12 · w=1 · 健康</text>
+              <text x="662" y="272" font-size="9.5" fill="#0b7a45" font-family="monospace">lo:0 10.0.0.100/32 ✓</text>
+              <text x="662" y="285" font-size="9.5" fill="#0b7a45" font-family="monospace">arp_ignore=1 / announce=2 ✓</text>
+
+              <!-- DR 回包直返 -->
+              <path d="M749 132 V300 H60 V204" fill="none" stroke="#0b7a45" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arg)"/>
+              <path d="M749 296 V300" fill="none" stroke="#0b7a45" stroke-width="1.8" stroke-dasharray="6 4"/>
+              <text x="470" y="322" text-anchor="middle" font-size="10.5" fill="#0b7a45" font-weight="600">DR 回包：RS 直接响应客户端，不经过 Director（这是 DR 相对 NAT 的性能优势）</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><h3>DR 合规基线</h3><div class="spacer"></div><span class="tag g">6/6 通过</span><span class="sub">Agent 每 5 分钟巡检 · 任一项漂移即阻断 LVS 发布</span></div>
+          <div class="card-b nopad">
+            <table>
+              <thead><tr><th>约束</th><th>期望值</th><th>nginx-01</th><th>nginx-02</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>VIP 绑定位置</td><td class="mono" style="font-size:11px">lo:0 · /32</td><td><span class="tag g">✓</span></td><td><span class="tag g">✓</span></td><td style="font-size:11.5px">掩码必须是 /32，绑 /24 会导致路由歧义</td></tr>
+                <tr><td>ARP 抑制</td><td class="mono" style="font-size:11px">arp_ignore=1 · arp_announce=2</td><td><span class="tag g">✓</span></td><td><span class="tag g">✓</span></td><td style="font-size:11.5px"><b>最关键</b>。违反会导致 RS 与 Director 抢答 ARP，流量时通时断</td></tr>
+                <tr><td>反向路径过滤</td><td class="mono" style="font-size:11px">rp_filter=0</td><td><span class="tag g">✓</span></td><td><span class="tag g">✓</span></td><td style="font-size:11.5px">严格模式下回包源 IP 是 VIP，会被内核丢弃</td></tr>
+                <tr><td>VIP 不在物理网卡</td><td class="mono" style="font-size:11px">eth0 上无 VIP</td><td><span class="tag g">✓</span></td><td><span class="tag g">✓</span></td><td style="font-size:11.5px">与 ARP 抑制同理</td></tr>
+                <tr><td>端口一致</td><td class="mono" style="font-size:11px">VIP:80 → RS:80</td><td><span class="tag g">✓</span></td><td><span class="tag g">✓</span></td><td style="font-size:11.5px">DR 不支持端口映射（只改 MAC 不改 IP 头）</td></tr>
+                <tr><td>二层可达</td><td class="mono" style="font-size:11px">同 VLAN</td><td><span class="tag g">✓</span></td><td><span class="tag g">✓</span></td><td style="font-size:11.5px">Director 与 RS 必须同网段，跨三层 DR 不通</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><h3>Keepalived 双机配置一致性</h3><div class="spacer"></div><span class="tag g">仅 3 项预期差异</span></div>
+          <div class="card-b">
+            <div class="g g2">
+              <div>
+                <div class="lbl" style="margin-bottom:6px">预期差异（自动渲染，不告警）</div>
+                <div class="kv"><span class="mono">state</span><span class="val mono">MASTER / BACKUP</span></div>
+                <div class="kv"><span class="mono">priority</span><span class="val mono">110 / 100</span></div>
+                <div class="kv"><span class="mono">unicast_src_ip</span><span class="val mono">10.0.0.9 / 10.0.0.10</span></div>
+                <div class="hint" style="margin-top:8px">除这 3 项外的任何差异 = 配置漂移，平台标红提示</div>
+              </div>
+              <div>
+                <div class="lbl" style="margin-bottom:6px">已接入的事件与检查</div>
+                <div class="kv"><span>VIP 漂移事件</span><span class="val"><span class="tag g">已接入审计</span></span></div>
+                <div class="kv"><span>vrrp_script 健康检查</span><span class="val"><span class="tag g">nginx 存活探测</span></span></div>
+                <div class="kv"><span>脑裂探测</span><span class="val"><span class="tag g">无告警</span></span></div>
+                <div class="kv"><span>抢占策略</span><span class="val">nopreempt（主恢复不抢回）</span></div>
+                <div style="margin-top:10px"><button class="btn sm">查看双机 diff</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid g12" style="align-items:start">
+          <div class="card">
+            <div class="card-h"><h3>虚拟服务（VS）</h3><div class="spacer"></div><button class="btn sm">＋ 新增 VS</button></div>
+            <div class="card-b nopad">
+              <table style="font-size:12px">
+                <thead><tr><th>VIP:Port</th><th>协议</th><th>调度</th><th>RS</th><th>持久</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr class="vs-row on"><td class="mono">10.0.0.100:80</td><td>TCP</td><td class="mono">wrr</td><td class="mono">2</td><td class="mono">—</td><td><span class="dot on"></span> 正常</td></tr>
+                  <tr class="vs-row"><td class="mono">10.0.0.100:443</td><td>TCP</td><td class="mono">wrr</td><td class="mono">2</td><td class="mono">—</td><td><span class="dot on"></span> 正常</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>RealServer · <span class="mono" style="font-size:12px">10.0.0.100:80</span></h3>
+              <div class="spacer"></div>
+              <button class="btn sm">批量改权重</button>
+              <button class="btn sm primary">＋ 添加 RS</button>
+            </div>
+            <div class="card-b nopad">
+              <table style="font-size:12px">
+                <thead><tr><th>RealServer</th><th>IP:Port</th><th>权重</th><th>活跃连接</th><th>健康检查</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">nginx-01</td><td class="mono">10.0.0.11:80</td><td><input type="text" value="1" style="width:48px;padding:2px 6px"></td><td class="num mono">412</td><td><span class="tag g">HTTP 200</span></td><td><span class="tag g">在服</span></td><td><button class="btn sm">无损摘除</button></td></tr>
+                  <tr><td class="mono">nginx-02</td><td class="mono">10.0.0.12:80</td><td><input type="text" value="1" style="width:48px;padding:2px 6px"></td><td class="num mono">398</td><td><span class="tag g">HTTP 200</span></td><td><span class="tag g">在服</span></td><td><button class="btn sm">无损摘除</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="card-h"><h3>无损发布序列</h3><div class="spacer"></div><span class="sub">RS 摘除期间用户侧零 5xx —— 这是 LVS+DR 相对纯 Nginx reload 的核心优势</span></div>
+          <div class="card-b">
+            <div class="steps-bar">
+              <div class="step-chip done"><i>1</i>权重置 0</div><div class="step-line"></div>
+              <div class="step-chip done"><i>2</i>排空连接</div><div class="step-line"></div>
+              <div class="step-chip act"><i>3</i>下发配置</div><div class="step-line"></div>
+              <div class="step-chip"><i>4</i>双层探活</div><div class="step-line"></div>
+              <div class="step-chip"><i>5</i>恢复权重</div><div class="step-line"></div>
+              <div class="step-chip"><i>6</i>观测 60s</div>
+            </div>
+            <table style="font-size:12px">
+              <thead><tr><th style="width:44px">#</th><th>动作</th><th>命令 / 判据</th><th>失败处理</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">1</td><td>RS2 权重置 0</td><td class="mono" style="font-size:11px">ipvsadm -e -t 10.0.0.100:80 -r 10.0.0.12:80 -g -w 0</td><td style="font-size:11.5px">中止任务</td></tr>
+                <tr><td class="mono">2</td><td>等待活跃连接排空</td><td class="mono" style="font-size:11px">Established 数归零，最多等 60s</td><td style="font-size:11.5px">超时则强制继续并告警</td></tr>
+                <tr><td class="mono">3</td><td>下发配置 + 原子落盘</td><td class="mono" style="font-size:11px">SHA256 校验 → nginx -t → staging 原子 rename</td><td style="font-size:11.5px">删除 staging，线上零污染</td></tr>
+                <tr><td class="mono">4</td><td>双层探活</td><td class="mono" style="font-size:11px">本地 127.0.0.1/health + Director 侧探 RS2</td><td style="font-size:11.5px">快照恢复 → reload → 恢复权重</td></tr>
+                <tr><td class="mono">5</td><td>恢复权重</td><td class="mono" style="font-size:11px">ipvsadm -e ... -w 1</td><td style="font-size:11.5px">保持 w=0 并告警</td></tr>
+                <tr><td class="mono">6</td><td>观测窗口</td><td class="mono" style="font-size:11px">5xx 率 / rt / check 模块状态，60s</td><td style="font-size:11.5px">自动回滚 RS2 并中止</td></tr>
+                <tr style="background:#f8fafc"><td class="mono">7</td><td colspan="3" style="font-size:11.5px">前 6 步全部通过 → 对 <b>nginx-01</b> 重复执行 1–6。任意一步失败即中止，绝不出现「两台同时炸」</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+</section>
+
+      <section class="view" id="v-logs">
+        <div class="page-head">
+          <div><h1>日志中心</h1><p>跨节点统一检索 · TraceID 全链路追踪 · 采集自 2 个 Nginx 节点（Agent 内置 tail，无需额外组件）</p></div>
+          <div class="spacer"></div>
+          <button class="btn">更新 CDN IP 段</button>
+          <button class="btn">保存此查询</button>
+          <button class="btn primary">实时跟随</button>
+        </div>
+
+        <div class="g g4">
+          <div class="card stat"><div class="lbl">今日请求</div><div class="num">1,284,309</div><div class="sub">较昨日 <span style="color:var(--success)">+6.2%</span></div></div>
+          <div class="card stat"><div class="lbl">5xx 率</div><div class="num" style="color:var(--warn)">0.34%</div><div class="sub">4,372 条 · 集中在 08:12</div></div>
+          <div class="card stat"><div class="lbl">P95 响应时间</div><div class="num">412<span style="font-size:14px">ms</span></div><div class="sub">P50 38ms · P99 1.2s</div></div>
+          <div class="card stat"><div class="lbl">日志写入量</div><div class="num">62<span style="font-size:14px">MB/天</span></div><div class="sub">ClickHouse · TTL 7 天</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div><b>TraceID 全链路追踪</b><div class="desc">Nginx <span class="mono">$request_id</span> → 回写响应头 <span class="mono">X-Request-Id</span> → 透传后端。用户报障时只需复制响应头里的 ID</div></div>
+            <div class="spacer"></div>
+            <button class="btn sm primary" onclick="traceDemo()">演示追踪</button>
+          </div>
+          <div class="card-b">
+            <div class="filters" style="margin-bottom:14px">
+              <div class="search" style="flex:1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input id="traceInput" type="search" placeholder="粘贴 request_id，例如 8f3c1a9b2e7d4c5a6b8f0e1d2c3b4a59" value="8f3c1a9b2e7d4c5a6b8f0e1d2c3b4a59"></div>
+              <button class="btn primary">追踪</button>
+            </div>
+
+            <div id="traceBox">
+              <div class="trace-steps">
+                <div class="ts-item">
+                  <div class="ts-ico" style="background:#eef2ff;color:#4f46e5">👤</div>
+                  <div class="ts-body"><div class="ts-t">客户端 203.0.113.44 <span class="tag b">Cloudflare 回源</span></div><div class="ts-m">GET /api/v2/order/88213 · HTTP/2 · TLSv1.3</div></div>
+                  <div class="ts-ms">—</div>
+                </div>
+                <div class="ts-item">
+                  <div class="ts-ico" style="background:#fff7ed;color:#c2410c">⚖️</div>
+                  <div class="ts-body"><div class="ts-t">LVS Director <span class="mono">kpl-01 (MASTER)</span></div><div class="ts-m">VIP 10.0.0.100:443 · wrr 调度 → 选中 RS2 · DR 模式直转</div></div>
+                  <div class="ts-ms">0.4ms</div>
+                </div>
+                <div class="ts-item hi">
+                  <div class="ts-ico" style="background:#ecfdf5;color:#059669">🌐</div>
+                  <div class="ts-body"><div class="ts-t">Nginx <span class="mono">nginx-02</span> <span class="tag g">status 200</span></div><div class="ts-m">access.log · rt=1.247s · body 3.2KB</div></div>
+                  <div class="ts-ms">1247ms</div>
+                </div>
+                <div class="ts-item">
+                  <div class="ts-ico" style="background:#f5f3ff;color:#7c3aed">⚙️</div>
+                  <div class="ts-body"><div class="ts-t">upstream <span class="mono">10.0.0.21:8080</span> <span class="tag p">ustatus 200</span></div><div class="ts-m">连接 2ms · 首字节 1180ms · 无重试</div></div>
+                  <div class="ts-ms">1182ms</div>
+                </div>
+              </div>
+
+              <div class="trace-bar">
+                <div class="tb-seg" style="width:0.1%;background:#c2410c" title="LVS 调度 0.4ms"></div>
+                <div class="tb-seg" style="width:5.1%;background:#059669" title="Nginx 处理 63ms"></div>
+                <div class="tb-seg" style="width:94.6%;background:#7c3aed" title="upstream 响应 1182ms"></div>
+              </div>
+              <div class="trace-legend">
+                <span><i style="background:#c2410c"></i>LVS 调度 0.4ms</span>
+                <span><i style="background:#059669"></i>Nginx 自身 63ms</span>
+                <span><i style="background:#7c3aed"></i>upstream 1182ms（瓶颈）</span>
+                <span style="margin-left:auto;color:var(--danger)">结论：慢在后端应用，不是 Nginx 或网络</span>
+              </div>
+
+              <div class="raw-toggle" onclick="toggleRaw()">▸ 查看原始 JSON</div>
+              <pre class="ed-code" id="rawJson" style="display:none;max-height:none;font-size:11px">{"ts":"2026-09-03T08:12:44.318+08:00","rid":"8f3c1a9b2e7d4c5a6b8f0e1d2c3b4a59","node":"nginx-02","host":"api.tianhao.tech","ip":"203.0.113.44","xff":"203.0.113.44","method":"GET","uri":"/api/v2/order/88213","proto":"HTTP/2.0","status":200,"bytes":3271,"rt":1.247,"urt":1.182,"uaddr":"10.0.0.21:8080","ustatus":"200","uct":0.002,"ua":"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5)","ssl_p":"TLSv1.3","ssl_c":"TLS_AES_128_GCM_SHA256"}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div><b>日志检索</b><div class="desc">ClickHouse 聚合查询 · 全量保留 7 天</div></div>
+            <div class="spacer"></div>
+            <div class="tabs-mini">
+              <span class="on">原始日志</span><span>聚合分析</span><span>保存的查询</span>
+            </div>
+          </div>
+          <div class="card-b nopad">
+            <div class="filters" style="padding:12px 16px;border-bottom:1px solid var(--line)">
+              <select><option>最近 1 小时</option><option>最近 5 分钟</option><option selected>最近 24 小时</option><option>最近 7 天</option><option>自定义</option></select>
+              <select><option>全部节点</option><option>nginx-01</option><option>nginx-02</option></select>
+              <select><option>全部状态码</option><option>2xx</option><option>3xx</option><option>4xx</option><option>5xx</option></select>
+              <select><option>全部方法</option><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+              <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="URI（支持正则 / 前缀）" value="/api/v2/"></div>
+              <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="客户端 IP"></div>
+              <select><option>耗时不限</option><option>&gt; 500ms</option><option>&gt; 1s</option><option>&gt; 3s</option></select>
+              <button class="btn sm primary">查询</button>
+            </div>
+
+            <table>
+              <thead><tr><th>时间</th><th>节点</th><th>方法</th><th>URI</th><th>状态</th><th>rt</th><th>urt</th><th>upstream</th><th>客户端 IP</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">08:12:44.318</td>
+                  <td><span class="node-pill">nginx-02</span></td>
+                  <td><span class="tag b">GET</span></td>
+                  <td class="mono">/api/v2/order/88213</td>
+                  <td><span class="tag g">200</span></td>
+                  <td class="mono">1.247s</td>
+                  <td class="mono">1.182s</td>
+                  <td class="mono" style="font-size:11px">10.0.0.21:8080</td>
+                  <td class="mono" style="font-size:11px">203.0.113.44</td>
+                  <td><button class="btn sm">展开</button></td>
+                </tr>
+                <tr style="background:#fffafa">
+                  <td class="mono" style="white-space:nowrap">08:12:41.907</td>
+                  <td><span class="node-pill">nginx-01</span></td>
+                  <td><span class="tag b">POST</span></td>
+                  <td class="mono">/api/v2/pay/callback</td>
+                  <td><span class="tag r">502</span></td>
+                  <td class="mono">30.01s</td>
+                  <td class="mono">—</td>
+                  <td class="mono" style="font-size:11px">10.0.0.22:8080, 10.0.0.23:8080</td>
+                  <td class="mono" style="font-size:11px">198.51.100.7</td>
+                  <td><button class="btn sm">展开</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">08:12:40.552</td>
+                  <td><span class="node-pill">nginx-02</span></td>
+                  <td><span class="tag b">GET</span></td>
+                  <td class="mono">/static/js/app.4f2a.js</td>
+                  <td><span class="tag gray">304</span></td>
+                  <td class="mono">0.008s</td>
+                  <td class="mono">—</td>
+                  <td class="mono" style="font-size:11px">—</td>
+                  <td class="mono" style="font-size:11px">203.0.113.91</td>
+                  <td><button class="btn sm">展开</button></td>
+                </tr>
+                <tr style="background:#fffdf5">
+                  <td class="mono" style="white-space:nowrap">08:12:38.220</td>
+                  <td><span class="node-pill">nginx-01</span></td>
+                  <td><span class="tag b">GET</span></td>
+                  <td class="mono">/wp-login.php</td>
+                  <td><span class="tag y">404</span></td>
+                  <td class="mono">0.004s</td>
+                  <td class="mono">—</td>
+                  <td class="mono" style="font-size:11px">—</td>
+                  <td class="mono" style="font-size:11px;color:var(--danger)">45.155.205.19</td>
+                  <td><button class="btn sm">展开</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">08:12:37.883</td>
+                  <td><span class="node-pill">nginx-02</span></td>
+                  <td><span class="tag b">GET</span></td>
+                  <td class="mono">/api/v2/user/profile</td>
+                  <td><span class="tag g">200</span></td>
+                  <td class="mono">0.041s</td>
+                  <td class="mono">0.038s</td>
+                  <td class="mono" style="font-size:11px">10.0.0.21:8080</td>
+                  <td class="mono" style="font-size:11px">203.0.113.44</td>
+                  <td><button class="btn sm">展开</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="g g3">
+          <div class="card"><div class="card-h"><b>Top 客户端 IP</b></div><div class="card-b">
+            <div class="kv"><span class="mono">45.155.205.19</span><span class="val" style="color:var(--danger)">8,412 · 99% 404</span></div>
+            <div class="kv"><span class="mono">203.0.113.44</span><span class="val">3,201 · 正常</span></div>
+            <div class="kv"><span class="mono">198.51.100.7</span><span class="val">1,884 · 12% 5xx</span></div>
+            <div class="kv"><span class="mono">103.21.244.6</span><span class="val">902 · 正常</span></div>
+            <div style="margin-top:10px"><button class="btn sm danger">封禁 Top1（生成变更单）</button></div>
+          </div></div>
+          <div class="card"><div class="card-h"><b>Top URI</b></div><div class="card-b">
+            <div class="kv"><span class="mono">/api/v2/order/:id</span><span class="val">412,093</span></div>
+            <div class="kv"><span class="mono">/api/v2/user/profile</span><span class="val">288,441</span></div>
+            <div class="kv"><span class="mono">/static/js/app.4f2a.js</span><span class="val">190,772</span></div>
+            <div class="kv"><span class="mono">/wp-login.php</span><span class="val" style="color:var(--danger)">6,203</span></div>
+          </div></div>
+          <div class="card"><div class="card-h"><b>状态码分布（24h）</b></div><div class="card-b">
+            <div class="kv"><span>2xx</span><span class="val" style="color:var(--success)">96.1%</span></div>
+            <div class="kv"><span>3xx</span><span class="val">2.9%</span></div>
+            <div class="kv"><span>4xx</span><span class="val" style="color:var(--warn)">0.66%</span></div>
+            <div class="kv"><span>5xx</span><span class="val" style="color:var(--danger)">0.34%</span></div>
+            <div class="hint" style="margin-top:10px">5xx 集中在 08:12，与 #DP-20482 发布窗口重合，建议核对后端健康</div>
+          </div></div>
+        </div>
+      </section>
+
+      <section class="view" id="v-security">
+        <div class="page-head">
+          <div><h1>安全预警</h1><p>滑动窗口规则检测 · 封禁复用发布流水线（可回滚 / 可灰度 / 有审批），不新开写线上的通道</p></div>
+          <div class="spacer"></div>
+          <button class="btn">规则配置</button>
+          <button class="btn">封禁名单（12）</button>
+        </div>
+
+        <div class="g g4">
+          <div class="card stat"><div class="lbl">待处置 CRITICAL</div><div class="num" style="color:var(--danger)">3</div><div class="sub">2 条已自动封禁</div></div>
+          <div class="card stat"><div class="lbl">24h 拦截请求</div><div class="num">24,118</div><div class="sub">来自 12 个已封禁 IP</div></div>
+          <div class="card stat"><div class="lbl">启用规则</div><div class="num">8<span style="font-size:14px">/10</span></div><div class="sub">2 条仅告警（误报率高）</div></div>
+          <div class="card stat"><div class="lbl">误报率</div><div class="num">1.8%</div><div class="sub">近 7 天，人工标记</div></div>
+        </div>
+
+        <div class="proto-banner" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:12px;color:#8a5200;margin-bottom:16px;display:flex;gap:8px;align-items:center">
+          <span>⚡</span>
+          <span><b>设计要点</b>：命中规则不直接改线上配置，而是生成 <span class="mono">zz-blocklist.conf</span> 片段 + 一条配置变更单，走完整的「校验 → 灰度 → 探活 → 回滚」链路。封禁因此可回滚、可审批、全程审计。</span>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div><b>告警事件流</b><div class="desc">按级别与处置状态筛选 · 每次命中保留抽样证据</div></div>
+            <div class="spacer"></div>
+            <select style="width:auto"><option>全部级别</option><option>CRITICAL</option><option>WARN</option><option>INFO</option></select>
+            <select style="width:auto"><option>全部状态</option><option>待处置</option><option>已封禁</option><option>已忽略</option></select>
+          </div>
+          <div class="card-b nopad">
+            <table>
+              <thead><tr><th>时间</th><th>级别</th><th>规则</th><th>源 IP</th><th>节点</th><th>命中</th><th>证据样本</th><th>处置</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">08:14:02</td>
+                  <td><span class="tag r">CRITICAL</span></td>
+                  <td>注入特征</td>
+                  <td class="mono">45.155.205.19</td>
+                  <td><span class="node-pill">nginx-01</span></td>
+                  <td class="mono">37 次 / 60s</td>
+                  <td class="mono" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">GET /api/v2/user?id=1' OR '1'='1</td>
+                  <td><span class="tag g">已自动封禁</span> <button class="btn sm">回滚</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">08:11:47</td>
+                  <td><span class="tag r">CRITICAL</span></td>
+                  <td>扫描器指纹</td>
+                  <td class="mono">192.0.2.88</td>
+                  <td><span class="node-pill">nginx-02</span></td>
+                  <td class="mono">1,204 次 / 5m</td>
+                  <td class="mono" style="font-size:11px">User-Agent: sqlmap/1.8.3#stable</td>
+                  <td><span class="tag g">已自动封禁</span> <button class="btn sm">回滚</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">08:09:31</td>
+                  <td><span class="tag r">CRITICAL</span></td>
+                  <td>目录爆破</td>
+                  <td class="mono">45.155.205.19</td>
+                  <td><span class="node-pill">nginx-01</span></td>
+                  <td class="mono">404×312 / 去重 URI 287</td>
+                  <td class="mono" style="font-size:11px">/.env /.git/config /wp-login.php /phpmyadmin</td>
+                  <td><button class="btn sm danger">封禁</button> <button class="btn sm">忽略</button></td>
+                </tr>
+                <tr style="background:#fffafa">
+                  <td class="mono" style="white-space:nowrap">08:12:41</td>
+                  <td><span class="tag r">CRITICAL</span></td>
+                  <td>5xx 突增（故障）</td>
+                  <td class="mono" style="color:var(--text-3)">—</td>
+                  <td><span class="node-pill">nginx-01</span></td>
+                  <td class="mono">502×86 / 5m</td>
+                  <td class="mono" style="font-size:11px">upstream 10.0.0.22:8080 connect refused</td>
+                  <td><span class="tag y">已通知</span> <button class="btn sm">去发布任务</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">07:58:20</td>
+                  <td><span class="tag y">WARN</span></td>
+                  <td>慢速攻击</td>
+                  <td class="mono">198.51.100.7</td>
+                  <td><span class="node-pill">nginx-02</span></td>
+                  <td class="mono">rt &gt; 30s × 14</td>
+                  <td class="mono" style="font-size:11px">Slowloris 特征：连接建立后不发送请求体</td>
+                  <td><button class="btn sm">封禁</button> <button class="btn sm">忽略</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">07:41:03</td>
+                  <td><span class="tag y">WARN</span></td>
+                  <td>敏感路径探测</td>
+                  <td class="mono">103.21.244.6</td>
+                  <td><span class="node-pill">nginx-01</span></td>
+                  <td class="mono">9 次 / 60s</td>
+                  <td class="mono" style="font-size:11px">/actuator/env /adminer.php</td>
+                  <td><button class="btn sm">封禁</button> <button class="btn sm">忽略</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div><b>检测规则</b><div class="desc">滑动窗口统计（1m / 5m / 1h）· 处置模式可按规则单独配置</div></div>
+            <div class="spacer"></div>
+            <button class="btn primary">新增规则</button>
+          </div>
+          <div class="card-b nopad">
+            <table>
+              <thead><tr><th>规则</th><th>判据</th><th>级别</th><th>处置模式</th><th>24h 命中</th><th>误报</th><th>启用</th></tr></thead>
+              <tbody>
+                <tr><td><b>注入特征</b></td><td class="mono" style="font-size:11px">URI/UA/Referer 正则命中 SQLi · XSS · 命令注入 · 路径穿越</td><td><span class="tag r">CRITICAL</span></td><td><span class="tag b">自动</span></td><td class="mono">37</td><td>低</td><td><span class="dot on"></span></td></tr>
+                <tr><td><b>扫描器指纹</b></td><td class="mono" style="font-size:11px">UA 匹配 sqlmap · nmap · nikto · masscan · nessus · acunetix</td><td><span class="tag r">CRITICAL</span></td><td><span class="tag b">自动</span></td><td class="mono">1,204</td><td>极低</td><td><span class="dot on"></span></td></tr>
+                <tr><td><b>目录爆破</b></td><td class="mono" style="font-size:11px">单 IP 60s 内 404 ≥ 50 且 去重 URI ≥ 30</td><td><span class="tag r">CRITICAL</span></td><td><span class="tag y">半自动</span></td><td class="mono">312</td><td>中</td><td><span class="dot on"></span></td></tr>
+                <tr><td><b>CC 洪水</b></td><td class="mono" style="font-size:11px">单 IP 60s 请求 &gt; max(600, 7天基线×8)</td><td><span class="tag r">CRITICAL</span></td><td><span class="tag y">半自动</span></td><td class="mono">0</td><td>中</td><td><span class="dot on"></span></td></tr>
+                <tr><td><b>5xx 突增</b></td><td class="mono" style="font-size:11px">5m 5xx 率 &gt; 5% 且环比 +300%（<b>故障信号，非攻击</b>）</td><td><span class="tag r">CRITICAL</span></td><td><span class="tag b">自动告警</span></td><td class="mono">86</td><td>低</td><td><span class="dot on"></span></td></tr>
+                <tr><td><b>慢速攻击</b></td><td class="mono" style="font-size:11px">rt &gt; 30s 且并发连接数异常（Slowloris）</td><td><span class="tag y">WARN</span></td><td><span class="tag gray">仅告警</span></td><td class="mono">14</td><td>中</td><td><span class="dot on"></span></td></tr>
+                <tr><td><b>敏感路径探测</b></td><td class="mono" style="font-size:11px">/.env /.git /wp-login /phpmyadmin /actuator /adminer</td><td><span class="tag y">WARN</span></td><td><span class="tag gray">仅告警</span></td><td class="mono">9</td><td>高</td><td><span class="dot on"></span></td></tr>
+                <tr><td><b>SSL 握手失败潮</b></td><td class="mono" style="font-size:11px">error.log handshake failure 激增</td><td><span class="tag y">WARN</span></td><td><span class="tag gray">仅告警</span></td><td class="mono">203</td><td>中</td><td><span class="dot on"></span></td></tr>
+                <tr style="opacity:.55"><td><b>4xx 突增</b></td><td class="mono" style="font-size:11px">403/404 率环比 +200%（可能是刚发的配置写错）</td><td><span class="tag b">INFO</span></td><td><span class="tag gray">仅告警</span></td><td class="mono">—</td><td>中</td><td><span class="dot"></span></td></tr>
+                <tr style="opacity:.55"><td><b>异常地理 / ASN</b></td><td class="mono" style="font-size:11px">GeoIP 命中非业务地区且高频</td><td><span class="tag b">INFO</span></td><td><span class="tag gray">仅告警</span></td><td class="mono">—</td><td>高</td><td><span class="dot"></span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div><b>封禁联动详情</b><div class="desc">示例：注入特征命中后自动生成的变更单 —— 与人工配置变更共用同一条流水线</div></div></div>
+          <div class="card-b">
+            <div class="steps-bar">
+              <div class="step-chip done">✓ 命中规则</div><div class="step-line"></div>
+              <div class="step-chip done">✓ 生成 deny 片段</div><div class="step-line"></div>
+              <div class="step-chip done">✓ nginx -t 校验</div><div class="step-line"></div>
+              <div class="step-chip done">✓ 灰度 nginx-01</div><div class="step-line"></div>
+              <div class="step-chip done">✓ 探活通过</div><div class="step-line"></div>
+              <div class="step-chip done">✓ 灰度 nginx-02</div>
+            </div>
+            <div class="g g2" style="margin-top:16px">
+              <div>
+                <div class="lbl" style="margin-bottom:6px">生成的配置片段 <span class="mono" style="font-size:11px">conf.d/zz-blocklist.conf</span></div>
+                <pre class="ed-code" style="max-height:none;font-size:11px"># 由安全引擎自动生成 · 请勿手工编辑
+# 规则: inject-signature / 变更单 #DP-20485
+# 时间: 2026-09-03 08:14:02 (UTC+8)
+
+deny 45.155.205.19;   # 注入特征 ×37
+deny 192.0.2.88;      # sqlmap 扫描 ×1204
+
+# 如需解封，请在安全预警页操作（会走同一条发布流水线）</pre>
+              </div>
+              <div>
+                <div class="lbl" style="margin-bottom:6px">变更单信息</div>
+                <div class="kv"><span>变更单号</span><span class="val mono">#DP-20485</span></div>
+                <div class="kv"><span>来源</span><span class="val"><span class="tag p">security</span></span></div>
+                <div class="kv"><span>触发规则</span><span class="val">注入特征 / 扫描器指纹</span></div>
+                <div class="kv"><span>影响范围</span><span class="val">prod-web · 2 节点</span></div>
+                <div class="kv"><span>执行方式</span><span class="val">自动（高置信规则）</span></div>
+                <div class="kv"><span>耗时</span><span class="val">8.4s（含 60s 观测窗口外）</span></div>
+                <div style="margin-top:12px;display:flex;gap:8px">
+                  <button class="btn sm danger">回滚封禁</button>
+                  <button class="btn sm">查看审计</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= MONITOR ================= -->
+      <section class="view" id="v-monitor">
+        <div class="page-head">
+          <div><h1>监控中心</h1><p>Prometheus + Grafana 采集可视化 · 平台自研业务视角指标 · 告警汇聚到统一中心</p></div>
+          <div class="spacer"></div>
+          <button class="btn">看板设置</button>
+          <button class="btn primary">新建告警规则</button>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:14px">
+          <div class="stat"><div class="lbl">在线节点</div><div class="val">4 / 4</div><div class="sub"><b style="color:var(--success)">4</b> Agent 上报正常</div></div>
+          <div class="stat"><div class="lbl">活跃告警</div><div class="val" style="color:var(--danger)">3</div><div class="sub">含 1 条时钟偏差 WARN</div></div>
+          <div class="stat"><div class="lbl">QPS 均值</div><div class="val">1.2k</div><div class="sub">2 RS 合计 · 峰值 4.1k</div></div>
+          <div class="stat"><div class="lbl">5xx 率</div><div class="val" style="color:var(--success)">0.02%</div><div class="sub">近 24h 滑动</div></div>
+        </div>
+
+        <div class="grid g2" style="margin-bottom:14px">
+          <div class="card">
+            <div class="card-h"><h3>业务视角指标（平台自研）</h3></div>
+            <div class="card-b">
+              <div class="kv"><span>发布成功率（7d）</span><b style="color:var(--success)">98.6%</b></div>
+              <div class="kv"><span>配置漂移节点</span><b style="color:var(--success)">0</b></div>
+              <div class="kv"><span>最短证书剩余</span><b style="color:var(--warning)">23 天</b></div>
+              <div class="kv"><span>DR 合规失败节点</span><b style="color:var(--success)">0</b></div>
+              <div class="kv"><span>时钟最大偏差</span><b style="color:var(--warning)">0.8s</b></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>近期告警（Prometheus + 安全融合）</h3></div>
+            <div class="card-b nopad">
+              <table>
+                <thead><tr><th>时间</th><th>来源</th><th>级别</th><th>摘要</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">09-03 08:12</td><td>security</td><td><span class="tag c">CRITICAL</span></td><td>注入特征 ×14 · 已自动封禁</td><td><span class="tag g">已处置</span></td></tr>
+                  <tr><td class="mono">09-03 07:55</td><td>prometheus</td><td><span class="tag b">WARN</span></td><td>nginx-01 时钟偏差 0.8s</td><td><span class="tag">观察</span></td></tr>
+                  <tr><td class="mono">09-02 22:40</td><td>prometheus</td><td><span class="tag b">WARN</span></td><td>VIP 流量 RS2 不均</td><td><span class="tag g">已恢复</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>Grafana 看板（匿名只读内嵌）</h3><div class="spacer"></div><span class="tag">总览 / Nginx / LVS / VM</span></div>
+          <div class="card-b">
+            <div class="grafana-wrap">
+              <div class="gf-panel"><div class="gf-t">Nginx QPS（2 RS）</div><div class="gf-bars"><i style="height:40%"></i><i style="height:62%"></i><i style="height:55%"></i><i style="height:78%"></i><i style="height:66%"></i><i style="height:90%"></i><i style="height:72%"></i><i style="height:84%"></i></div></div>
+              <div class="gf-panel"><div class="gf-t">连接数 Active/Waiting</div><div class="gf-bars alt"><i style="height:50%"></i><i style="height:48%"></i><i style="height:52%"></i><i style="height:45%"></i><i style="height:53%"></i><i style="height:47%"></i><i style="height:51%"></i><i style="height:49%"></i></div></div>
+              <div class="gf-panel"><div class="gf-t">VIP 流量（Director）</div><div class="gf-bars"><i style="height:70%"></i><i style="height:68%"></i><i style="height:74%"></i><i style="height:66%"></i><i style="height:72%"></i><i style="height:69%"></i><i style="height:73%"></i><i style="height:71%"></i></div></div>
+              <div class="gf-panel"><div class="gf-t">万兆链路利用率</div><div class="gf-bars alt"><i style="height:22%"></i><i style="height:25%"></i><i style="height:20%"></i><i style="height:28%"></i><i style="height:24%"></i><i style="height:21%"></i><i style="height:26%"></i><i style="height:23%"></i></div></div>
+            </div>
+            <div class="hint" style="margin-top:12px"><span>⏱️</span><div><b>时钟同步</b>：必须关闭 VMware Tools 时间同步并启用 chrony，否则跨节点日志时序与 TraceID 追踪会错乱。平台对两两偏差 > 1s 告警、> 5s 升级 CRITICAL，容忍窗口 > 3s（vMotion 抖动）。</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= BUILD / UPGRADE ================= -->
+      <section class="view" id="v-build">
+        <div class="page-head">
+          <div><h1>构建与升级中心</h1><p>管理 nginx 编译版本与模块（含 nginx_upstream_check_module）· 可复现构建 · 热升级全程 zero 5xx</p></div>
+          <div class="spacer"></div>
+          <button class="btn">版本矩阵</button>
+          <button class="btn primary">触发构建</button>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:14px">
+          <div class="stat"><div class="lbl">当前版本</div><div class="val" style="font-size:22px;padding-top:4px">1.30.0</div><div class="sub">OpenSSL 3.5.1</div></div>
+          <div class="stat"><div class="lbl">编译模块</div><div class="val">1</div><div class="sub">upstream_check 0.4.0</div></div>
+          <div class="stat"><div class="lbl">可升级补丁</div><div class="val" style="color:var(--info)">+1</div><div class="sub">1.30.1 已发布</div></div>
+          <div class="stat"><div class="lbl">上次升级</div><div class="val" style="font-size:19px;padding-top:6px">06-12</div><div class="sub">全程零 5xx</div></div>
+        </div>
+
+        <div class="grid g2" style="margin-bottom:14px">
+          <div class="card">
+            <div class="card-h"><h3>版本 / 模块矩阵</h3></div>
+            <div class="card-b nopad">
+              <table>
+                <thead><tr><th>nginx</th><th>upstream_check</th><th>编译参数摘要</th><th>适用</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">1.30.1</td><td class="mono">0.4.1</td><td style="font-size:12px;color:var(--text-2)">threads · aio · v2 · <b>v3</b> · realip · stream · upstream_check</td><td><span class="tag g">推荐</span></td></tr>
+                  <tr style="background:#fffbf7"><td class="mono">1.30.0</td><td class="mono">0.4.0</td><td style="font-size:12px;color:var(--text-2)">threads · aio · v2 · v3 · realip · stream · upstream_check</td><td><span class="tag b">当前</span></td></tr>
+                  <tr><td class="mono">1.29.x</td><td class="mono">0.3.x</td><td style="font-size:12px;color:var(--text-3)">无 http_v3</td><td><span class="tag c">不兼容</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>构建产物</h3></div>
+            <div class="card-b nopad">
+              <table>
+                <thead><tr><th>构建</th><th>版本</th><th>SHA256</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">bld-260903</td><td class="mono">1.30.1</td><td class="mono" style="font-size:11px">a31f…e90c</td><td><span class="tag g">已验签</span></td></tr>
+                  <tr><td class="mono">bld-260612</td><td class="mono">1.30.0</td><td class="mono" style="font-size:11px">7c02…1bb4</td><td><span class="tag b">生产中</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card-b" style="border-top:1px solid var(--border)">
+              <div class="kv"><span>双机编译一致性</span><b style="color:var(--success)">一致</b></div>
+              <div class="kv"><span>构建环境</span><b>rockylinux:9 同代 glibc</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>热升级编排（1+1 串行 · LVS 权重摘除）</h3><div class="spacer"></div><span class="tag g">zero 5xx</span></div>
+          <div class="card-b">
+            <div class="upgrade-flow">
+              <div class="uf-node done"><div class="uf-dot"></div><div class="uf-t">前置检查</div><div class="uf-s">编译一致 · DR 合规 · 快照 ✓</div></div>
+              <div class="uf-arrow">→</div>
+              <div class="uf-node active"><div class="uf-dot"></div><div class="uf-t">摘除 RS2 权重</div><div class="uf-s">w=0 · 排空连接</div></div>
+              <div class="uf-arrow">→</div>
+              <div class="uf-node"><div class="uf-dot"></div><div class="uf-t">升级 RS2</div><div class="uf-s">USR2 + QUIT · 探活</div></div>
+              <div class="uf-arrow">→</div>
+              <div class="uf-node"><div class="uf-dot"></div><div class="uf-t">加回 RS2</div><div class="uf-s">w=1 · 观测 60s</div></div>
+              <div class="uf-arrow">→</div>
+              <div class="uf-node"><div class="uf-dot"></div><div class="uf-t">同法动 RS1</div><div class="uf-s">串行 · 全程零 5xx</div></div>
+            </div>
+            <div class="hint" style="margin-top:12px"><span>🔧</span><div><b>升级前置</b>：编译一致性 + DR 合规（§7.2）+ 磁盘空间 + 发布前快照；任一不过阻断升级。模块版本必须随 nginx 版本走，升级 nginx 时 <code class="inl">nginx_upstream_check_module</code> 同步升级。</div></div>
+          </div>
+        </div>
+      </section>
+      <section class="view" id="v-audit">
+        <div class="page-head">
+          <div><h1>审计日志</h1><p>所有写操作留痕，含变更前后内容 · 只追加不可修改，满足合规追溯</p></div>
+          <div class="spacer"></div>
+          <button class="btn">导出 CSV</button>
+          <button class="btn">对接 SIEM</button>
+        </div>
+
+        <div class="filters">
+          <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="搜索操作人 / 对象 / 关键字"></div>
+          <select><option>全部动作</option><option>配置变更</option><option>发布执行</option><option>证书操作</option><option>LVS 变更</option><option>节点操作</option><option>权限变更</option></select>
+          <select><option>全部结果</option><option>成功</option><option>失败</option></select>
+          <select><option>最近 7 天</option><option>最近 30 天</option><option>今天</option></select>
+          <div style="flex:1"></div>
+          <button class="btn sm">高级筛选</button>
+        </div>
+
+        <div class="card">
+          <div class="card-b nopad">
+            <table>
+              <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>对象</th><th>变更前 → 变更后</th><th>结果</th><th>来源</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">09-03 08:31:02</td>
+                  <td><div style="display:flex;align-items:center;gap:6px"><div class="avatar" style="width:20px;height:20px;font-size:9px">TH</div>田昊</div></td>
+                  <td><span class="tag b">发布执行</span></td>
+                  <td class="mono">#DP-20482<br><span style="font-size:11px;color:var(--text-3)">prod-web · 2 节点</span></td>
+                  <td class="mono" style="font-size:11px">v141 → v142<br><span style="color:var(--text-3)">+ listen 443 quic</span></td>
+                  <td><span class="tag g">成功</span></td>
+                  <td class="mono" style="font-size:11px">10.9.0.21</td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">09-03 08:05:11</td>
+                  <td><div style="display:flex;align-items:center;gap:6px"><div class="avatar" style="width:20px;height:20px;font-size:9px">TH</div>田昊</div></td>
+                  <td><span class="tag b">配置变更</span></td>
+                  <td class="mono">conf.d/api-gateway.conf</td>
+                  <td class="mono" style="font-size:11px"><span style="color:var(--danger)">- location /api</span><br><span style="color:var(--success)">+ location /api/v2</span></td>
+                  <td><span class="tag g">成功</span></td>
+                  <td class="mono" style="font-size:11px">10.9.0.21</td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr style="background:#fffafa">
+                  <td class="mono" style="white-space:nowrap">09-03 03:01:12</td>
+                  <td><div style="display:flex;align-items:center;gap:6px"><div class="avatar" style="width:20px;height:20px;font-size:9px;background:#98a2b3">SY</div>system</div></td>
+                  <td><span class="tag p">证书操作</span></td>
+                  <td class="mono">api.tianhao.tech</td>
+                  <td class="mono" style="font-size:11px">ACME 续期 · DNS-01 挑战失败</td>
+                  <td><span class="tag r">失败</span></td>
+                  <td class="mono" style="font-size:11px">scheduler</td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">09-02 22:41:03</td>
+                  <td><div style="display:flex;align-items:center;gap:6px"><div class="avatar" style="width:20px;height:20px;font-size:9px;background:linear-gradient(135deg,#0891b2,#4dd0e1)">ZW</div>张伟</div></td>
+                  <td><span class="tag c">LVS 变更</span></td>
+                  <td class="mono">203.0.113.10:80<br><span style="font-size:11px;color:var(--text-3)">nginx-01</span></td>
+                  <td class="mono" style="font-size:11px">weight 10 → 0（摘除）</td>
+                  <td><span class="tag g">成功</span></td>
+                  <td class="mono" style="font-size:11px">10.9.0.34</td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr style="background:#fffafa">
+                  <td class="mono" style="white-space:nowrap">09-02 16:07:44</td>
+                  <td><div style="display:flex;align-items:center;gap:6px"><div class="avatar" style="width:20px;height:20px;font-size:9px;background:linear-gradient(135deg,#e08600,#f7b955)">LM</div>李明</div></td>
+                  <td><span class="tag b">发布执行</span></td>
+                  <td class="mono">#DP-20478<br><span style="font-size:11px;color:var(--text-3)">prod-web · 2 节点</span></td>
+                  <td class="mono" style="font-size:11px">批次 1 失败率 33% → 自动中止回滚</td>
+                  <td><span class="tag r">中止</span></td>
+                  <td class="mono" style="font-size:11px">10.9.0.55</td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">09-02 14:30:00</td>
+                  <td><div style="display:flex;align-items:center;gap:6px"><div class="avatar" style="width:20px;height:20px;font-size:9px">TH</div>田昊</div></td>
+                  <td><span class="tag">节点操作</span></td>
+                  <td class="mono">prod-static · 18 节点</td>
+                  <td class="mono" style="font-size:11px">批量 nginx -t（全部通过）</td>
+                  <td><span class="tag g">成功</span></td>
+                  <td class="mono" style="font-size:11px">10.9.0.21</td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+                <tr>
+                  <td class="mono" style="white-space:nowrap">09-01 10:12:30</td>
+                  <td><div style="display:flex;align-items:center;gap:6px"><div class="avatar" style="width:20px;height:20px;font-size:9px">TH</div>田昊</div></td>
+                  <td><span class="tag y">权限变更</span></td>
+                  <td class="mono">user: 李明</td>
+                  <td class="mono" style="font-size:11px">只读 → 运维（+deploy:execute）</td>
+                  <td><span class="tag g">成功</span></td>
+                  <td class="mono" style="font-size:11px">10.9.0.21</td>
+                  <td><button class="btn sm">详情</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SETTINGS ================= -->
+      <section class="view" id="v-settings">
+        <div class="page-head">
+          <div><h1>系统设置</h1><p>平台级配置：权限、通知、校验规则、发布策略</p></div>
+        </div>
+
+        <div class="grid g2" style="align-items:start">
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-h"><h3>用户与角色（RBAC）</h3><div class="spacer"></div><button class="btn sm primary">+ 新增用户</button></div>
+            <div class="card-b nopad">
+              <table style="font-size:12px">
+                <thead><tr><th>用户</th><th>角色</th><th>作用域</th><th>最近登录</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td><b>田昊</b><div class="mono" style="font-size:11px;color:var(--text-3)">tianhao</div></td><td><span class="tag r">管理员</span></td><td>全部集群</td><td class="mono">09-03 08:20</td><td><span class="tag g">启用</span></td></tr>
+                  <tr><td><b>张伟</b><div class="mono" style="font-size:11px;color:var(--text-3)">zhangwei</div></td><td><span class="tag b">运维</span></td><td>prod-web, prod-lvs</td><td class="mono">09-02 22:40</td><td><span class="tag g">启用</span></td></tr>
+                  <tr><td><b>李明</b><div class="mono" style="font-size:11px;color:var(--text-3)">liming</div></td><td><span class="tag b">运维</span></td><td>stg-web</td><td class="mono">09-02 16:05</td><td><span class="tag g">启用</span></td></tr>
+                  <tr><td><b>开发者组</b><div class="mono" style="font-size:11px;color:var(--text-3)">group:dev</div></td><td><span class="tag">只读</span></td><td>dev-sandbox</td><td class="mono">09-02 11:33</td><td><span class="tag g">启用</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="padding:12px 16px;border-top:1px solid var(--border-2)">
+              <div style="font-size:11.5px;color:var(--text-2);margin-bottom:8px">权限矩阵</div>
+              <table style="font-size:11.5px">
+                <thead><tr><th>权限项</th><th style="text-align:center">管理员</th><th style="text-align:center">运维</th><th style="text-align:center">只读</th></tr></thead>
+                <tbody>
+                  <tr><td>cluster:read / node:read</td><td style="text-align:center">✓</td><td style="text-align:center">✓</td><td style="text-align:center">✓</td></tr>
+                  <tr><td>config:write</td><td style="text-align:center">✓</td><td style="text-align:center">✓</td><td style="text-align:center">—</td></tr>
+                  <tr><td>deploy:execute</td><td style="text-align:center">✓</td><td style="text-align:center">✓（生产需审批）</td><td style="text-align:center">—</td></tr>
+                  <tr><td>cert:manage</td><td style="text-align:center">✓</td><td style="text-align:center">✓</td><td style="text-align:center">—</td></tr>
+                  <tr><td>lvs:manage</td><td style="text-align:center">✓</td><td style="text-align:center">—</td><td style="text-align:center">—</td></tr>
+                  <tr><td>system:admin</td><td style="text-align:center">✓</td><td style="text-align:center">—</td><td style="text-align:center">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-h"><h3>发布策略</h3></div>
+              <div class="card-b" style="padding:12px 16px;font-size:12px">
+                <div class="cfg-row"><span>默认灰度策略</span><b>10% → 50% → 100%</b></div>
+                <div class="cfg-row"><span>批次观测窗口</span><b>60 秒</b></div>
+                <div class="cfg-row"><span>批次内并发节点数</span><b>5</b></div>
+                <div class="cfg-row"><span>失败熔断阈值</span><b>批次失败率 &gt; 0%</b></div>
+                <div class="cfg-row"><span>自动回滚</span><b>开启</b></div>
+                <div class="cfg-row"><span>发布前自动快照</span><b>强制开启</b></div>
+                <div class="cfg-row"><span>探活配置</span><code class="inl">GET /healthz</code> 期望 200 · 超时 3s</div>
+                <div class="cfg-row"><span>集群并发变更锁</span><b>开启</b> <span class="tag">同一集群同时仅允许 1 个任务</span></div>
+                <div class="cfg-row"><span>生产环境审批</span><b>开启</b> <span class="tag y">需 Leader 审批</span></div>
+                <div style="margin-top:10px"><button class="btn sm">编辑</button></div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-h"><h3>校验规则</h3></div>
+              <div class="card-b" style="padding:12px 16px;font-size:12px">
+                <label class="rule-row"><input type="checkbox" checked> <span>语法校验 <code class="inl">nginx -t</code>（节点本地沙箱）</span></label>
+                <label class="rule-row"><input type="checkbox" checked> <span>upstream 引用存在性检查</span></label>
+                <label class="rule-row"><input type="checkbox" checked> <span>证书 / 私钥路径存在且可读</span></label>
+                <label class="rule-row"><input type="checkbox" checked> <span>端口冲突检测</span></label>
+                <label class="rule-row"><input type="checkbox" checked> <span>重复 server_name 检测</span></label>
+                <label class="rule-row"><input type="checkbox" checked> <span>root / alias 目录存在性</span></label>
+                <label class="rule-row"><input type="checkbox"> <span>proxy_pass 尾部斜杠提示（P2）</span></label>
+                <label class="rule-row"><input type="checkbox"> <span>AI 配置风险审查（P2）</span></label>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h3>通知渠道</h3></div>
+              <div class="card-b" style="padding:12px 16px;font-size:12px">
+                <div class="cfg-row"><span>钉钉机器人</span><span class="tag g">已启用</span> 发布结果 / 告警</div>
+                <div class="cfg-row"><span>飞书群</span><span class="tag g">已启用</span> 证书到期</div>
+                <div class="cfg-row"><span>企业微信</span><span class="tag">未配置</span></div>
+                <div class="cfg-row"><span>Webhook</span><span class="tag g">已启用</span> <code class="inl">https://ops.internal/hook</code></div>
+                <div class="cfg-row"><span>邮件 SMTP</span><span class="tag g">已启用</span> 高危操作</div>
+                <div style="margin-top:10px"><button class="btn sm">测试通知</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<!-- ============ 新建发布向导 ============ -->
+<div class="mask" id="wizardMask" onclick="if(event.target===this)closeWizard()">
+  <div class="modal">
+    <div class="modal-h">
+      <h3>新建发布任务</h3>
+      <span class="tag b">配置变更</span>
+      <span class="x" onclick="closeWizard()">×</span>
+    </div>
+    <div class="modal-b">
+      <div class="steps-bar">
+        <div class="step-chip act" id="sc1"><i>1</i>选择范围</div><div class="step-line"></div>
+        <div class="step-chip" id="sc2"><i>2</i>变更内容</div><div class="step-line"></div>
+        <div class="step-chip" id="sc3"><i>3</i>灰度策略</div><div class="step-line"></div>
+        <div class="step-chip" id="sc4"><i>4</i>确认</div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="wstep" id="ws1">
+        <div class="field">
+          <label>目标集群</label>
+          <select><option>prod-web（24 节点 · 生产）</option><option>prod-static（18 节点 · 生产）</option><option>stg-web（8 节点 · 预发）</option></select>
+          <div class="desc">生产集群提交后需 Leader 审批。</div>
+        </div>
+        <div class="field">
+          <label>变更类型</label>
+          <div class="radio-cards">
+            <div class="radio-card on" onclick="pickCard(this)"><b>配置变更</b><span>conf.d / nginx.conf</span></div>
+            <div class="radio-card" onclick="pickCard(this)"><b>证书分发</b><span>仅 reload，不重启</span></div>
+            <div class="radio-card" onclick="pickCard(this)"><b>LVS 变更</b><span>ipvsadm / keepalived</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>节点范围</label>
+          <div class="radio-cards" style="grid-template-columns:repeat(2,1fr)">
+            <div class="radio-card on" onclick="pickCard(this)"><b>全集群（2 节点）</b><span>按灰度策略分批</span></div>
+            <div class="radio-card" onclick="pickCard(this)"><b>自定义节点</b><span>手动勾选特定节点</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="wstep" id="ws2" style="display:none">
+        <div class="field">
+          <label>关联配置文件版本</label>
+          <select><option>conf.d/api-gateway.conf · v142（当前最新）</option><option>v141 · 调整 keepalive_timeout</option><option>v140 · 开启 HTTP/2</option></select>
+        </div>
+        <div class="field">
+          <label>渲染结果 Diff（按节点）</label>
+          <div style="border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--mono);font-size:11.5px;overflow:hidden">
+            <div style="padding:6px 12px;background:var(--panel-2);border-bottom:1px solid var(--border-2);color:var(--text-2);font-family:inherit;font-size:11.5px">
+              预览节点：<b>nginx-01</b> · 24 个节点渲染结果一致
+            </div>
+            <div style="padding:8px 0">
+              <div style="padding:1px 12px;color:var(--text-3)">@@ -14,7 +14,9 @@</div>
+              <div style="padding:1px 12px;color:var(--text-2)">   listen 443 ssl;</div>
+              <div style="padding:1px 12px;background:#fdecec;color:#7a1a1a">-   http2 on;</div>
+              <div style="padding:1px 12px;background:#e7f6ee;color:#0b5c31">+   http2 on;</div>
+              <div style="padding:1px 12px;background:#e7f6ee;color:#0b5c31">+   listen 443 quic reuseport;</div>
+              <div style="padding:1px 12px;background:#e7f6ee;color:#0b5c31">+   add_header Alt-Svc 'h3=":443"';</div>
+              <div style="padding:1px 12px;color:var(--text-2)">   ssl_certificate /etc/ssl/ngxcp/tianhao.tech/fullchain.pem;</div>
+            </div>
+          </div>
+        </div>
+        <div class="hint">
+          <span>✅</span>
+          <div><b>校验结果</b>：语法校验 24/24 通过；语义校验 2 条警告（不阻断发布）。
+          发布前将对每个节点自动执行 <code class="inl">nginx -t</code>，任一失败即跳过该节点并中止批次。</div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="wstep" id="ws3" style="display:none">
+        <div class="field">
+          <label>灰度策略</label>
+          <div class="radio-cards">
+            <div class="radio-card on" onclick="pickCard(this)"><b>10% → 50% → 100%</b><span>推荐 · 3 批次</span></div>
+            <div class="radio-card" onclick="pickCard(this)"><b>单节点 → 50% → 100%</b><span>更保守 · 先发 1 台</span></div>
+            <div class="radio-card" onclick="pickCard(this)"><b>全量立即</b><span>不分批 · 高危</span></div>
+          </div>
+        </div>
+        <div class="grid g2" style="gap:12px">
+          <div class="field">
+            <label>批次观测窗口</label>
+            <select><option>60 秒</option><option>120 秒</option><option>300 秒</option><option>不等待</option></select>
+          </div>
+          <div class="field">
+            <label>批次内并发节点数</label>
+            <select><option>5</option><option>1（串行）</option><option>10</option><option>全部并发</option></select>
+          </div>
+        </div>
+        <div class="grid g2" style="gap:12px">
+          <div class="field">
+            <label>失败熔断阈值</label>
+            <select><option>批次失败率 > 0%（最严格）</option><option>> 10%</option><option>> 30%</option></select>
+          </div>
+          <div class="field">
+            <label>探活配置</label>
+            <input type="text" value="GET /healthz · 期望 200 · 3s 超时">
+          </div>
+        </div>
+        <label class="rule-row"><input type="checkbox" checked> <span>失败时<b>自动回滚</b>已下发的所有节点</span></label>
+        <label class="rule-row"><input type="checkbox" checked> <span>发布前<b>自动快照</b>（强制）</span></label>
+        <label class="rule-row"><input type="checkbox"> <span>定时执行：在低峰期 02:00 自动开始</span></label>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="wstep" id="ws4" style="display:none">
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-h"><h3>任务摘要</h3></div>
+          <div class="card-b" style="padding:12px 16px;font-size:12.5px">
+            <div class="cfg-row"><span>任务名称</span><b>全站开启 HTTP/3 (QUIC)</b></div>
+            <div class="cfg-row"><span>目标集群</span><b>prod-web</b> · 24 节点</div>
+            <div class="cfg-row"><span>变更内容</span><span class="mono">conf.d/api-gateway.conf v141 → v142</span></div>
+            <div class="cfg-row"><span>灰度批次</span><b>3 批：3 → 12 → 9 节点</b></div>
+            <div class="cfg-row"><span>预计耗时</span><b>约 4 分 20 秒</b>（含观测窗口）</div>
+            <div class="cfg-row"><span>风险等级</span><span class="tag y">中</span> 涉及监听端口与协议变更</div>
+            <div class="cfg-row"><span>审批</span><span class="tag r">需 Leader 审批</span> 生产环境</div>
+          </div>
+        </div>
+        <div class="hint danger">
+          <span>⚠️</span>
+          <div>提交后平台将：<b>①</b> 对 24 个节点打快照 → <b>②</b> 逐批次下发并 <code class="inl">nginx -t</code> →
+          <b>③</b> reload + 探活 → <b>④</b> 观测指标无异常后放行下一批。
+          任一批次失败将<b>立即中止并自动回滚</b>。</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" id="wPrev" onclick="wStep(-1)" disabled>上一步</button>
+      <div class="spacer"></div>
+      <span style="font-size:11.5px;color:var(--text-3)" id="wHint">第 1 / 4 步</span>
+      <button class="btn primary" id="wNext" onclick="wStep(1)">下一步</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- 视图切换 ---------- */
+var TITLES = {
+  dashboard:['仪表盘','全局概览'],
+  clusters:['集群分组','1 个集群 · prod-web'],
+  nodes:['节点管理','4 节点 · 4 在线'],
+  configs:['配置中心','模板 + 三级变量'],
+  deploy:['发布任务','变更流水线'],
+  backup:['备份与恢复','快照管理'],
+  certs:['证书管理','4 张证书 · 1 张危险'],
+  lvs:['LVS 管理','DR 模式 · 1 VIP / 2 RS'],
+  logs:['日志中心','2 节点聚合 · TraceID 全链路'],
+  security:['安全预警','3 条 CRITICAL 待处置'],
+  monitor:['监控中心','Prometheus + Grafana'],
+  build:['构建与升级','nginx 热升级 · zero 5xx'],
+  audit:['审计日志','全量操作留痕'],
+  settings:['系统设置','权限 / 策略 / 通知']
+};
+function go(v){
+  document.querySelectorAll('.view').forEach(function(e){e.classList.remove('on')});
+  document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('on')});
+  var t=document.getElementById('v-'+v); if(t)t.classList.add('on');
+  var n=document.querySelector('.nav-item[data-v="'+v+'"]'); if(n)n.classList.add('on');
+  document.getElementById('crumbMain').textContent=TITLES[v][0];
+  document.getElementById('crumbSub').textContent=TITLES[v][1];
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(v==='configs')renderEditor();
+}
+document.querySelectorAll('.nav-item').forEach(function(el){
+  el.addEventListener('click',function(){go(el.dataset.v)});
+});
+
+/* ---------- 配置编辑器 ---------- */
+var CODE = [
+'# conf.d/api-gateway.conf  (模板 · Jinja2)',
+'# 渲染目标: prod-web 全部 2 节点',
+'',
+'upstream {{ app_name }}_backend {',
+'    least_conn;',
+'{% for rs in upstream_nodes %}',
+'    server {{ rs.ip }}:{{ rs.port | default(8080) }} weight={{ rs.weight }} max_fails=3 fail_timeout=10s;',
+'{% endfor %}',
+'    keepalive {{ keepalive }};',
+'}',
+'',
+'server {',
+'    listen 80;',
+'    listen 443 ssl;',
+'    http2 on;',
+'    server_name api.tianhao.tech;',
+'',
+'    ssl_certificate     /etc/ssl/ngxcp/api.tianhao.tech/fullchain.pem;',
+'    ssl_certificate_key /etc/ssl/ngxcp/api.tianhao.tech/privkey.pem;',
+'    ssl_protocols       TLSv1.2 TLSv1.3;',
+'    ssl_ciphers         HIGH:!aNULL:!MD5;',
+'',
+'    location / {',
+'        return 301 https://$host$request_uri;',
+'    }',
+'',
+'    location /api/v2/ {',
+'        proxy_pass http://{{ app_name }}_backend;   # 注意尾部斜杠语义',
+'        proxy_http_version 1.1;',
+'        proxy_set_header Connection "";',
+'        proxy_set_header Host $host;',
+'        proxy_set_header X-Real-IP $remote_addr;',
+'        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
+'        proxy_connect_timeout 3s;',
+'        proxy_read_timeout    30s;',
+'    }',
+'',
+'    location = /healthz {',
+'        access_log off;',
+'        return 200 "ok\\n";',
+'    }',
+'}'
+];
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function hl(line){
+  var s=esc(line);
+  if(/^\s*#/.test(line)) return '<span class="c">'+s+'</span>';
+  if(/^\s*\{%/.test(line)) return '<span class="tpl">'+s+'</span>';
+  // 注释（行尾）
+  var tail='',m=s.match(/#.*$/);
+  if(m && !/^\s*#/.test(line)){tail='<span class="c">'+m[0]+'</span>';s=s.slice(0,m.index)}
+  s=s.replace(/\{\{[^}]+\}\}/g,function(x){return '<span class="tpl">'+x+'</span>'});
+  s=s.replace(/\b(server_name|location|upstream|listen|proxy_pass|proxy_set_header|ssl_certificate|ssl_certificate_key|ssl_protocols|ssl_ciphers|keepalive|server|return|access_log|proxy_http_version|proxy_connect_timeout|proxy_read_timeout|default|least_conn|weight|max_fails|fail_timeout|http2)\b/g,'<span class="k">$1</span>');
+  s=s.replace(/(\d+)(ms|s|m|g|k)\b/g,'<span class="n">$1$2</span>');
+  return s+tail;
+}
+function renderEditor(){
+  if(document.getElementById('edcode').dataset.done) return;
+  document.getElementById('edcode').dataset.done='1';
+  var g='',c='';
+  CODE.forEach(function(l,i){
+    g+= (i+1) + (i===CODE.length-1?'':'\n');
+    c+= hl(l) + (i===CODE.length-1?'':'\n');
+  });
+  document.getElementById('gutter').textContent=g;
+  document.getElementById('edcode').innerHTML=c;
+}
+renderEditor();
+
+function pickFile(el,name){
+  document.querySelectorAll('.tree-item').forEach(function(e){e.classList.remove('on')});
+  el.classList.add('on');
+  toast('已切换文件：'+name+'（原型演示）');
+}
+
+/* ---------- 发布向导 ---------- */
+var wStepIdx=1;
+function openDeployWizard(){wStepIdx=1;wRender();document.getElementById('wizardMask').classList.add('on')}
+function closeWizard(){document.getElementById('wizardMask').classList.remove('on')}
+function wStep(d){
+  if(d>0 && wStepIdx===4){
+    closeWizard();
+    toast('✓ 发布任务 #DP-20483 已提交，等待 Leader 审批');
+    return;
+  }
+  var n=wStepIdx+d;
+  if(n<1||n>4)return;
+  wStepIdx=n;wRender();
+}
+function wRender(){
+  for(var i=1;i<=4;i++){
+    var ws=document.getElementById('ws'+i), sc=document.getElementById('sc'+i);
+    ws.style.display = (i===wStepIdx)?'block':'none';
+    sc.className='step-chip'+(i<wStepIdx?' done':(i===wStepIdx?' act':''));
+    if(i<wStepIdx) sc.innerHTML='<i>✓</i>'+sc.textContent.replace(/^[✓\d]/,'');
+    else if(i>wStepIdx) sc.innerHTML='<i>'+i+'</i>'+sc.textContent.replace(/^[✓\d]/,'');
+    else sc.innerHTML='<i>'+i+'</i>'+sc.textContent.replace(/^[✓\d]/,'');
+  }
+  document.getElementById('wPrev').disabled = (wStepIdx===1);
+  document.getElementById('wNext').textContent = (wStepIdx===4)?'提交发布':'下一步';
+  document.getElementById('wHint').textContent = '第 '+wStepIdx+' / 4 步';
+}
+function pickCard(el){
+  el.parentNode.querySelectorAll('.radio-card').forEach(function(e){e.classList.remove('on')});
+  el.classList.add('on');
+}
+
+/* ---------- 发布期动画模拟 ---------- */
+var STEP_TXT=['备份','下发','nginx -t','reload','探活','校验 hash'];
+var liveIdx=2, runTimer=null, runPaused=false;
+function tickRun(){
+  if(runPaused)return;
+  var pill=document.getElementById('liveNode');
+  if(!pill)return;
+  liveIdx=(liveIdx+1)%6;
+  pill.textContent='rs-web-'+String(10+Math.floor(liveIdx/6)).padStart(2,'0')+' · '+STEP_TXT[liveIdx%6];
+  var steps=document.querySelectorAll('#steps .st');
+  steps.forEach(function(s,i){
+    s.className='st'+(i<liveIdx%6?' done':(i===liveIdx%6?' act':''));
+  });
+}
+runTimer=setInterval(tickRun,1400);
+function toggleRun(){
+  runPaused=!runPaused;
+  document.querySelector('[onclick="toggleRun()"]').textContent=runPaused?'继续':'暂停';
+  toast(runPaused?'⏸ 已暂停，下一批次暂不开始':'▶ 已继续');
+}
+function stopRun(){
+  clearInterval(runTimer);
+  toast('⏹ 已中止并触发自动回滚 · 已下发 9 个节点正在恢复');
+}
+
+/* ---------- 小工具 ---------- */
+var toastTimer=null;
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('on')},2200);
+}
+function doTest(){toast('已对选中节点下发 nginx -t（原型演示）')}
+function runValidate(){
+  var p=document.getElementById('vpanel');
+  p.style.transition='box-shadow .2s';
+  p.style.boxShadow='inset 0 0 0 2px rgba(37,99,235,.35)';
+  setTimeout(function(){p.style.boxShadow='none'},700);
+  toast('✓ 校验完成：24/24 语法通过 · 2 条语义警告');
+}
+document.querySelectorAll('.vs-row').forEach(function(r){
+  r.addEventListener('click',function(){
+    document.querySelectorAll('.vs-row').forEach(function(e){e.classList.remove('on')});
+    r.classList.add('on');
+  });
+});
+// 秒表
+var el=document.getElementById('elapsed'),sec=227;
+setInterval(function(){
+  if(runPaused)return;sec++;
+  var m=String(Math.floor(sec/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');
+  if(el)el.textContent=m+':'+s;
+},1000);
+
+/* ---------- 日志中心交互 ---------- */
+function traceDemo(){
+  var box=document.getElementById('traceBox');
+  if(!box)return;
+  box.style.transition='opacity .15s'; box.style.opacity='0.25';
+  setTimeout(function(){ box.style.opacity='1'; }, 180);
+  toast('已定位 request_id 8f3c1a9b… · 命中 nginx-02 · 瓶颈在 upstream 1182ms');
+}
+function toggleRaw(){
+  var el=document.getElementById('rawJson');
+  var btn=document.querySelector('.raw-toggle');
+  if(!el)return;
+  var show = el.style.display==='none';
+  el.style.display = show ? 'block' : 'none';
+  if(btn) btn.textContent = show ? '\u25be 收起原始 JSON' : '\u25b8 查看原始 JSON';
+}
+</script>
+</body>
+</html>

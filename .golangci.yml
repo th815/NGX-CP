@@ -1,0 +1,21 @@
+run:
+  timeout: 5m
+  tests: true
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - goimports
+  settings:
+    goimports:
+      local-prefixes: github.com/th/ngxcp
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck

@@ -1,0 +1,50 @@
+# Binaries
+/bin/
+*.exe
+
+# Local DB / runtime
+dev.db
+dev.db-*
+*.db-shm
+*.db-wal
+
+# Secrets / PKI
+/etc/ngxcp/
+*.key
+*.crt
+master.key
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Build / deps caches
+/vendor/
+
+# Local agent memory / project data (must NOT be public)
+.workbuddy/
+
+# Real config & env (keep only config.example.yaml)
+configs/config.yaml
+configs/*.local.yaml
+.env
+.env.*
+*.local.yaml
+
+# Certificates / PKI material
+*.pem
+*.p12
+*.pfx
+
+# Logs & test artifacts
+*.log
+coverage.out
+*.out
+
+# Misc DB / sqlite
+*.sqlite
+*.sqlite3
+
+# Node deps (if any tooling added)
+node_modules/

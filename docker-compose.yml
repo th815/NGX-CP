@@ -1,0 +1,23 @@
+# 开发态依赖：PostgreSQL（用于 M0 双路径验证）
+# 启动： docker compose up -d postgres
+# 迁移： NGXCP_DB_DRIVER=postgres NGXCP_DB_DSN="postgres://ngxcp:ngxcp@127.0.0.1:5432/ngxcp?sslmode=disable" make migrate-dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ngxcp-pg-dev
+    environment:
+      POSTGRES_USER: ngxcp
+      POSTGRES_PASSWORD: ngxcp
+      POSTGRES_DB: ngxcp
+    ports:
+      - "5432:5432"
+    volumes:
+      - ngxcp_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ngxcp -d ngxcp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  ngxcp_pg_data:

@@ -1,0 +1,114 @@
+openapi: 3.0.3
+info:
+  title: NGX-CP API
+  description: |
+    Nginx 集群管理平台（NGX-CP）控制面 API。
+
+    当前处于 **M0 骨架**阶段，仅暴露健康检查、版本、节点列表（占位）三个接口；
+    后续 M1+ 会逐步补齐节点管理、配置中心、发布流水线、证书、LVS、日志、预警等。
+
+    本文档的作用：
+    - 在 **Apifox** 中「项目 → 导入 → OpenAPI / Swagger」选择本文件，即可生成可调试的 API 文档与 Mock；
+    - 作为前后端（Vue3 前端 / Go 控制面）的接口契约，随代码版本一起演进。
+      新增/变更接口时更新本文件，并在 Apifox 用「覆盖导入」刷新。
+  version: 0.1.0
+  contact:
+    name: th815
+    url: https://github.com/th815/NGX-CP
+servers:
+  - url: http://localhost:8080
+    description: 本地开发（go run ./cmd/ngxcp-server，默认监听 :8080）
+tags:
+  - name: System
+    description: 健康检查 / 版本等系统接口
+  - name: Cluster
+    description: 集群与节点
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: 健康检查
+      operationId: healthCheck
+      responses:
+        '200':
+          description: 服务存活
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+              example:
+                code: 0
+                message: ok
+                data:
+                  status: ok
+  /api/v1/version:
+    get:
+      tags: [System]
+      summary: 控制面版本信息
+      operationId: getVersion
+      responses:
+        '200':
+          description: 版本字符串（含 commit / build time，由 ldflags 注入）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+              example:
+                code: 0
+                message: ok
+                data:
+                  version: "ngxcp dev (commit unknown, built unknown)"
+  /api/v1/nodes:
+    get:
+      tags: [Cluster]
+      summary: 节点列表（M1 起填充真实数据，当前为占位空列表）
+      operationId: listNodes
+      responses:
+        '200':
+          description: 节点列表（当前为空，M1 起为节点对象数组）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListEnvelope'
+              example:
+                code: 0
+                message: ok
+                data: []
+                total: 0
+components:
+  schemas:
+    Envelope:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: 业务码，0 表示成功（非 0 见 docs/ARCHITECTURE 错误码表）
+          example: 0
+        message:
+          type: string
+          example: ok
+        detail:
+          type: string
+          description: 失败时的明细（成功时省略），超长会被截断
+        data:
+          type: object
+          nullable: true
+          description: 业务负载；结构随接口而异
+    ListEnvelope:
+      type: object
+      required: [code, message, data, total]
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: ok
+        data:
+          type: array
+          items: {}
+          description: 当前为空，M1 起为节点对象数组
+        total:
+          type: integer
+          example: 0

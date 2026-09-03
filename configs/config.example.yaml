@@ -1,0 +1,32 @@
+# NGX-CP 控制面配置样例
+# 所有字段均可被环境变量覆盖：NGXCP_<KEY>（KEY 即下方 mapstructure 名的大写）
+# 例如 NGXCP_DB_DRIVER=postgres  NGXCP_DB_DSN=postgres://ngxcp:pwd@127.0.0.1:5432/ngxcp?sslmode=disable
+
+listen: ":8080"                 # 控制面 HTTP/RPC
+agent_grpc: ":9443"            # Agent 外连的 gRPC 端口
+base_url: "http://127.0.0.1:8080"
+
+db_driver: "sqlite"                                     # "postgres" | "sqlite"
+db_dsn: "file:./dev.db?cache=shared&_fk=1"
+db_max_open_conns: 20
+db_max_idle_conns: 10
+
+pki_ca_cert: "/etc/ngxcp/pki/ca.crt"
+pki_ca_key: "/etc/ngxcp/pki/ca.key"
+pki_agent_cert_ttl: "8760h"                             # Agent 证书有效期，默认 1 年
+
+storage_snapshots_dir: "/var/lib/ngxcp/snapshots"
+storage_artifacts_dir: "/var/lib/ngxcp/artifacts"
+
+clickhouse_dsn: "clickhouse://127.0.0.1:9000/ngxcp"
+clickhouse_max_memory_usage: "6G"
+clickhouse_ttl_days: 7
+
+victoria_metrics_enabled: false
+victoria_metrics_url: "http://127.0.0.1:8428"
+
+log_level: "info"             # debug | info | warn | error
+log_pretty: true              # 开发态彩色输出；生产置 false（JSON）
+
+security_totp_required: true
+security_session_secret: "change-me-in-prod"

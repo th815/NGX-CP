@@ -1,0 +1,72 @@
+# NGX-CP · Nginx 集群管理平台
+
+> 把 Nginx 变更变成「可校验、可灰度、可观测、可回滚」的流水线，而不是又一个配置分发工具。
+
+面向**裸机 / VM 上的 Nginx 集群**（非 K8s Ingress 场景），并支持 **LVS+DR** 架构的 LVS 层编排。
+适用于「2 台 Keepalived（主备）+ 2 台 Nginx RS（DR 模式）」这类自用规模，也预留了百万级日访问的容量余量。
+
+## 特性（规划 / 落地中）
+
+- 多节点纳管（Agent 主动外连，gRPC + mTLS，节点无需开入站端口）
+- 配置检查 / 更新 / 修改 / 同步（模板 + 三级变量：节点 > 集群 > 全局）
+- 证书管理 + 同步（手动上传 / ACME DNS-01，私钥加密不下发浏览器）
+- 配置备份与版本血缘（内容寻址 blob + revision 链）
+- LVS（DR 模式）配置管理 + 无损发布（权重摘除式灰度，zero 5xx）
+- 统一日志 + 攻击预警（TraceID 全链路、ClickHouse 检测即 SQL、封禁复用发布流水线）
+
+## 架构
+
+- 后端：Go（Gin 风格）+ `embed.FS` 内嵌前端，单二进制 systemd 部署
+- Agent：常驻节点，主动外连控制面（mTLS），内建传输与 tail，**无远程命令执行**
+- 数据库：PostgreSQL 16 主库（开发态可用 SQLite 同构 fallback），无 Redis
+- 时序 / 日志：ClickHouse 单实例（限 6G 内存 + TTL 7 天）
+- 监控：Prometheus + Grafana 直接用，平台只自研业务视角指标与告警汇聚
+
+完整设计见 [`docs/`](docs/)：`PRD.md` / `ARCHITECTURE.md` / `DECISIONS.md`；
+任务拆解见 [`docs/tasks/`](docs/tasks/)（M0–M9，约 70 个 AI 任务）。
+
+## 状态
+
+- ✅ **M0 地基**：模块结构、配置、错误封装、日志、ent schema + 双 DB 迁移，全部验收通过。
+- 🚧 **M1 配置闭环骨架**：进行中。
+
+## 快速开始（开发）
+
+```bash
+# 1. 起开发用 PostgreSQL（可选，默认走 SQLite 同构）
+docker compose up -d postgres
+
+# 2. 编译（产出 linux/amd64 静态二进制到 bin/）
+make build
+#    本地 macOS 验证可直接：
+go run ./cmd/ngxcp-server --check-config
+
+# 3. 建表（双路：sqlite / postgres 均可）
+NGXCP_DB_DRIVER=sqlite NGXCP_DB_DSN="file:./dev.db?_fk=1" make migrate-dev
+
+# 4. 跑测试
+make test
+```
+
+配置项见 [`configs/config.example.yaml`](configs/config.example.yaml)，可被 `NGXCP_<KEY>` 环境变量覆盖。
+
+## API 文档（Apifox）
+
+接口契约以 OpenAPI 3 维护在 [`api/openapi.yaml`](api/openapi.yaml)。
+在 **Apifox** 中：「项目 → 导入 → OpenAPI / Swagger」选择该文件，即可生成可调试的 API 文档与 Mock。
+后续 M1+ 新增接口时扩展该文件，并在 Apifox 用「覆盖导入」刷新。
+
+当前已暴露：`GET /health`、`GET /api/v1/version`、`GET /api/v1/nodes`（占位空列表）。
+
+## 原型
+
+方案阶段的高保真交互原型见 [`prototype/index.html`](prototype/index.html)（单文件、无外部依赖，双击即开，数据为模拟数据）。
+
+## 说明
+
+- Go module 当前为 `github.com/th/ngxcp`，会在 v1 前对齐到仓库路径 `github.com/th815/NGX-CP`。
+- 本地项目数据（`.workbuddy/`）、密钥、数据库文件均已加入 `.gitignore`，不会进入仓库。
+
+## License
+
+[MIT](LICENSE)
