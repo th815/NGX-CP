@@ -22,6 +22,8 @@ import (
 	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/configsnapshot"
+	"github.com/th/ngxcp/ent/configtemplate"
+	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -49,6 +51,10 @@ type Client struct {
 	ConfigRevision *ConfigRevisionClient
 	// ConfigSnapshot is the client for interacting with the ConfigSnapshot builders.
 	ConfigSnapshot *ConfigSnapshotClient
+	// ConfigTemplate is the client for interacting with the ConfigTemplate builders.
+	ConfigTemplate *ConfigTemplateClient
+	// ConfigVariable is the client for interacting with the ConfigVariable builders.
+	ConfigVariable *ConfigVariableClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
 	// Node is the client for interacting with the Node builders.
@@ -79,6 +85,8 @@ func (c *Client) init() {
 	c.ConfigFile = NewConfigFileClient(c.config)
 	c.ConfigRevision = NewConfigRevisionClient(c.config)
 	c.ConfigSnapshot = NewConfigSnapshotClient(c.config)
+	c.ConfigTemplate = NewConfigTemplateClient(c.config)
+	c.ConfigVariable = NewConfigVariableClient(c.config)
 	c.DeployTask = NewDeployTaskClient(c.config)
 	c.Node = NewNodeClient(c.config)
 	c.NodeCapability = NewNodeCapabilityClient(c.config)
@@ -184,6 +192,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ConfigFile:     NewConfigFileClient(cfg),
 		ConfigRevision: NewConfigRevisionClient(cfg),
 		ConfigSnapshot: NewConfigSnapshotClient(cfg),
+		ConfigTemplate: NewConfigTemplateClient(cfg),
+		ConfigVariable: NewConfigVariableClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
@@ -216,6 +226,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ConfigFile:     NewConfigFileClient(cfg),
 		ConfigRevision: NewConfigRevisionClient(cfg),
 		ConfigSnapshot: NewConfigSnapshotClient(cfg),
+		ConfigTemplate: NewConfigTemplateClient(cfg),
+		ConfigVariable: NewConfigVariableClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
@@ -252,8 +264,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AuditLog, c.ChangeOrder, c.Cluster, c.ConfigBlob, c.ConfigFile,
-		c.ConfigRevision, c.ConfigSnapshot, c.DeployTask, c.Node, c.NodeCapability,
-		c.NodeConfigFile, c.NodeLogTarget, c.RealServer,
+		c.ConfigRevision, c.ConfigSnapshot, c.ConfigTemplate, c.ConfigVariable,
+		c.DeployTask, c.Node, c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget,
+		c.RealServer,
 	} {
 		n.Use(hooks...)
 	}
@@ -264,8 +277,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AuditLog, c.ChangeOrder, c.Cluster, c.ConfigBlob, c.ConfigFile,
-		c.ConfigRevision, c.ConfigSnapshot, c.DeployTask, c.Node, c.NodeCapability,
-		c.NodeConfigFile, c.NodeLogTarget, c.RealServer,
+		c.ConfigRevision, c.ConfigSnapshot, c.ConfigTemplate, c.ConfigVariable,
+		c.DeployTask, c.Node, c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget,
+		c.RealServer,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -288,6 +302,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ConfigRevision.mutate(ctx, m)
 	case *ConfigSnapshotMutation:
 		return c.ConfigSnapshot.mutate(ctx, m)
+	case *ConfigTemplateMutation:
+		return c.ConfigTemplate.mutate(ctx, m)
+	case *ConfigVariableMutation:
+		return c.ConfigVariable.mutate(ctx, m)
 	case *DeployTaskMutation:
 		return c.DeployTask.mutate(ctx, m)
 	case *NodeMutation:
@@ -1348,6 +1366,272 @@ func (c *ConfigSnapshotClient) mutate(ctx context.Context, m *ConfigSnapshotMuta
 	}
 }
 
+// ConfigTemplateClient is a client for the ConfigTemplate schema.
+type ConfigTemplateClient struct {
+	config
+}
+
+// NewConfigTemplateClient returns a client for the ConfigTemplate from the given config.
+func NewConfigTemplateClient(c config) *ConfigTemplateClient {
+	return &ConfigTemplateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `configtemplate.Hooks(f(g(h())))`.
+func (c *ConfigTemplateClient) Use(hooks ...Hook) {
+	c.hooks.ConfigTemplate = append(c.hooks.ConfigTemplate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `configtemplate.Intercept(f(g(h())))`.
+func (c *ConfigTemplateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ConfigTemplate = append(c.inters.ConfigTemplate, interceptors...)
+}
+
+// Create returns a builder for creating a ConfigTemplate entity.
+func (c *ConfigTemplateClient) Create() *ConfigTemplateCreate {
+	mutation := newConfigTemplateMutation(c.config, OpCreate)
+	return &ConfigTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ConfigTemplate entities.
+func (c *ConfigTemplateClient) CreateBulk(builders ...*ConfigTemplateCreate) *ConfigTemplateCreateBulk {
+	return &ConfigTemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ConfigTemplateClient) MapCreateBulk(slice any, setFunc func(*ConfigTemplateCreate, int)) *ConfigTemplateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ConfigTemplateCreateBulk{err: fmt.Errorf("calling to ConfigTemplateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ConfigTemplateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ConfigTemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ConfigTemplate.
+func (c *ConfigTemplateClient) Update() *ConfigTemplateUpdate {
+	mutation := newConfigTemplateMutation(c.config, OpUpdate)
+	return &ConfigTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ConfigTemplateClient) UpdateOne(_m *ConfigTemplate) *ConfigTemplateUpdateOne {
+	mutation := newConfigTemplateMutation(c.config, OpUpdateOne, withConfigTemplate(_m))
+	return &ConfigTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ConfigTemplateClient) UpdateOneID(id int) *ConfigTemplateUpdateOne {
+	mutation := newConfigTemplateMutation(c.config, OpUpdateOne, withConfigTemplateID(id))
+	return &ConfigTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ConfigTemplate.
+func (c *ConfigTemplateClient) Delete() *ConfigTemplateDelete {
+	mutation := newConfigTemplateMutation(c.config, OpDelete)
+	return &ConfigTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ConfigTemplateClient) DeleteOne(_m *ConfigTemplate) *ConfigTemplateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ConfigTemplateClient) DeleteOneID(id int) *ConfigTemplateDeleteOne {
+	builder := c.Delete().Where(configtemplate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ConfigTemplateDeleteOne{builder}
+}
+
+// Query returns a query builder for ConfigTemplate.
+func (c *ConfigTemplateClient) Query() *ConfigTemplateQuery {
+	return &ConfigTemplateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeConfigTemplate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ConfigTemplate entity by its id.
+func (c *ConfigTemplateClient) Get(ctx context.Context, id int) (*ConfigTemplate, error) {
+	return c.Query().Where(configtemplate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ConfigTemplateClient) GetX(ctx context.Context, id int) *ConfigTemplate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ConfigTemplateClient) Hooks() []Hook {
+	return c.hooks.ConfigTemplate
+}
+
+// Interceptors returns the client interceptors.
+func (c *ConfigTemplateClient) Interceptors() []Interceptor {
+	return c.inters.ConfigTemplate
+}
+
+func (c *ConfigTemplateClient) mutate(ctx context.Context, m *ConfigTemplateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ConfigTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ConfigTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ConfigTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ConfigTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ConfigTemplate mutation op: %q", m.Op())
+	}
+}
+
+// ConfigVariableClient is a client for the ConfigVariable schema.
+type ConfigVariableClient struct {
+	config
+}
+
+// NewConfigVariableClient returns a client for the ConfigVariable from the given config.
+func NewConfigVariableClient(c config) *ConfigVariableClient {
+	return &ConfigVariableClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `configvariable.Hooks(f(g(h())))`.
+func (c *ConfigVariableClient) Use(hooks ...Hook) {
+	c.hooks.ConfigVariable = append(c.hooks.ConfigVariable, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `configvariable.Intercept(f(g(h())))`.
+func (c *ConfigVariableClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ConfigVariable = append(c.inters.ConfigVariable, interceptors...)
+}
+
+// Create returns a builder for creating a ConfigVariable entity.
+func (c *ConfigVariableClient) Create() *ConfigVariableCreate {
+	mutation := newConfigVariableMutation(c.config, OpCreate)
+	return &ConfigVariableCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ConfigVariable entities.
+func (c *ConfigVariableClient) CreateBulk(builders ...*ConfigVariableCreate) *ConfigVariableCreateBulk {
+	return &ConfigVariableCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ConfigVariableClient) MapCreateBulk(slice any, setFunc func(*ConfigVariableCreate, int)) *ConfigVariableCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ConfigVariableCreateBulk{err: fmt.Errorf("calling to ConfigVariableClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ConfigVariableCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ConfigVariableCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ConfigVariable.
+func (c *ConfigVariableClient) Update() *ConfigVariableUpdate {
+	mutation := newConfigVariableMutation(c.config, OpUpdate)
+	return &ConfigVariableUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ConfigVariableClient) UpdateOne(_m *ConfigVariable) *ConfigVariableUpdateOne {
+	mutation := newConfigVariableMutation(c.config, OpUpdateOne, withConfigVariable(_m))
+	return &ConfigVariableUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ConfigVariableClient) UpdateOneID(id int) *ConfigVariableUpdateOne {
+	mutation := newConfigVariableMutation(c.config, OpUpdateOne, withConfigVariableID(id))
+	return &ConfigVariableUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ConfigVariable.
+func (c *ConfigVariableClient) Delete() *ConfigVariableDelete {
+	mutation := newConfigVariableMutation(c.config, OpDelete)
+	return &ConfigVariableDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ConfigVariableClient) DeleteOne(_m *ConfigVariable) *ConfigVariableDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ConfigVariableClient) DeleteOneID(id int) *ConfigVariableDeleteOne {
+	builder := c.Delete().Where(configvariable.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ConfigVariableDeleteOne{builder}
+}
+
+// Query returns a query builder for ConfigVariable.
+func (c *ConfigVariableClient) Query() *ConfigVariableQuery {
+	return &ConfigVariableQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeConfigVariable},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ConfigVariable entity by its id.
+func (c *ConfigVariableClient) Get(ctx context.Context, id int) (*ConfigVariable, error) {
+	return c.Query().Where(configvariable.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ConfigVariableClient) GetX(ctx context.Context, id int) *ConfigVariable {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ConfigVariableClient) Hooks() []Hook {
+	return c.hooks.ConfigVariable
+}
+
+// Interceptors returns the client interceptors.
+func (c *ConfigVariableClient) Interceptors() []Interceptor {
+	return c.inters.ConfigVariable
+}
+
+func (c *ConfigVariableClient) mutate(ctx context.Context, m *ConfigVariableMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ConfigVariableCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ConfigVariableUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ConfigVariableUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ConfigVariableDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ConfigVariable mutation op: %q", m.Op())
+	}
+}
+
 // DeployTaskClient is a client for the DeployTask schema.
 type DeployTaskClient struct {
 	config
@@ -2358,12 +2642,12 @@ func (c *RealServerClient) mutate(ctx context.Context, m *RealServerMutation) (V
 type (
 	hooks struct {
 		AuditLog, ChangeOrder, Cluster, ConfigBlob, ConfigFile, ConfigRevision,
-		ConfigSnapshot, DeployTask, Node, NodeCapability, NodeConfigFile,
-		NodeLogTarget, RealServer []ent.Hook
+		ConfigSnapshot, ConfigTemplate, ConfigVariable, DeployTask, Node,
+		NodeCapability, NodeConfigFile, NodeLogTarget, RealServer []ent.Hook
 	}
 	inters struct {
 		AuditLog, ChangeOrder, Cluster, ConfigBlob, ConfigFile, ConfigRevision,
-		ConfigSnapshot, DeployTask, Node, NodeCapability, NodeConfigFile,
-		NodeLogTarget, RealServer []ent.Interceptor
+		ConfigSnapshot, ConfigTemplate, ConfigVariable, DeployTask, Node,
+		NodeCapability, NodeConfigFile, NodeLogTarget, RealServer []ent.Interceptor
 	}
 )

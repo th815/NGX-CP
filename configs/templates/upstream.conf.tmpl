@@ -1,0 +1,11 @@
+# 由 NGX-CP 模板渲染生成 —— 请勿手工修改，改动请走平台模板与变量
+# 变量（三级覆盖 global < cluster < node）：
+#   cluster          集群标识（如 prod-web）
+#   backend_ip       后端服务 IP
+#   backend_port     后端服务端口
+#   backend_weight   权重（lb 用，默认 1）
+#   check_interval   健康检查间隔（ms）
+upstream {{ .cluster }}_backend {
+    server {{ .backend_ip }}:{{ .backend_port }} weight={{ .backend_weight }} max_fails=3 fail_timeout=10s;
+    check interval={{ .check_interval }} rise=2 fall=3 timeout=1000 type=tcp;
+}

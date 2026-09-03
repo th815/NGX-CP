@@ -20,7 +20,8 @@ import (
 // validator 为 T024 校验触发入口（*transport.Server 经心跳命令流驱动 Agent 跑 nginx -t）。
 // semantic 为 T025 语义校验器（复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎）。
 // drift 为 T026 漂移检测器（复用 cfgStore + ent 客户端，在配置树上报时即时检测 + 定时巡检）。
-func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector) *gin.Engine {
+// tmplSvc 为 T027 模板与三级变量服务（复用 ent 客户端，提供配置模板渲染与变量解析）。
+func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -77,6 +78,20 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			dh := handler.NewDriftHandler(drift)
 			cs.GET("/drift", dh.ListDrift)                  // ?node_id=1 或全量
 			cs.POST("/drift", auth, dh.CheckDrift)         // 手动提交 actual 触发检测
+		}
+
+		// T027 配置模板与三级变量：模板浏览/渲染 + 变量管理（均含敏感信息，全部需鉴权）。
+		th := handler.NewTemplateHandler(tmplSvc)
+		ts := v1.Group("/templates")
+		{
+			ts.GET("", auth, th.ListTemplates)
+			ts.GET("/:id", auth, th.GetTemplate)
+			ts.POST("/:id/render", auth, th.RenderTemplate)
+		}
+		vs := v1.Group("/variables")
+		{
+			vs.GET("", auth, th.ListVariables)
+			vs.POST("", auth, th.SetVariable)
 		}
 	}
 	return r

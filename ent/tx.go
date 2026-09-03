@@ -26,6 +26,10 @@ type Tx struct {
 	ConfigRevision *ConfigRevisionClient
 	// ConfigSnapshot is the client for interacting with the ConfigSnapshot builders.
 	ConfigSnapshot *ConfigSnapshotClient
+	// ConfigTemplate is the client for interacting with the ConfigTemplate builders.
+	ConfigTemplate *ConfigTemplateClient
+	// ConfigVariable is the client for interacting with the ConfigVariable builders.
+	ConfigVariable *ConfigVariableClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
 	// Node is the client for interacting with the Node builders.
@@ -176,6 +180,8 @@ func (tx *Tx) init() {
 	tx.ConfigFile = NewConfigFileClient(tx.config)
 	tx.ConfigRevision = NewConfigRevisionClient(tx.config)
 	tx.ConfigSnapshot = NewConfigSnapshotClient(tx.config)
+	tx.ConfigTemplate = NewConfigTemplateClient(tx.config)
+	tx.ConfigVariable = NewConfigVariableClient(tx.config)
 	tx.DeployTask = NewDeployTaskClient(tx.config)
 	tx.Node = NewNodeClient(tx.config)
 	tx.NodeCapability = NewNodeCapabilityClient(tx.config)

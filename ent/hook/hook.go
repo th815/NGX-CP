@@ -93,6 +93,30 @@ func (f ConfigSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ConfigSnapshotMutation", m)
 }
 
+// The ConfigTemplateFunc type is an adapter to allow the use of ordinary
+// function as ConfigTemplate mutator.
+type ConfigTemplateFunc func(context.Context, *ent.ConfigTemplateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ConfigTemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ConfigTemplateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ConfigTemplateMutation", m)
+}
+
+// The ConfigVariableFunc type is an adapter to allow the use of ordinary
+// function as ConfigVariable mutator.
+type ConfigVariableFunc func(context.Context, *ent.ConfigVariableMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ConfigVariableFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ConfigVariableMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ConfigVariableMutation", m)
+}
+
 // The DeployTaskFunc type is an adapter to allow the use of ordinary
 // function as DeployTask mutator.
 type DeployTaskFunc func(context.Context, *ent.DeployTaskMutation) (ent.Value, error)

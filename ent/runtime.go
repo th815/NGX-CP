@@ -12,6 +12,8 @@ import (
 	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/configsnapshot"
+	"github.com/th/ngxcp/ent/configtemplate"
+	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -93,6 +95,38 @@ func init() {
 	configsnapshotDescCreatedAt := configsnapshotFields[5].Descriptor()
 	// configsnapshot.DefaultCreatedAt holds the default value on creation for the created_at field.
 	configsnapshot.DefaultCreatedAt = configsnapshotDescCreatedAt.Default.(func() time.Time)
+	configtemplateFields := schema.ConfigTemplate{}.Fields()
+	_ = configtemplateFields
+	// configtemplateDescCreatedAt is the schema descriptor for created_at field.
+	configtemplateDescCreatedAt := configtemplateFields[4].Descriptor()
+	// configtemplate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	configtemplate.DefaultCreatedAt = configtemplateDescCreatedAt.Default.(func() time.Time)
+	// configtemplateDescUpdatedAt is the schema descriptor for updated_at field.
+	configtemplateDescUpdatedAt := configtemplateFields[5].Descriptor()
+	// configtemplate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	configtemplate.DefaultUpdatedAt = configtemplateDescUpdatedAt.Default.(func() time.Time)
+	// configtemplate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	configtemplate.UpdateDefaultUpdatedAt = configtemplateDescUpdatedAt.UpdateDefault.(func() time.Time)
+	configvariableFields := schema.ConfigVariable{}.Fields()
+	_ = configvariableFields
+	// configvariableDescTargetID is the schema descriptor for target_id field.
+	configvariableDescTargetID := configvariableFields[1].Descriptor()
+	// configvariable.DefaultTargetID holds the default value on creation for the target_id field.
+	configvariable.DefaultTargetID = configvariableDescTargetID.Default.(int)
+	// configvariableDescSecret is the schema descriptor for secret field.
+	configvariableDescSecret := configvariableFields[4].Descriptor()
+	// configvariable.DefaultSecret holds the default value on creation for the secret field.
+	configvariable.DefaultSecret = configvariableDescSecret.Default.(bool)
+	// configvariableDescCreatedAt is the schema descriptor for created_at field.
+	configvariableDescCreatedAt := configvariableFields[5].Descriptor()
+	// configvariable.DefaultCreatedAt holds the default value on creation for the created_at field.
+	configvariable.DefaultCreatedAt = configvariableDescCreatedAt.Default.(func() time.Time)
+	// configvariableDescUpdatedAt is the schema descriptor for updated_at field.
+	configvariableDescUpdatedAt := configvariableFields[6].Descriptor()
+	// configvariable.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	configvariable.DefaultUpdatedAt = configvariableDescUpdatedAt.Default.(func() time.Time)
+	// configvariable.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	configvariable.UpdateDefaultUpdatedAt = configvariableDescUpdatedAt.UpdateDefault.(func() time.Time)
 	deploytaskFields := schema.DeployTask{}.Fields()
 	_ = deploytaskFields
 	// deploytaskDescAttempts is the schema descriptor for attempts field.

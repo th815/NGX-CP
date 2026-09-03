@@ -19,6 +19,8 @@ import (
 	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/configsnapshot"
+	"github.com/th/ngxcp/ent/configtemplate"
+	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -92,6 +94,8 @@ func checkColumn(t, c string) error {
 			configfile.Table:     configfile.ValidColumn,
 			configrevision.Table: configrevision.ValidColumn,
 			configsnapshot.Table: configsnapshot.ValidColumn,
+			configtemplate.Table: configtemplate.ValidColumn,
+			configvariable.Table: configvariable.ValidColumn,
 			deploytask.Table:     deploytask.ValidColumn,
 			node.Table:           node.ValidColumn,
 			nodecapability.Table: nodecapability.ValidColumn,

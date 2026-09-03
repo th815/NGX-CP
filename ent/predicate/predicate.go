@@ -27,6 +27,12 @@ type ConfigRevision func(*sql.Selector)
 // ConfigSnapshot is the predicate function for configsnapshot builders.
 type ConfigSnapshot func(*sql.Selector)
 
+// ConfigTemplate is the predicate function for configtemplate builders.
+type ConfigTemplate func(*sql.Selector)
+
+// ConfigVariable is the predicate function for configvariable builders.
+type ConfigVariable func(*sql.Selector)
+
 // DeployTask is the predicate function for deploytask builders.
 type DeployTask func(*sql.Selector)
 
