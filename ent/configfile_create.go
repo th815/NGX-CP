@@ -12,7 +12,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/configfile"
-	"github.com/th/ngxcp/ent/configrevision"
 )
 
 // ConfigFileCreate is the builder for creating a ConfigFile entity.
@@ -45,6 +44,20 @@ func (_c *ConfigFileCreate) SetFormat(v configfile.Format) *ConfigFileCreate {
 func (_c *ConfigFileCreate) SetNillableFormat(v *configfile.Format) *ConfigFileCreate {
 	if v != nil {
 		_c.SetFormat(*v)
+	}
+	return _c
+}
+
+// SetCurrentRevisionID sets the "current_revision_id" field.
+func (_c *ConfigFileCreate) SetCurrentRevisionID(v int) *ConfigFileCreate {
+	_c.mutation.SetCurrentRevisionID(v)
+	return _c
+}
+
+// SetNillableCurrentRevisionID sets the "current_revision_id" field if the given value is not nil.
+func (_c *ConfigFileCreate) SetNillableCurrentRevisionID(v *int) *ConfigFileCreate {
+	if v != nil {
+		_c.SetCurrentRevisionID(*v)
 	}
 	return _c
 }
@@ -89,25 +102,6 @@ func (_c *ConfigFileCreate) SetNillableDeletedAt(v *time.Time) *ConfigFileCreate
 		_c.SetDeletedAt(*v)
 	}
 	return _c
-}
-
-// SetCurrentRevisionID sets the "current_revision" edge to the ConfigRevision entity by ID.
-func (_c *ConfigFileCreate) SetCurrentRevisionID(id int) *ConfigFileCreate {
-	_c.mutation.SetCurrentRevisionID(id)
-	return _c
-}
-
-// SetNillableCurrentRevisionID sets the "current_revision" edge to the ConfigRevision entity by ID if the given value is not nil.
-func (_c *ConfigFileCreate) SetNillableCurrentRevisionID(id *int) *ConfigFileCreate {
-	if id != nil {
-		_c = _c.SetCurrentRevisionID(*id)
-	}
-	return _c
-}
-
-// SetCurrentRevision sets the "current_revision" edge to the ConfigRevision entity.
-func (_c *ConfigFileCreate) SetCurrentRevision(v *ConfigRevision) *ConfigFileCreate {
-	return _c.SetCurrentRevisionID(v.ID)
 }
 
 // Mutation returns the ConfigFileMutation object of the builder.
@@ -220,6 +214,10 @@ func (_c *ConfigFileCreate) createSpec() (*ConfigFile, *sqlgraph.CreateSpec) {
 		_spec.SetField(configfile.FieldFormat, field.TypeEnum, value)
 		_node.Format = value
 	}
+	if value, ok := _c.mutation.CurrentRevisionID(); ok {
+		_spec.SetField(configfile.FieldCurrentRevisionID, field.TypeInt, value)
+		_node.CurrentRevisionID = value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(configfile.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -231,22 +229,6 @@ func (_c *ConfigFileCreate) createSpec() (*ConfigFile, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(configfile.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = value
-	}
-	if nodes := _c.mutation.CurrentRevisionIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: false,
-			Table:   configfile.CurrentRevisionTable,
-			Columns: []string{configfile.CurrentRevisionColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }
@@ -339,6 +321,30 @@ func (u *ConfigFileUpsert) SetFormat(v configfile.Format) *ConfigFileUpsert {
 // UpdateFormat sets the "format" field to the value that was provided on create.
 func (u *ConfigFileUpsert) UpdateFormat() *ConfigFileUpsert {
 	u.SetExcluded(configfile.FieldFormat)
+	return u
+}
+
+// SetCurrentRevisionID sets the "current_revision_id" field.
+func (u *ConfigFileUpsert) SetCurrentRevisionID(v int) *ConfigFileUpsert {
+	u.Set(configfile.FieldCurrentRevisionID, v)
+	return u
+}
+
+// UpdateCurrentRevisionID sets the "current_revision_id" field to the value that was provided on create.
+func (u *ConfigFileUpsert) UpdateCurrentRevisionID() *ConfigFileUpsert {
+	u.SetExcluded(configfile.FieldCurrentRevisionID)
+	return u
+}
+
+// AddCurrentRevisionID adds v to the "current_revision_id" field.
+func (u *ConfigFileUpsert) AddCurrentRevisionID(v int) *ConfigFileUpsert {
+	u.Add(configfile.FieldCurrentRevisionID, v)
+	return u
+}
+
+// ClearCurrentRevisionID clears the value of the "current_revision_id" field.
+func (u *ConfigFileUpsert) ClearCurrentRevisionID() *ConfigFileUpsert {
+	u.SetNull(configfile.FieldCurrentRevisionID)
 	return u
 }
 
@@ -463,6 +469,34 @@ func (u *ConfigFileUpsertOne) SetFormat(v configfile.Format) *ConfigFileUpsertOn
 func (u *ConfigFileUpsertOne) UpdateFormat() *ConfigFileUpsertOne {
 	return u.Update(func(s *ConfigFileUpsert) {
 		s.UpdateFormat()
+	})
+}
+
+// SetCurrentRevisionID sets the "current_revision_id" field.
+func (u *ConfigFileUpsertOne) SetCurrentRevisionID(v int) *ConfigFileUpsertOne {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.SetCurrentRevisionID(v)
+	})
+}
+
+// AddCurrentRevisionID adds v to the "current_revision_id" field.
+func (u *ConfigFileUpsertOne) AddCurrentRevisionID(v int) *ConfigFileUpsertOne {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.AddCurrentRevisionID(v)
+	})
+}
+
+// UpdateCurrentRevisionID sets the "current_revision_id" field to the value that was provided on create.
+func (u *ConfigFileUpsertOne) UpdateCurrentRevisionID() *ConfigFileUpsertOne {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.UpdateCurrentRevisionID()
+	})
+}
+
+// ClearCurrentRevisionID clears the value of the "current_revision_id" field.
+func (u *ConfigFileUpsertOne) ClearCurrentRevisionID() *ConfigFileUpsertOne {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.ClearCurrentRevisionID()
 	})
 }
 
@@ -758,6 +792,34 @@ func (u *ConfigFileUpsertBulk) SetFormat(v configfile.Format) *ConfigFileUpsertB
 func (u *ConfigFileUpsertBulk) UpdateFormat() *ConfigFileUpsertBulk {
 	return u.Update(func(s *ConfigFileUpsert) {
 		s.UpdateFormat()
+	})
+}
+
+// SetCurrentRevisionID sets the "current_revision_id" field.
+func (u *ConfigFileUpsertBulk) SetCurrentRevisionID(v int) *ConfigFileUpsertBulk {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.SetCurrentRevisionID(v)
+	})
+}
+
+// AddCurrentRevisionID adds v to the "current_revision_id" field.
+func (u *ConfigFileUpsertBulk) AddCurrentRevisionID(v int) *ConfigFileUpsertBulk {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.AddCurrentRevisionID(v)
+	})
+}
+
+// UpdateCurrentRevisionID sets the "current_revision_id" field to the value that was provided on create.
+func (u *ConfigFileUpsertBulk) UpdateCurrentRevisionID() *ConfigFileUpsertBulk {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.UpdateCurrentRevisionID()
+	})
+}
+
+// ClearCurrentRevisionID clears the value of the "current_revision_id" field.
+func (u *ConfigFileUpsertBulk) ClearCurrentRevisionID() *ConfigFileUpsertBulk {
+	return u.Update(func(s *ConfigFileUpsert) {
+		s.ClearCurrentRevisionID()
 	})
 }
 

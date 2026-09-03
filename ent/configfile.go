@@ -10,7 +10,6 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/th/ngxcp/ent/configfile"
-	"github.com/th/ngxcp/ent/configrevision"
 )
 
 // ConfigFile is the model entity for the ConfigFile schema.
@@ -24,36 +23,15 @@ type ConfigFile struct {
 	Path string `json:"path,omitempty"`
 	// Format holds the value of the "format" field.
 	Format configfile.Format `json:"format,omitempty"`
+	// CurrentRevisionID holds the value of the "current_revision_id" field.
+	CurrentRevisionID int `json:"current_revision_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
-	DeletedAt time.Time `json:"deleted_at,omitempty"`
-	// Edges holds the relations/edges for other nodes in the graph.
-	// The values are being populated by the ConfigFileQuery when eager-loading is set.
-	Edges        ConfigFileEdges `json:"edges"`
+	DeletedAt    time.Time `json:"deleted_at,omitempty"`
 	selectValues sql.SelectValues
-}
-
-// ConfigFileEdges holds the relations/edges for other nodes in the graph.
-type ConfigFileEdges struct {
-	// CurrentRevision holds the value of the current_revision edge.
-	CurrentRevision *ConfigRevision `json:"current_revision,omitempty"`
-	// loadedTypes holds the information for reporting if a
-	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
-}
-
-// CurrentRevisionOrErr returns the CurrentRevision value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e ConfigFileEdges) CurrentRevisionOrErr() (*ConfigRevision, error) {
-	if e.CurrentRevision != nil {
-		return e.CurrentRevision, nil
-	} else if e.loadedTypes[0] {
-		return nil, &NotFoundError{label: configrevision.Label}
-	}
-	return nil, &NotLoadedError{edge: "current_revision"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -61,7 +39,7 @@ func (*ConfigFile) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case configfile.FieldID, configfile.FieldNodeID:
+		case configfile.FieldID, configfile.FieldNodeID, configfile.FieldCurrentRevisionID:
 			values[i] = new(sql.NullInt64)
 		case configfile.FieldPath, configfile.FieldFormat:
 			values[i] = new(sql.NullString)
@@ -106,6 +84,12 @@ func (_m *ConfigFile) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Format = configfile.Format(value.String)
 			}
+		case configfile.FieldCurrentRevisionID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field current_revision_id", values[i])
+			} else if value.Valid {
+				_m.CurrentRevisionID = int(value.Int64)
+			}
 		case configfile.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -135,11 +119,6 @@ func (_m *ConfigFile) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *ConfigFile) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
-}
-
-// QueryCurrentRevision queries the "current_revision" edge of the ConfigFile entity.
-func (_m *ConfigFile) QueryCurrentRevision() *ConfigRevisionQuery {
-	return NewConfigFileClient(_m.config).QueryCurrentRevision(_m)
 }
 
 // Update returns a builder for updating this ConfigFile.
@@ -173,6 +152,9 @@ func (_m *ConfigFile) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("format=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Format))
+	builder.WriteString(", ")
+	builder.WriteString("current_revision_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CurrentRevisionID))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

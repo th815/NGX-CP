@@ -47,7 +47,9 @@ func (c *Collector) CollectCapability(ctx context.Context) (*agentv1.Capability,
 	return cap, nil
 }
 
-// CollectConfigTree 运行 nginx -T 并采集配置树元数据快照（不含内容）。
+// CollectConfigTree 运行 nginx -T 并采集配置树（含内容，供 T021 内容寻址版本化存储）。
+// 注意：nginx -T 仅 dump 配置文件原文（不含 ssl_certificate_key 等私钥文件内容，
+// 私钥以路径形式在配置中引用，不进入 -T 输出），故回传配置内容不构成密钥泄露。
 func (c *Collector) CollectConfigTree(ctx context.Context) (*agentv1.ConfigTreeReport, error) {
 	files, err := capability.CollectNginxTree(ctx, c.exec)
 	if err != nil {
@@ -56,9 +58,10 @@ func (c *Collector) CollectConfigTree(ctx context.Context) (*agentv1.ConfigTreeR
 	rep := &agentv1.ConfigTreeReport{CapturedAt: time.Now().Unix()}
 	for _, f := range files {
 		rep.Files = append(rep.Files, &agentv1.ConfigFile{
-			Path:   f.Path,
-			Sha256: f.SHA256,
-			Size:   f.Size,
+			Path:    f.Path,
+			Sha256:  f.SHA256,
+			Size:    f.Size,
+			Content: f.Content, // T021：带上内容，控制面据此做内容寻址与版本链
 		})
 	}
 	return rep, nil

@@ -3,6 +3,7 @@
 package configrevision
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -18,6 +19,10 @@ const (
 	FieldNodeID = "node_id"
 	// FieldPath holds the string denoting the path field in the database.
 	FieldPath = "path"
+	// FieldSource holds the string denoting the source field in the database.
+	FieldSource = "source"
+	// FieldChangeOrderID holds the string denoting the change_order_id field in the database.
+	FieldChangeOrderID = "change_order_id"
 	// FieldMessage holds the string denoting the message field in the database.
 	FieldMessage = "message"
 	// FieldAuthor holds the string denoting the author field in the database.
@@ -30,8 +35,6 @@ const (
 	EdgeParent = "parent"
 	// EdgeChildren holds the string denoting the children edge name in mutations.
 	EdgeChildren = "children"
-	// EdgeConfigFile holds the string denoting the config_file edge name in mutations.
-	EdgeConfigFile = "config_file"
 	// Table holds the table name of the configrevision in the database.
 	Table = "config_revisions"
 	// BlobTable is the table that holds the blob relation/edge.
@@ -49,13 +52,6 @@ const (
 	ChildrenTable = "config_revisions"
 	// ChildrenColumn is the table column denoting the children relation/edge.
 	ChildrenColumn = "config_revision_children"
-	// ConfigFileTable is the table that holds the config_file relation/edge.
-	ConfigFileTable = "config_revisions"
-	// ConfigFileInverseTable is the table name for the ConfigFile entity.
-	// It exists in this package in order to avoid circular dependency with the "configfile" package.
-	ConfigFileInverseTable = "config_files"
-	// ConfigFileColumn is the table column denoting the config_file relation/edge.
-	ConfigFileColumn = "config_file_current_revision"
 )
 
 // Columns holds all SQL columns for configrevision fields.
@@ -63,6 +59,8 @@ var Columns = []string{
 	FieldID,
 	FieldNodeID,
 	FieldPath,
+	FieldSource,
+	FieldChangeOrderID,
 	FieldMessage,
 	FieldAuthor,
 	FieldCreatedAt,
@@ -72,7 +70,6 @@ var Columns = []string{
 // table and are not defined as standalone fields in the schema.
 var ForeignKeys = []string{
 	"config_blob_revisions",
-	"config_file_current_revision",
 	"config_revision_children",
 }
 
@@ -96,6 +93,35 @@ var (
 	DefaultCreatedAt func() time.Time
 )
 
+// Source defines the type for the "source" enum field.
+type Source string
+
+// SourceSync is the default value of the Source enum.
+const DefaultSource = SourceSync
+
+// Source values.
+const (
+	SourceSync          Source = "sync"
+	SourceManualEdit    Source = "manual_edit"
+	SourceCertRenew     Source = "cert_renew"
+	SourceSecurityBlock Source = "security_block"
+	SourceRollback      Source = "rollback"
+)
+
+func (s Source) String() string {
+	return string(s)
+}
+
+// SourceValidator is a validator for the "source" field enum values. It is called by the builders before save.
+func SourceValidator(s Source) error {
+	switch s {
+	case SourceSync, SourceManualEdit, SourceCertRenew, SourceSecurityBlock, SourceRollback:
+		return nil
+	default:
+		return fmt.Errorf("configrevision: invalid enum value for source field: %q", s)
+	}
+}
+
 // OrderOption defines the ordering options for the ConfigRevision queries.
 type OrderOption func(*sql.Selector)
 
@@ -112,6 +138,16 @@ func ByNodeID(opts ...sql.OrderTermOption) OrderOption {
 // ByPath orders the results by the path field.
 func ByPath(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPath, opts...).ToFunc()
+}
+
+// BySource orders the results by the source field.
+func BySource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSource, opts...).ToFunc()
+}
+
+// ByChangeOrderID orders the results by the change_order_id field.
+func ByChangeOrderID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChangeOrderID, opts...).ToFunc()
 }
 
 // ByMessage orders the results by the message field.
@@ -156,13 +192,6 @@ func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
-
-// ByConfigFileField orders the results by config_file field.
-func ByConfigFileField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newConfigFileStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newBlobStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -182,12 +211,5 @@ func newChildrenStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(Table, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ChildrenTable, ChildrenColumn),
-	)
-}
-func newConfigFileStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ConfigFileInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2O, true, ConfigFileTable, ConfigFileColumn),
 	)
 }

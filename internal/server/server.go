@@ -10,6 +10,7 @@ import (
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/agent/transport"
 	"github.com/th/ngxcp/internal/config"
+	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/logging"
@@ -41,7 +42,9 @@ func Run(cfg *config.Config) error {
 	}
 
 	// 共享的节点服务：HTTP 签发接入令牌与 gRPC 校验/心跳落库共用同一实例。
-	nodeSvc := node.New(client)
+	// T021 配置版本化存储复用同一 ent 客户端，注入节点服务以在 SaveConfigTree 时同步版本链。
+	cfgStore := configstore.New(client)
+	nodeSvc := node.New(client, cfgStore)
 
 	// T015 会话管理：会话表 + 心跳超时扫描器。
 	sessions := session.NewSessionManager(slog.Default())
@@ -81,7 +84,7 @@ func Run(cfg *config.Config) error {
 	})
 
 	// HTTP 控制面（阻塞，直到进程退出）。
-	r := buildRouter(cfg, nodeSvc, sessions)
+	r := buildRouter(cfg, nodeSvc, cfgStore, sessions)
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
 }

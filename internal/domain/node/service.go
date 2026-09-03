@@ -21,6 +21,7 @@ import (
 	entncf "github.com/th/ngxcp/ent/nodeconfigfile"
 	entnlt "github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/internal/domain/compliance"
+	"github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/probe"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 )
@@ -28,6 +29,10 @@ import (
 // Service 持有 ent 客户端与接入令牌内存表（令牌持久化随 T014 落地）。
 type Service struct {
 	client *ent.Client
+
+	// cfgStore 是 T021 配置版本化内容寻址存储（可空：未注入时 SaveConfigTree 仅维护
+	// T018-A 元数据快照，不写入版本链；早期单测与 gRPC 单测据此跳过版本化路径）。
+	cfgStore *config.ConfigStore
 
 	mu     sync.RWMutex
 	tokens map[string]*enrollToken
@@ -42,10 +47,11 @@ type Service struct {
 	fsReports map[int]*agentv1.FsProbeReport
 }
 
-// New 构造节点服务。
-func New(client *ent.Client) *Service {
+// New 构造节点服务。cfgStore 为 T021 配置版本化存储（可传 nil，见 Service.cfgStore 说明）。
+func New(client *ent.Client, cfgStore *config.ConfigStore) *Service {
 	return &Service{
 		client:      client,
+		cfgStore:    cfgStore,
 		tokens:      make(map[string]*enrollToken),
 		compReports: make(map[int]*agentv1.ComplianceReport),
 		fsReports:   make(map[int]*agentv1.FsProbeReport),
@@ -656,6 +662,7 @@ func (s *Service) recomputeHealth(ctx context.Context, id int) error {
 
 // SaveConfigTree 用 Agent 上报的 nginx -T 配置树**整体替换**该节点的配置文件快照（快照语义）。
 // 仅持久化元数据（路径/大小/哈希），不存内容（见 ent NodeConfigFile 设计说明）。
+// 若注入了 cfgStore（T021 版本化存储），则同时把带内容的配置树同步进内容寻址版本链。
 func (s *Service) SaveConfigTree(ctx context.Context, id int, files []*agentv1.ConfigFile) error {
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
@@ -687,6 +694,12 @@ func (s *Service) SaveConfigTree(ctx context.Context, id int, files []*agentv1.C
 	}
 	if err := tx.Commit(); err != nil {
 		return apperr.Wrap(apperr.CodeInternal, "提交配置树事务失败", err)
+	}
+	// T021：同步进版本化内容寻址存储（带内容）。cfgStore 为可空依赖，未注入时跳过。
+	if s.cfgStore != nil {
+		if _, err := s.cfgStore.SyncFromAgent(ctx, id, files); err != nil {
+			return apperr.Wrap(apperr.CodeInternal, "同步配置版本化存储失败", err)
+		}
 	}
 	return nil
 }

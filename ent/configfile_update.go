@@ -12,7 +12,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/configfile"
-	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/predicate"
 )
 
@@ -78,6 +77,33 @@ func (_u *ConfigFileUpdate) SetNillableFormat(v *configfile.Format) *ConfigFileU
 	return _u
 }
 
+// SetCurrentRevisionID sets the "current_revision_id" field.
+func (_u *ConfigFileUpdate) SetCurrentRevisionID(v int) *ConfigFileUpdate {
+	_u.mutation.ResetCurrentRevisionID()
+	_u.mutation.SetCurrentRevisionID(v)
+	return _u
+}
+
+// SetNillableCurrentRevisionID sets the "current_revision_id" field if the given value is not nil.
+func (_u *ConfigFileUpdate) SetNillableCurrentRevisionID(v *int) *ConfigFileUpdate {
+	if v != nil {
+		_u.SetCurrentRevisionID(*v)
+	}
+	return _u
+}
+
+// AddCurrentRevisionID adds value to the "current_revision_id" field.
+func (_u *ConfigFileUpdate) AddCurrentRevisionID(v int) *ConfigFileUpdate {
+	_u.mutation.AddCurrentRevisionID(v)
+	return _u
+}
+
+// ClearCurrentRevisionID clears the value of the "current_revision_id" field.
+func (_u *ConfigFileUpdate) ClearCurrentRevisionID() *ConfigFileUpdate {
+	_u.mutation.ClearCurrentRevisionID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *ConfigFileUpdate) SetUpdatedAt(v time.Time) *ConfigFileUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -104,34 +130,9 @@ func (_u *ConfigFileUpdate) ClearDeletedAt() *ConfigFileUpdate {
 	return _u
 }
 
-// SetCurrentRevisionID sets the "current_revision" edge to the ConfigRevision entity by ID.
-func (_u *ConfigFileUpdate) SetCurrentRevisionID(id int) *ConfigFileUpdate {
-	_u.mutation.SetCurrentRevisionID(id)
-	return _u
-}
-
-// SetNillableCurrentRevisionID sets the "current_revision" edge to the ConfigRevision entity by ID if the given value is not nil.
-func (_u *ConfigFileUpdate) SetNillableCurrentRevisionID(id *int) *ConfigFileUpdate {
-	if id != nil {
-		_u = _u.SetCurrentRevisionID(*id)
-	}
-	return _u
-}
-
-// SetCurrentRevision sets the "current_revision" edge to the ConfigRevision entity.
-func (_u *ConfigFileUpdate) SetCurrentRevision(v *ConfigRevision) *ConfigFileUpdate {
-	return _u.SetCurrentRevisionID(v.ID)
-}
-
 // Mutation returns the ConfigFileMutation object of the builder.
 func (_u *ConfigFileUpdate) Mutation() *ConfigFileMutation {
 	return _u.mutation
-}
-
-// ClearCurrentRevision clears the "current_revision" edge to the ConfigRevision entity.
-func (_u *ConfigFileUpdate) ClearCurrentRevision() *ConfigFileUpdate {
-	_u.mutation.ClearCurrentRevision()
-	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -204,6 +205,15 @@ func (_u *ConfigFileUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.Format(); ok {
 		_spec.SetField(configfile.FieldFormat, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.CurrentRevisionID(); ok {
+		_spec.SetField(configfile.FieldCurrentRevisionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCurrentRevisionID(); ok {
+		_spec.AddField(configfile.FieldCurrentRevisionID, field.TypeInt, value)
+	}
+	if _u.mutation.CurrentRevisionIDCleared() {
+		_spec.ClearField(configfile.FieldCurrentRevisionID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(configfile.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -212,35 +222,6 @@ func (_u *ConfigFileUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(configfile.FieldDeletedAt, field.TypeTime)
-	}
-	if _u.mutation.CurrentRevisionCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: false,
-			Table:   configfile.CurrentRevisionTable,
-			Columns: []string{configfile.CurrentRevisionColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.CurrentRevisionIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: false,
-			Table:   configfile.CurrentRevisionTable,
-			Columns: []string{configfile.CurrentRevisionColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -311,6 +292,33 @@ func (_u *ConfigFileUpdateOne) SetNillableFormat(v *configfile.Format) *ConfigFi
 	return _u
 }
 
+// SetCurrentRevisionID sets the "current_revision_id" field.
+func (_u *ConfigFileUpdateOne) SetCurrentRevisionID(v int) *ConfigFileUpdateOne {
+	_u.mutation.ResetCurrentRevisionID()
+	_u.mutation.SetCurrentRevisionID(v)
+	return _u
+}
+
+// SetNillableCurrentRevisionID sets the "current_revision_id" field if the given value is not nil.
+func (_u *ConfigFileUpdateOne) SetNillableCurrentRevisionID(v *int) *ConfigFileUpdateOne {
+	if v != nil {
+		_u.SetCurrentRevisionID(*v)
+	}
+	return _u
+}
+
+// AddCurrentRevisionID adds value to the "current_revision_id" field.
+func (_u *ConfigFileUpdateOne) AddCurrentRevisionID(v int) *ConfigFileUpdateOne {
+	_u.mutation.AddCurrentRevisionID(v)
+	return _u
+}
+
+// ClearCurrentRevisionID clears the value of the "current_revision_id" field.
+func (_u *ConfigFileUpdateOne) ClearCurrentRevisionID() *ConfigFileUpdateOne {
+	_u.mutation.ClearCurrentRevisionID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *ConfigFileUpdateOne) SetUpdatedAt(v time.Time) *ConfigFileUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -337,34 +345,9 @@ func (_u *ConfigFileUpdateOne) ClearDeletedAt() *ConfigFileUpdateOne {
 	return _u
 }
 
-// SetCurrentRevisionID sets the "current_revision" edge to the ConfigRevision entity by ID.
-func (_u *ConfigFileUpdateOne) SetCurrentRevisionID(id int) *ConfigFileUpdateOne {
-	_u.mutation.SetCurrentRevisionID(id)
-	return _u
-}
-
-// SetNillableCurrentRevisionID sets the "current_revision" edge to the ConfigRevision entity by ID if the given value is not nil.
-func (_u *ConfigFileUpdateOne) SetNillableCurrentRevisionID(id *int) *ConfigFileUpdateOne {
-	if id != nil {
-		_u = _u.SetCurrentRevisionID(*id)
-	}
-	return _u
-}
-
-// SetCurrentRevision sets the "current_revision" edge to the ConfigRevision entity.
-func (_u *ConfigFileUpdateOne) SetCurrentRevision(v *ConfigRevision) *ConfigFileUpdateOne {
-	return _u.SetCurrentRevisionID(v.ID)
-}
-
 // Mutation returns the ConfigFileMutation object of the builder.
 func (_u *ConfigFileUpdateOne) Mutation() *ConfigFileMutation {
 	return _u.mutation
-}
-
-// ClearCurrentRevision clears the "current_revision" edge to the ConfigRevision entity.
-func (_u *ConfigFileUpdateOne) ClearCurrentRevision() *ConfigFileUpdateOne {
-	_u.mutation.ClearCurrentRevision()
-	return _u
 }
 
 // Where appends a list predicates to the ConfigFileUpdate builder.
@@ -467,6 +450,15 @@ func (_u *ConfigFileUpdateOne) sqlSave(ctx context.Context) (_node *ConfigFile, 
 	if value, ok := _u.mutation.Format(); ok {
 		_spec.SetField(configfile.FieldFormat, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.CurrentRevisionID(); ok {
+		_spec.SetField(configfile.FieldCurrentRevisionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCurrentRevisionID(); ok {
+		_spec.AddField(configfile.FieldCurrentRevisionID, field.TypeInt, value)
+	}
+	if _u.mutation.CurrentRevisionIDCleared() {
+		_spec.ClearField(configfile.FieldCurrentRevisionID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(configfile.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -475,35 +467,6 @@ func (_u *ConfigFileUpdateOne) sqlSave(ctx context.Context) (_node *ConfigFile, 
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(configfile.FieldDeletedAt, field.TypeTime)
-	}
-	if _u.mutation.CurrentRevisionCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: false,
-			Table:   configfile.CurrentRevisionTable,
-			Columns: []string{configfile.CurrentRevisionColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.CurrentRevisionIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: false,
-			Table:   configfile.CurrentRevisionTable,
-			Columns: []string{configfile.CurrentRevisionColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &ConfigFile{config: _u.config}
 	_spec.Assign = _node.assignValues

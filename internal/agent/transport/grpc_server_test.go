@@ -310,7 +310,7 @@ func TestReportCapabilityPersists(t *testing.T) {
 	ca, _ := pki.LoadOrCreateCA(t.TempDir())
 	client, nodeID := newTestNode(t)
 	defer client.Close()
-	nodeSvc := node.New(client)
+	nodeSvc := node.New(client, nil)
 	sessions := session.NewSessionManager(slog.Default())
 	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
 	tlsCfg, _ := ca.GRPCServerTLSConfig()
@@ -412,7 +412,7 @@ func TestHeartbeatComplianceDegrades(t *testing.T) {
 	if _, err := client.Node.UpdateOneID(nodeID).SetStatus(entnode.StatusOnline).Save(context.Background()); err != nil {
 		t.Fatalf("置 online: %v", err)
 	}
-	nodeSvc := node.New(client)
+	nodeSvc := node.New(client, nil)
 	sessions := session.NewSessionManager(slog.Default())
 	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
 	tlsCfg, _ := ca.GRPCServerTLSConfig()
@@ -488,7 +488,7 @@ func TestHeartbeatFsProbeDegrades(t *testing.T) {
 	if _, err := client.Node.UpdateOneID(nodeID).SetStatus(entnode.StatusOnline).Save(context.Background()); err != nil {
 		t.Fatalf("置 online: %v", err)
 	}
-	nodeSvc := node.New(client)
+	nodeSvc := node.New(client, nil)
 	sessions := session.NewSessionManager(slog.Default())
 	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
 	tlsCfg, _ := ca.GRPCServerTLSConfig()
@@ -560,7 +560,7 @@ func TestHeartbeatConfigTreeAndLogTargets(t *testing.T) {
 	ca, _ := pki.LoadOrCreateCA(t.TempDir())
 	client, nodeID := newTestNode(t)
 	defer client.Close()
-	nodeSvc := node.New(client)
+	nodeSvc := node.New(client, nil)
 	sessions := session.NewSessionManager(slog.Default())
 	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
 	tlsCfg, _ := ca.GRPCServerTLSConfig()
@@ -645,7 +645,7 @@ func TestReportCapabilitySystemInfo(t *testing.T) {
 	ca, _ := pki.LoadOrCreateCA(t.TempDir())
 	client, nodeID := newTestNode(t)
 	defer client.Close()
-	nodeSvc := node.New(client)
+	nodeSvc := node.New(client, nil)
 	sessions := session.NewSessionManager(slog.Default())
 	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
 	tlsCfg, _ := ca.GRPCServerTLSConfig()

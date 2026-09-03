@@ -10,7 +10,6 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/th/ngxcp/ent/configblob"
-	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
 )
 
@@ -23,6 +22,10 @@ type ConfigRevision struct {
 	NodeID int `json:"node_id,omitempty"`
 	// Path holds the value of the "path" field.
 	Path string `json:"path,omitempty"`
+	// Source holds the value of the "source" field.
+	Source configrevision.Source `json:"source,omitempty"`
+	// ChangeOrderID holds the value of the "change_order_id" field.
+	ChangeOrderID int `json:"change_order_id,omitempty"`
 	// Message holds the value of the "message" field.
 	Message string `json:"message,omitempty"`
 	// Author holds the value of the "author" field.
@@ -31,11 +34,10 @@ type ConfigRevision struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ConfigRevisionQuery when eager-loading is set.
-	Edges                        ConfigRevisionEdges `json:"edges"`
-	config_blob_revisions        *int
-	config_file_current_revision *int
-	config_revision_children     *int
-	selectValues                 sql.SelectValues
+	Edges                    ConfigRevisionEdges `json:"edges"`
+	config_blob_revisions    *int
+	config_revision_children *int
+	selectValues             sql.SelectValues
 }
 
 // ConfigRevisionEdges holds the relations/edges for other nodes in the graph.
@@ -46,11 +48,9 @@ type ConfigRevisionEdges struct {
 	Parent *ConfigRevision `json:"parent,omitempty"`
 	// Children holds the value of the children edge.
 	Children []*ConfigRevision `json:"children,omitempty"`
-	// ConfigFile holds the value of the config_file edge.
-	ConfigFile *ConfigFile `json:"config_file,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [3]bool
 }
 
 // BlobOrErr returns the Blob value or an error if the edge
@@ -84,33 +84,20 @@ func (e ConfigRevisionEdges) ChildrenOrErr() ([]*ConfigRevision, error) {
 	return nil, &NotLoadedError{edge: "children"}
 }
 
-// ConfigFileOrErr returns the ConfigFile value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e ConfigRevisionEdges) ConfigFileOrErr() (*ConfigFile, error) {
-	if e.ConfigFile != nil {
-		return e.ConfigFile, nil
-	} else if e.loadedTypes[3] {
-		return nil, &NotFoundError{label: configfile.Label}
-	}
-	return nil, &NotLoadedError{edge: "config_file"}
-}
-
 // scanValues returns the types for scanning values from sql.Rows.
 func (*ConfigRevision) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case configrevision.FieldID, configrevision.FieldNodeID:
+		case configrevision.FieldID, configrevision.FieldNodeID, configrevision.FieldChangeOrderID:
 			values[i] = new(sql.NullInt64)
-		case configrevision.FieldPath, configrevision.FieldMessage, configrevision.FieldAuthor:
+		case configrevision.FieldPath, configrevision.FieldSource, configrevision.FieldMessage, configrevision.FieldAuthor:
 			values[i] = new(sql.NullString)
 		case configrevision.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		case configrevision.ForeignKeys[0]: // config_blob_revisions
 			values[i] = new(sql.NullInt64)
-		case configrevision.ForeignKeys[1]: // config_file_current_revision
-			values[i] = new(sql.NullInt64)
-		case configrevision.ForeignKeys[2]: // config_revision_children
+		case configrevision.ForeignKeys[1]: // config_revision_children
 			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -145,6 +132,18 @@ func (_m *ConfigRevision) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Path = value.String
 			}
+		case configrevision.FieldSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source", values[i])
+			} else if value.Valid {
+				_m.Source = configrevision.Source(value.String)
+			}
+		case configrevision.FieldChangeOrderID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field change_order_id", values[i])
+			} else if value.Valid {
+				_m.ChangeOrderID = int(value.Int64)
+			}
 		case configrevision.FieldMessage:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field message", values[i])
@@ -171,13 +170,6 @@ func (_m *ConfigRevision) assignValues(columns []string, values []any) error {
 				*_m.config_blob_revisions = int(value.Int64)
 			}
 		case configrevision.ForeignKeys[1]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field config_file_current_revision", value)
-			} else if value.Valid {
-				_m.config_file_current_revision = new(int)
-				*_m.config_file_current_revision = int(value.Int64)
-			}
-		case configrevision.ForeignKeys[2]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for edge-field config_revision_children", value)
 			} else if value.Valid {
@@ -212,11 +204,6 @@ func (_m *ConfigRevision) QueryChildren() *ConfigRevisionQuery {
 	return NewConfigRevisionClient(_m.config).QueryChildren(_m)
 }
 
-// QueryConfigFile queries the "config_file" edge of the ConfigRevision entity.
-func (_m *ConfigRevision) QueryConfigFile() *ConfigFileQuery {
-	return NewConfigRevisionClient(_m.config).QueryConfigFile(_m)
-}
-
 // Update returns a builder for updating this ConfigRevision.
 // Note that you need to call ConfigRevision.Unwrap() before calling this method if this ConfigRevision
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -245,6 +232,12 @@ func (_m *ConfigRevision) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("path=")
 	builder.WriteString(_m.Path)
+	builder.WriteString(", ")
+	builder.WriteString("source=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Source))
+	builder.WriteString(", ")
+	builder.WriteString("change_order_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChangeOrderID))
 	builder.WriteString(", ")
 	builder.WriteString("message=")
 	builder.WriteString(_m.Message)

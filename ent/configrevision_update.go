@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/configblob"
-	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/predicate"
 )
@@ -61,6 +60,47 @@ func (_u *ConfigRevisionUpdate) SetNillablePath(v *string) *ConfigRevisionUpdate
 	if v != nil {
 		_u.SetPath(*v)
 	}
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *ConfigRevisionUpdate) SetSource(v configrevision.Source) *ConfigRevisionUpdate {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *ConfigRevisionUpdate) SetNillableSource(v *configrevision.Source) *ConfigRevisionUpdate {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// SetChangeOrderID sets the "change_order_id" field.
+func (_u *ConfigRevisionUpdate) SetChangeOrderID(v int) *ConfigRevisionUpdate {
+	_u.mutation.ResetChangeOrderID()
+	_u.mutation.SetChangeOrderID(v)
+	return _u
+}
+
+// SetNillableChangeOrderID sets the "change_order_id" field if the given value is not nil.
+func (_u *ConfigRevisionUpdate) SetNillableChangeOrderID(v *int) *ConfigRevisionUpdate {
+	if v != nil {
+		_u.SetChangeOrderID(*v)
+	}
+	return _u
+}
+
+// AddChangeOrderID adds value to the "change_order_id" field.
+func (_u *ConfigRevisionUpdate) AddChangeOrderID(v int) *ConfigRevisionUpdate {
+	_u.mutation.AddChangeOrderID(v)
+	return _u
+}
+
+// ClearChangeOrderID clears the value of the "change_order_id" field.
+func (_u *ConfigRevisionUpdate) ClearChangeOrderID() *ConfigRevisionUpdate {
+	_u.mutation.ClearChangeOrderID()
 	return _u
 }
 
@@ -157,25 +197,6 @@ func (_u *ConfigRevisionUpdate) AddChildren(v ...*ConfigRevision) *ConfigRevisio
 	return _u.AddChildIDs(ids...)
 }
 
-// SetConfigFileID sets the "config_file" edge to the ConfigFile entity by ID.
-func (_u *ConfigRevisionUpdate) SetConfigFileID(id int) *ConfigRevisionUpdate {
-	_u.mutation.SetConfigFileID(id)
-	return _u
-}
-
-// SetNillableConfigFileID sets the "config_file" edge to the ConfigFile entity by ID if the given value is not nil.
-func (_u *ConfigRevisionUpdate) SetNillableConfigFileID(id *int) *ConfigRevisionUpdate {
-	if id != nil {
-		_u = _u.SetConfigFileID(*id)
-	}
-	return _u
-}
-
-// SetConfigFile sets the "config_file" edge to the ConfigFile entity.
-func (_u *ConfigRevisionUpdate) SetConfigFile(v *ConfigFile) *ConfigRevisionUpdate {
-	return _u.SetConfigFileID(v.ID)
-}
-
 // Mutation returns the ConfigRevisionMutation object of the builder.
 func (_u *ConfigRevisionUpdate) Mutation() *ConfigRevisionMutation {
 	return _u.mutation
@@ -214,12 +235,6 @@ func (_u *ConfigRevisionUpdate) RemoveChildren(v ...*ConfigRevision) *ConfigRevi
 	return _u.RemoveChildIDs(ids...)
 }
 
-// ClearConfigFile clears the "config_file" edge to the ConfigFile entity.
-func (_u *ConfigRevisionUpdate) ClearConfigFile() *ConfigRevisionUpdate {
-	_u.mutation.ClearConfigFile()
-	return _u
-}
-
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *ConfigRevisionUpdate) Save(ctx context.Context) (int, error) {
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
@@ -247,7 +262,20 @@ func (_u *ConfigRevisionUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *ConfigRevisionUpdate) check() error {
+	if v, ok := _u.mutation.Source(); ok {
+		if err := configrevision.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "ConfigRevision.source": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *ConfigRevisionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(configrevision.Table, configrevision.Columns, sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -264,6 +292,18 @@ func (_u *ConfigRevisionUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(configrevision.FieldPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(configrevision.FieldSource, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ChangeOrderID(); ok {
+		_spec.SetField(configrevision.FieldChangeOrderID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedChangeOrderID(); ok {
+		_spec.AddField(configrevision.FieldChangeOrderID, field.TypeInt, value)
+	}
+	if _u.mutation.ChangeOrderIDCleared() {
+		_spec.ClearField(configrevision.FieldChangeOrderID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Message(); ok {
 		_spec.SetField(configrevision.FieldMessage, field.TypeString, value)
@@ -380,35 +420,6 @@ func (_u *ConfigRevisionUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.ConfigFileCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: true,
-			Table:   configrevision.ConfigFileTable,
-			Columns: []string{configrevision.ConfigFileColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configfile.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ConfigFileIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: true,
-			Table:   configrevision.ConfigFileTable,
-			Columns: []string{configrevision.ConfigFileColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configfile.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{configrevision.Label}
@@ -461,6 +472,47 @@ func (_u *ConfigRevisionUpdateOne) SetNillablePath(v *string) *ConfigRevisionUpd
 	if v != nil {
 		_u.SetPath(*v)
 	}
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *ConfigRevisionUpdateOne) SetSource(v configrevision.Source) *ConfigRevisionUpdateOne {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *ConfigRevisionUpdateOne) SetNillableSource(v *configrevision.Source) *ConfigRevisionUpdateOne {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// SetChangeOrderID sets the "change_order_id" field.
+func (_u *ConfigRevisionUpdateOne) SetChangeOrderID(v int) *ConfigRevisionUpdateOne {
+	_u.mutation.ResetChangeOrderID()
+	_u.mutation.SetChangeOrderID(v)
+	return _u
+}
+
+// SetNillableChangeOrderID sets the "change_order_id" field if the given value is not nil.
+func (_u *ConfigRevisionUpdateOne) SetNillableChangeOrderID(v *int) *ConfigRevisionUpdateOne {
+	if v != nil {
+		_u.SetChangeOrderID(*v)
+	}
+	return _u
+}
+
+// AddChangeOrderID adds value to the "change_order_id" field.
+func (_u *ConfigRevisionUpdateOne) AddChangeOrderID(v int) *ConfigRevisionUpdateOne {
+	_u.mutation.AddChangeOrderID(v)
+	return _u
+}
+
+// ClearChangeOrderID clears the value of the "change_order_id" field.
+func (_u *ConfigRevisionUpdateOne) ClearChangeOrderID() *ConfigRevisionUpdateOne {
+	_u.mutation.ClearChangeOrderID()
 	return _u
 }
 
@@ -557,25 +609,6 @@ func (_u *ConfigRevisionUpdateOne) AddChildren(v ...*ConfigRevision) *ConfigRevi
 	return _u.AddChildIDs(ids...)
 }
 
-// SetConfigFileID sets the "config_file" edge to the ConfigFile entity by ID.
-func (_u *ConfigRevisionUpdateOne) SetConfigFileID(id int) *ConfigRevisionUpdateOne {
-	_u.mutation.SetConfigFileID(id)
-	return _u
-}
-
-// SetNillableConfigFileID sets the "config_file" edge to the ConfigFile entity by ID if the given value is not nil.
-func (_u *ConfigRevisionUpdateOne) SetNillableConfigFileID(id *int) *ConfigRevisionUpdateOne {
-	if id != nil {
-		_u = _u.SetConfigFileID(*id)
-	}
-	return _u
-}
-
-// SetConfigFile sets the "config_file" edge to the ConfigFile entity.
-func (_u *ConfigRevisionUpdateOne) SetConfigFile(v *ConfigFile) *ConfigRevisionUpdateOne {
-	return _u.SetConfigFileID(v.ID)
-}
-
 // Mutation returns the ConfigRevisionMutation object of the builder.
 func (_u *ConfigRevisionUpdateOne) Mutation() *ConfigRevisionMutation {
 	return _u.mutation
@@ -612,12 +645,6 @@ func (_u *ConfigRevisionUpdateOne) RemoveChildren(v ...*ConfigRevision) *ConfigR
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChildIDs(ids...)
-}
-
-// ClearConfigFile clears the "config_file" edge to the ConfigFile entity.
-func (_u *ConfigRevisionUpdateOne) ClearConfigFile() *ConfigRevisionUpdateOne {
-	_u.mutation.ClearConfigFile()
-	return _u
 }
 
 // Where appends a list predicates to the ConfigRevisionUpdate builder.
@@ -660,7 +687,20 @@ func (_u *ConfigRevisionUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *ConfigRevisionUpdateOne) check() error {
+	if v, ok := _u.mutation.Source(); ok {
+		if err := configrevision.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "ConfigRevision.source": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *ConfigRevisionUpdateOne) sqlSave(ctx context.Context) (_node *ConfigRevision, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(configrevision.Table, configrevision.Columns, sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -694,6 +734,18 @@ func (_u *ConfigRevisionUpdateOne) sqlSave(ctx context.Context) (_node *ConfigRe
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(configrevision.FieldPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(configrevision.FieldSource, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ChangeOrderID(); ok {
+		_spec.SetField(configrevision.FieldChangeOrderID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedChangeOrderID(); ok {
+		_spec.AddField(configrevision.FieldChangeOrderID, field.TypeInt, value)
+	}
+	if _u.mutation.ChangeOrderIDCleared() {
+		_spec.ClearField(configrevision.FieldChangeOrderID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Message(); ok {
 		_spec.SetField(configrevision.FieldMessage, field.TypeString, value)
@@ -803,35 +855,6 @@ func (_u *ConfigRevisionUpdateOne) sqlSave(ctx context.Context) (_node *ConfigRe
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(configrevision.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.ConfigFileCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: true,
-			Table:   configrevision.ConfigFileTable,
-			Columns: []string{configrevision.ConfigFileColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configfile.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ConfigFileIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: true,
-			Table:   configrevision.ConfigFileTable,
-			Columns: []string{configrevision.ConfigFileColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configfile.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

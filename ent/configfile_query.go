@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,18 +12,16 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/configfile"
-	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/predicate"
 )
 
 // ConfigFileQuery is the builder for querying ConfigFile entities.
 type ConfigFileQuery struct {
 	config
-	ctx                 *QueryContext
-	order               []configfile.OrderOption
-	inters              []Interceptor
-	predicates          []predicate.ConfigFile
-	withCurrentRevision *ConfigRevisionQuery
+	ctx        *QueryContext
+	order      []configfile.OrderOption
+	inters     []Interceptor
+	predicates []predicate.ConfigFile
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -59,28 +56,6 @@ func (_q *ConfigFileQuery) Unique(unique bool) *ConfigFileQuery {
 func (_q *ConfigFileQuery) Order(o ...configfile.OrderOption) *ConfigFileQuery {
 	_q.order = append(_q.order, o...)
 	return _q
-}
-
-// QueryCurrentRevision chains the current query on the "current_revision" edge.
-func (_q *ConfigFileQuery) QueryCurrentRevision() *ConfigRevisionQuery {
-	query := (&ConfigRevisionClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(configfile.Table, configfile.FieldID, selector),
-			sqlgraph.To(configrevision.Table, configrevision.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, false, configfile.CurrentRevisionTable, configfile.CurrentRevisionColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
 }
 
 // First returns the first ConfigFile entity from the query.
@@ -270,27 +245,15 @@ func (_q *ConfigFileQuery) Clone() *ConfigFileQuery {
 		return nil
 	}
 	return &ConfigFileQuery{
-		config:              _q.config,
-		ctx:                 _q.ctx.Clone(),
-		order:               append([]configfile.OrderOption{}, _q.order...),
-		inters:              append([]Interceptor{}, _q.inters...),
-		predicates:          append([]predicate.ConfigFile{}, _q.predicates...),
-		withCurrentRevision: _q.withCurrentRevision.Clone(),
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]configfile.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.ConfigFile{}, _q.predicates...),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
-}
-
-// WithCurrentRevision tells the query-builder to eager-load the nodes that are connected to
-// the "current_revision" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ConfigFileQuery) WithCurrentRevision(opts ...func(*ConfigRevisionQuery)) *ConfigFileQuery {
-	query := (&ConfigRevisionClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withCurrentRevision = query
-	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -369,11 +332,8 @@ func (_q *ConfigFileQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *ConfigFileQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ConfigFile, error) {
 	var (
-		nodes       = []*ConfigFile{}
-		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
-			_q.withCurrentRevision != nil,
-		}
+		nodes = []*ConfigFile{}
+		_spec = _q.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*ConfigFile).scanValues(nil, columns)
@@ -381,7 +341,6 @@ func (_q *ConfigFileQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*C
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &ConfigFile{config: _q.config}
 		nodes = append(nodes, node)
-		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -393,42 +352,7 @@ func (_q *ConfigFileQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*C
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withCurrentRevision; query != nil {
-		if err := _q.loadCurrentRevision(ctx, query, nodes, nil,
-			func(n *ConfigFile, e *ConfigRevision) { n.Edges.CurrentRevision = e }); err != nil {
-			return nil, err
-		}
-	}
 	return nodes, nil
-}
-
-func (_q *ConfigFileQuery) loadCurrentRevision(ctx context.Context, query *ConfigRevisionQuery, nodes []*ConfigFile, init func(*ConfigFile), assign func(*ConfigFile, *ConfigRevision)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*ConfigFile)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-	}
-	query.withFKs = true
-	query.Where(predicate.ConfigRevision(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(configfile.CurrentRevisionColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.config_file_current_revision
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "config_file_current_revision" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "config_file_current_revision" returned %v for node %v`, *fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
 }
 
 func (_q *ConfigFileQuery) sqlCount(ctx context.Context) (int, error) {

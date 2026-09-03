@@ -3043,22 +3043,22 @@ func (m *ConfigBlobMutation) ResetEdge(name string) error {
 // ConfigFileMutation represents an operation that mutates the ConfigFile nodes in the graph.
 type ConfigFileMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int
-	node_id                 *int
-	addnode_id              *int
-	_path                   *string
-	format                  *configfile.Format
-	created_at              *time.Time
-	updated_at              *time.Time
-	deleted_at              *time.Time
-	clearedFields           map[string]struct{}
-	current_revision        *int
-	clearedcurrent_revision bool
-	done                    bool
-	oldValue                func(context.Context) (*ConfigFile, error)
-	predicates              []predicate.ConfigFile
+	op                     Op
+	typ                    string
+	id                     *int
+	node_id                *int
+	addnode_id             *int
+	_path                  *string
+	format                 *configfile.Format
+	current_revision_id    *int
+	addcurrent_revision_id *int
+	created_at             *time.Time
+	updated_at             *time.Time
+	deleted_at             *time.Time
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*ConfigFile, error)
+	predicates             []predicate.ConfigFile
 }
 
 var _ ent.Mutation = (*ConfigFileMutation)(nil)
@@ -3287,6 +3287,76 @@ func (m *ConfigFileMutation) ResetFormat() {
 	m.format = nil
 }
 
+// SetCurrentRevisionID sets the "current_revision_id" field.
+func (m *ConfigFileMutation) SetCurrentRevisionID(i int) {
+	m.current_revision_id = &i
+	m.addcurrent_revision_id = nil
+}
+
+// CurrentRevisionID returns the value of the "current_revision_id" field in the mutation.
+func (m *ConfigFileMutation) CurrentRevisionID() (r int, exists bool) {
+	v := m.current_revision_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentRevisionID returns the old "current_revision_id" field's value of the ConfigFile entity.
+// If the ConfigFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConfigFileMutation) OldCurrentRevisionID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentRevisionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentRevisionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentRevisionID: %w", err)
+	}
+	return oldValue.CurrentRevisionID, nil
+}
+
+// AddCurrentRevisionID adds i to the "current_revision_id" field.
+func (m *ConfigFileMutation) AddCurrentRevisionID(i int) {
+	if m.addcurrent_revision_id != nil {
+		*m.addcurrent_revision_id += i
+	} else {
+		m.addcurrent_revision_id = &i
+	}
+}
+
+// AddedCurrentRevisionID returns the value that was added to the "current_revision_id" field in this mutation.
+func (m *ConfigFileMutation) AddedCurrentRevisionID() (r int, exists bool) {
+	v := m.addcurrent_revision_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCurrentRevisionID clears the value of the "current_revision_id" field.
+func (m *ConfigFileMutation) ClearCurrentRevisionID() {
+	m.current_revision_id = nil
+	m.addcurrent_revision_id = nil
+	m.clearedFields[configfile.FieldCurrentRevisionID] = struct{}{}
+}
+
+// CurrentRevisionIDCleared returns if the "current_revision_id" field was cleared in this mutation.
+func (m *ConfigFileMutation) CurrentRevisionIDCleared() bool {
+	_, ok := m.clearedFields[configfile.FieldCurrentRevisionID]
+	return ok
+}
+
+// ResetCurrentRevisionID resets all changes to the "current_revision_id" field.
+func (m *ConfigFileMutation) ResetCurrentRevisionID() {
+	m.current_revision_id = nil
+	m.addcurrent_revision_id = nil
+	delete(m.clearedFields, configfile.FieldCurrentRevisionID)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *ConfigFileMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -3408,45 +3478,6 @@ func (m *ConfigFileMutation) ResetDeletedAt() {
 	delete(m.clearedFields, configfile.FieldDeletedAt)
 }
 
-// SetCurrentRevisionID sets the "current_revision" edge to the ConfigRevision entity by id.
-func (m *ConfigFileMutation) SetCurrentRevisionID(id int) {
-	m.current_revision = &id
-}
-
-// ClearCurrentRevision clears the "current_revision" edge to the ConfigRevision entity.
-func (m *ConfigFileMutation) ClearCurrentRevision() {
-	m.clearedcurrent_revision = true
-}
-
-// CurrentRevisionCleared reports if the "current_revision" edge to the ConfigRevision entity was cleared.
-func (m *ConfigFileMutation) CurrentRevisionCleared() bool {
-	return m.clearedcurrent_revision
-}
-
-// CurrentRevisionID returns the "current_revision" edge ID in the mutation.
-func (m *ConfigFileMutation) CurrentRevisionID() (id int, exists bool) {
-	if m.current_revision != nil {
-		return *m.current_revision, true
-	}
-	return
-}
-
-// CurrentRevisionIDs returns the "current_revision" edge IDs in the mutation.
-// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// CurrentRevisionID instead. It exists only for internal usage by the builders.
-func (m *ConfigFileMutation) CurrentRevisionIDs() (ids []int) {
-	if id := m.current_revision; id != nil {
-		ids = append(ids, *id)
-	}
-	return
-}
-
-// ResetCurrentRevision resets all changes to the "current_revision" edge.
-func (m *ConfigFileMutation) ResetCurrentRevision() {
-	m.current_revision = nil
-	m.clearedcurrent_revision = false
-}
-
 // Where appends a list predicates to the ConfigFileMutation builder.
 func (m *ConfigFileMutation) Where(ps ...predicate.ConfigFile) {
 	m.predicates = append(m.predicates, ps...)
@@ -3481,7 +3512,7 @@ func (m *ConfigFileMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ConfigFileMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.node_id != nil {
 		fields = append(fields, configfile.FieldNodeID)
 	}
@@ -3490,6 +3521,9 @@ func (m *ConfigFileMutation) Fields() []string {
 	}
 	if m.format != nil {
 		fields = append(fields, configfile.FieldFormat)
+	}
+	if m.current_revision_id != nil {
+		fields = append(fields, configfile.FieldCurrentRevisionID)
 	}
 	if m.created_at != nil {
 		fields = append(fields, configfile.FieldCreatedAt)
@@ -3514,6 +3548,8 @@ func (m *ConfigFileMutation) Field(name string) (ent.Value, bool) {
 		return m.Path()
 	case configfile.FieldFormat:
 		return m.Format()
+	case configfile.FieldCurrentRevisionID:
+		return m.CurrentRevisionID()
 	case configfile.FieldCreatedAt:
 		return m.CreatedAt()
 	case configfile.FieldUpdatedAt:
@@ -3535,6 +3571,8 @@ func (m *ConfigFileMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldPath(ctx)
 	case configfile.FieldFormat:
 		return m.OldFormat(ctx)
+	case configfile.FieldCurrentRevisionID:
+		return m.OldCurrentRevisionID(ctx)
 	case configfile.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case configfile.FieldUpdatedAt:
@@ -3571,6 +3609,13 @@ func (m *ConfigFileMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFormat(v)
 		return nil
+	case configfile.FieldCurrentRevisionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentRevisionID(v)
+		return nil
 	case configfile.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -3603,6 +3648,9 @@ func (m *ConfigFileMutation) AddedFields() []string {
 	if m.addnode_id != nil {
 		fields = append(fields, configfile.FieldNodeID)
 	}
+	if m.addcurrent_revision_id != nil {
+		fields = append(fields, configfile.FieldCurrentRevisionID)
+	}
 	return fields
 }
 
@@ -3613,6 +3661,8 @@ func (m *ConfigFileMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case configfile.FieldNodeID:
 		return m.AddedNodeID()
+	case configfile.FieldCurrentRevisionID:
+		return m.AddedCurrentRevisionID()
 	}
 	return nil, false
 }
@@ -3629,6 +3679,13 @@ func (m *ConfigFileMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddNodeID(v)
 		return nil
+	case configfile.FieldCurrentRevisionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCurrentRevisionID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ConfigFile numeric field %s", name)
 }
@@ -3637,6 +3694,9 @@ func (m *ConfigFileMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *ConfigFileMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(configfile.FieldCurrentRevisionID) {
+		fields = append(fields, configfile.FieldCurrentRevisionID)
+	}
 	if m.FieldCleared(configfile.FieldDeletedAt) {
 		fields = append(fields, configfile.FieldDeletedAt)
 	}
@@ -3654,6 +3714,9 @@ func (m *ConfigFileMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ConfigFileMutation) ClearField(name string) error {
 	switch name {
+	case configfile.FieldCurrentRevisionID:
+		m.ClearCurrentRevisionID()
+		return nil
 	case configfile.FieldDeletedAt:
 		m.ClearDeletedAt()
 		return nil
@@ -3674,6 +3737,9 @@ func (m *ConfigFileMutation) ResetField(name string) error {
 	case configfile.FieldFormat:
 		m.ResetFormat()
 		return nil
+	case configfile.FieldCurrentRevisionID:
+		m.ResetCurrentRevisionID()
+		return nil
 	case configfile.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
@@ -3689,28 +3755,19 @@ func (m *ConfigFileMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ConfigFileMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
-	if m.current_revision != nil {
-		edges = append(edges, configfile.EdgeCurrentRevision)
-	}
+	edges := make([]string, 0, 0)
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *ConfigFileMutation) AddedIDs(name string) []ent.Value {
-	switch name {
-	case configfile.EdgeCurrentRevision:
-		if id := m.current_revision; id != nil {
-			return []ent.Value{*id}
-		}
-	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ConfigFileMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 0)
 	return edges
 }
 
@@ -3722,42 +3779,25 @@ func (m *ConfigFileMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ConfigFileMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
-	if m.clearedcurrent_revision {
-		edges = append(edges, configfile.EdgeCurrentRevision)
-	}
+	edges := make([]string, 0, 0)
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *ConfigFileMutation) EdgeCleared(name string) bool {
-	switch name {
-	case configfile.EdgeCurrentRevision:
-		return m.clearedcurrent_revision
-	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *ConfigFileMutation) ClearEdge(name string) error {
-	switch name {
-	case configfile.EdgeCurrentRevision:
-		m.ClearCurrentRevision()
-		return nil
-	}
 	return fmt.Errorf("unknown ConfigFile unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *ConfigFileMutation) ResetEdge(name string) error {
-	switch name {
-	case configfile.EdgeCurrentRevision:
-		m.ResetCurrentRevision()
-		return nil
-	}
 	return fmt.Errorf("unknown ConfigFile edge %s", name)
 }
 
@@ -3770,6 +3810,9 @@ type ConfigRevisionMutation struct {
 	node_id            *int
 	addnode_id         *int
 	_path              *string
+	source             *configrevision.Source
+	change_order_id    *int
+	addchange_order_id *int
 	message            *string
 	author             *string
 	created_at         *time.Time
@@ -3781,8 +3824,6 @@ type ConfigRevisionMutation struct {
 	children           map[int]struct{}
 	removedchildren    map[int]struct{}
 	clearedchildren    bool
-	config_file        *int
-	clearedconfig_file bool
 	done               bool
 	oldValue           func(context.Context) (*ConfigRevision, error)
 	predicates         []predicate.ConfigRevision
@@ -3976,6 +4017,112 @@ func (m *ConfigRevisionMutation) OldPath(ctx context.Context) (v string, err err
 // ResetPath resets all changes to the "path" field.
 func (m *ConfigRevisionMutation) ResetPath() {
 	m._path = nil
+}
+
+// SetSource sets the "source" field.
+func (m *ConfigRevisionMutation) SetSource(c configrevision.Source) {
+	m.source = &c
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *ConfigRevisionMutation) Source() (r configrevision.Source, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the ConfigRevision entity.
+// If the ConfigRevision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConfigRevisionMutation) OldSource(ctx context.Context) (v configrevision.Source, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *ConfigRevisionMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetChangeOrderID sets the "change_order_id" field.
+func (m *ConfigRevisionMutation) SetChangeOrderID(i int) {
+	m.change_order_id = &i
+	m.addchange_order_id = nil
+}
+
+// ChangeOrderID returns the value of the "change_order_id" field in the mutation.
+func (m *ConfigRevisionMutation) ChangeOrderID() (r int, exists bool) {
+	v := m.change_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChangeOrderID returns the old "change_order_id" field's value of the ConfigRevision entity.
+// If the ConfigRevision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConfigRevisionMutation) OldChangeOrderID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChangeOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChangeOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChangeOrderID: %w", err)
+	}
+	return oldValue.ChangeOrderID, nil
+}
+
+// AddChangeOrderID adds i to the "change_order_id" field.
+func (m *ConfigRevisionMutation) AddChangeOrderID(i int) {
+	if m.addchange_order_id != nil {
+		*m.addchange_order_id += i
+	} else {
+		m.addchange_order_id = &i
+	}
+}
+
+// AddedChangeOrderID returns the value that was added to the "change_order_id" field in this mutation.
+func (m *ConfigRevisionMutation) AddedChangeOrderID() (r int, exists bool) {
+	v := m.addchange_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearChangeOrderID clears the value of the "change_order_id" field.
+func (m *ConfigRevisionMutation) ClearChangeOrderID() {
+	m.change_order_id = nil
+	m.addchange_order_id = nil
+	m.clearedFields[configrevision.FieldChangeOrderID] = struct{}{}
+}
+
+// ChangeOrderIDCleared returns if the "change_order_id" field was cleared in this mutation.
+func (m *ConfigRevisionMutation) ChangeOrderIDCleared() bool {
+	_, ok := m.clearedFields[configrevision.FieldChangeOrderID]
+	return ok
+}
+
+// ResetChangeOrderID resets all changes to the "change_order_id" field.
+func (m *ConfigRevisionMutation) ResetChangeOrderID() {
+	m.change_order_id = nil
+	m.addchange_order_id = nil
+	delete(m.clearedFields, configrevision.FieldChangeOrderID)
 }
 
 // SetMessage sets the "message" field.
@@ -4244,45 +4391,6 @@ func (m *ConfigRevisionMutation) ResetChildren() {
 	m.removedchildren = nil
 }
 
-// SetConfigFileID sets the "config_file" edge to the ConfigFile entity by id.
-func (m *ConfigRevisionMutation) SetConfigFileID(id int) {
-	m.config_file = &id
-}
-
-// ClearConfigFile clears the "config_file" edge to the ConfigFile entity.
-func (m *ConfigRevisionMutation) ClearConfigFile() {
-	m.clearedconfig_file = true
-}
-
-// ConfigFileCleared reports if the "config_file" edge to the ConfigFile entity was cleared.
-func (m *ConfigRevisionMutation) ConfigFileCleared() bool {
-	return m.clearedconfig_file
-}
-
-// ConfigFileID returns the "config_file" edge ID in the mutation.
-func (m *ConfigRevisionMutation) ConfigFileID() (id int, exists bool) {
-	if m.config_file != nil {
-		return *m.config_file, true
-	}
-	return
-}
-
-// ConfigFileIDs returns the "config_file" edge IDs in the mutation.
-// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// ConfigFileID instead. It exists only for internal usage by the builders.
-func (m *ConfigRevisionMutation) ConfigFileIDs() (ids []int) {
-	if id := m.config_file; id != nil {
-		ids = append(ids, *id)
-	}
-	return
-}
-
-// ResetConfigFile resets all changes to the "config_file" edge.
-func (m *ConfigRevisionMutation) ResetConfigFile() {
-	m.config_file = nil
-	m.clearedconfig_file = false
-}
-
 // Where appends a list predicates to the ConfigRevisionMutation builder.
 func (m *ConfigRevisionMutation) Where(ps ...predicate.ConfigRevision) {
 	m.predicates = append(m.predicates, ps...)
@@ -4317,12 +4425,18 @@ func (m *ConfigRevisionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ConfigRevisionMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 7)
 	if m.node_id != nil {
 		fields = append(fields, configrevision.FieldNodeID)
 	}
 	if m._path != nil {
 		fields = append(fields, configrevision.FieldPath)
+	}
+	if m.source != nil {
+		fields = append(fields, configrevision.FieldSource)
+	}
+	if m.change_order_id != nil {
+		fields = append(fields, configrevision.FieldChangeOrderID)
 	}
 	if m.message != nil {
 		fields = append(fields, configrevision.FieldMessage)
@@ -4345,6 +4459,10 @@ func (m *ConfigRevisionMutation) Field(name string) (ent.Value, bool) {
 		return m.NodeID()
 	case configrevision.FieldPath:
 		return m.Path()
+	case configrevision.FieldSource:
+		return m.Source()
+	case configrevision.FieldChangeOrderID:
+		return m.ChangeOrderID()
 	case configrevision.FieldMessage:
 		return m.Message()
 	case configrevision.FieldAuthor:
@@ -4364,6 +4482,10 @@ func (m *ConfigRevisionMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldNodeID(ctx)
 	case configrevision.FieldPath:
 		return m.OldPath(ctx)
+	case configrevision.FieldSource:
+		return m.OldSource(ctx)
+	case configrevision.FieldChangeOrderID:
+		return m.OldChangeOrderID(ctx)
 	case configrevision.FieldMessage:
 		return m.OldMessage(ctx)
 	case configrevision.FieldAuthor:
@@ -4392,6 +4514,20 @@ func (m *ConfigRevisionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPath(v)
+		return nil
+	case configrevision.FieldSource:
+		v, ok := value.(configrevision.Source)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case configrevision.FieldChangeOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChangeOrderID(v)
 		return nil
 	case configrevision.FieldMessage:
 		v, ok := value.(string)
@@ -4425,6 +4561,9 @@ func (m *ConfigRevisionMutation) AddedFields() []string {
 	if m.addnode_id != nil {
 		fields = append(fields, configrevision.FieldNodeID)
 	}
+	if m.addchange_order_id != nil {
+		fields = append(fields, configrevision.FieldChangeOrderID)
+	}
 	return fields
 }
 
@@ -4435,6 +4574,8 @@ func (m *ConfigRevisionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case configrevision.FieldNodeID:
 		return m.AddedNodeID()
+	case configrevision.FieldChangeOrderID:
+		return m.AddedChangeOrderID()
 	}
 	return nil, false
 }
@@ -4451,6 +4592,13 @@ func (m *ConfigRevisionMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddNodeID(v)
 		return nil
+	case configrevision.FieldChangeOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChangeOrderID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ConfigRevision numeric field %s", name)
 }
@@ -4459,6 +4607,9 @@ func (m *ConfigRevisionMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *ConfigRevisionMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(configrevision.FieldChangeOrderID) {
+		fields = append(fields, configrevision.FieldChangeOrderID)
+	}
 	if m.FieldCleared(configrevision.FieldMessage) {
 		fields = append(fields, configrevision.FieldMessage)
 	}
@@ -4479,6 +4630,9 @@ func (m *ConfigRevisionMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ConfigRevisionMutation) ClearField(name string) error {
 	switch name {
+	case configrevision.FieldChangeOrderID:
+		m.ClearChangeOrderID()
+		return nil
 	case configrevision.FieldMessage:
 		m.ClearMessage()
 		return nil
@@ -4499,6 +4653,12 @@ func (m *ConfigRevisionMutation) ResetField(name string) error {
 	case configrevision.FieldPath:
 		m.ResetPath()
 		return nil
+	case configrevision.FieldSource:
+		m.ResetSource()
+		return nil
+	case configrevision.FieldChangeOrderID:
+		m.ResetChangeOrderID()
+		return nil
 	case configrevision.FieldMessage:
 		m.ResetMessage()
 		return nil
@@ -4514,7 +4674,7 @@ func (m *ConfigRevisionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ConfigRevisionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 3)
 	if m.blob != nil {
 		edges = append(edges, configrevision.EdgeBlob)
 	}
@@ -4523,9 +4683,6 @@ func (m *ConfigRevisionMutation) AddedEdges() []string {
 	}
 	if m.children != nil {
 		edges = append(edges, configrevision.EdgeChildren)
-	}
-	if m.config_file != nil {
-		edges = append(edges, configrevision.EdgeConfigFile)
 	}
 	return edges
 }
@@ -4548,17 +4705,13 @@ func (m *ConfigRevisionMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case configrevision.EdgeConfigFile:
-		if id := m.config_file; id != nil {
-			return []ent.Value{*id}
-		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ConfigRevisionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 3)
 	if m.removedchildren != nil {
 		edges = append(edges, configrevision.EdgeChildren)
 	}
@@ -4581,7 +4734,7 @@ func (m *ConfigRevisionMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ConfigRevisionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 3)
 	if m.clearedblob {
 		edges = append(edges, configrevision.EdgeBlob)
 	}
@@ -4590,9 +4743,6 @@ func (m *ConfigRevisionMutation) ClearedEdges() []string {
 	}
 	if m.clearedchildren {
 		edges = append(edges, configrevision.EdgeChildren)
-	}
-	if m.clearedconfig_file {
-		edges = append(edges, configrevision.EdgeConfigFile)
 	}
 	return edges
 }
@@ -4607,8 +4757,6 @@ func (m *ConfigRevisionMutation) EdgeCleared(name string) bool {
 		return m.clearedparent
 	case configrevision.EdgeChildren:
 		return m.clearedchildren
-	case configrevision.EdgeConfigFile:
-		return m.clearedconfig_file
 	}
 	return false
 }
@@ -4622,9 +4770,6 @@ func (m *ConfigRevisionMutation) ClearEdge(name string) error {
 		return nil
 	case configrevision.EdgeParent:
 		m.ClearParent()
-		return nil
-	case configrevision.EdgeConfigFile:
-		m.ClearConfigFile()
 		return nil
 	}
 	return fmt.Errorf("unknown ConfigRevision unique edge %s", name)
@@ -4642,9 +4787,6 @@ func (m *ConfigRevisionMutation) ResetEdge(name string) error {
 		return nil
 	case configrevision.EdgeChildren:
 		m.ResetChildren()
-		return nil
-	case configrevision.EdgeConfigFile:
-		m.ResetConfigFile()
 		return nil
 	}
 	return fmt.Errorf("unknown ConfigRevision edge %s", name)

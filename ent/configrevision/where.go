@@ -65,6 +65,11 @@ func Path(v string) predicate.ConfigRevision {
 	return predicate.ConfigRevision(sql.FieldEQ(FieldPath, v))
 }
 
+// ChangeOrderID applies equality check predicate on the "change_order_id" field. It's identical to ChangeOrderIDEQ.
+func ChangeOrderID(v int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldEQ(FieldChangeOrderID, v))
+}
+
 // Message applies equality check predicate on the "message" field. It's identical to MessageEQ.
 func Message(v string) predicate.ConfigRevision {
 	return predicate.ConfigRevision(sql.FieldEQ(FieldMessage, v))
@@ -183,6 +188,76 @@ func PathEqualFold(v string) predicate.ConfigRevision {
 // PathContainsFold applies the ContainsFold predicate on the "path" field.
 func PathContainsFold(v string) predicate.ConfigRevision {
 	return predicate.ConfigRevision(sql.FieldContainsFold(FieldPath, v))
+}
+
+// SourceEQ applies the EQ predicate on the "source" field.
+func SourceEQ(v Source) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldEQ(FieldSource, v))
+}
+
+// SourceNEQ applies the NEQ predicate on the "source" field.
+func SourceNEQ(v Source) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldNEQ(FieldSource, v))
+}
+
+// SourceIn applies the In predicate on the "source" field.
+func SourceIn(vs ...Source) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldIn(FieldSource, vs...))
+}
+
+// SourceNotIn applies the NotIn predicate on the "source" field.
+func SourceNotIn(vs ...Source) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldNotIn(FieldSource, vs...))
+}
+
+// ChangeOrderIDEQ applies the EQ predicate on the "change_order_id" field.
+func ChangeOrderIDEQ(v int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldEQ(FieldChangeOrderID, v))
+}
+
+// ChangeOrderIDNEQ applies the NEQ predicate on the "change_order_id" field.
+func ChangeOrderIDNEQ(v int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldNEQ(FieldChangeOrderID, v))
+}
+
+// ChangeOrderIDIn applies the In predicate on the "change_order_id" field.
+func ChangeOrderIDIn(vs ...int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldIn(FieldChangeOrderID, vs...))
+}
+
+// ChangeOrderIDNotIn applies the NotIn predicate on the "change_order_id" field.
+func ChangeOrderIDNotIn(vs ...int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldNotIn(FieldChangeOrderID, vs...))
+}
+
+// ChangeOrderIDGT applies the GT predicate on the "change_order_id" field.
+func ChangeOrderIDGT(v int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldGT(FieldChangeOrderID, v))
+}
+
+// ChangeOrderIDGTE applies the GTE predicate on the "change_order_id" field.
+func ChangeOrderIDGTE(v int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldGTE(FieldChangeOrderID, v))
+}
+
+// ChangeOrderIDLT applies the LT predicate on the "change_order_id" field.
+func ChangeOrderIDLT(v int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldLT(FieldChangeOrderID, v))
+}
+
+// ChangeOrderIDLTE applies the LTE predicate on the "change_order_id" field.
+func ChangeOrderIDLTE(v int) predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldLTE(FieldChangeOrderID, v))
+}
+
+// ChangeOrderIDIsNil applies the IsNil predicate on the "change_order_id" field.
+func ChangeOrderIDIsNil() predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldIsNull(FieldChangeOrderID))
+}
+
+// ChangeOrderIDNotNil applies the NotNil predicate on the "change_order_id" field.
+func ChangeOrderIDNotNil() predicate.ConfigRevision {
+	return predicate.ConfigRevision(sql.FieldNotNull(FieldChangeOrderID))
 }
 
 // MessageEQ applies the EQ predicate on the "message" field.
@@ -436,29 +511,6 @@ func HasChildren() predicate.ConfigRevision {
 func HasChildrenWith(preds ...predicate.ConfigRevision) predicate.ConfigRevision {
 	return predicate.ConfigRevision(func(s *sql.Selector) {
 		step := newChildrenStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
-// HasConfigFile applies the HasEdge predicate on the "config_file" edge.
-func HasConfigFile() predicate.ConfigRevision {
-	return predicate.ConfigRevision(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, ConfigFileTable, ConfigFileColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasConfigFileWith applies the HasEdge predicate on the "config_file" edge with a given conditions (other predicates).
-func HasConfigFileWith(preds ...predicate.ConfigFile) predicate.ConfigRevision {
-	return predicate.ConfigRevision(func(s *sql.Selector) {
-		step := newConfigFileStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

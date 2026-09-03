@@ -68,11 +68,11 @@ func init() {
 	configfileFields := schema.ConfigFile{}.Fields()
 	_ = configfileFields
 	// configfileDescCreatedAt is the schema descriptor for created_at field.
-	configfileDescCreatedAt := configfileFields[3].Descriptor()
+	configfileDescCreatedAt := configfileFields[4].Descriptor()
 	// configfile.DefaultCreatedAt holds the default value on creation for the created_at field.
 	configfile.DefaultCreatedAt = configfileDescCreatedAt.Default.(func() time.Time)
 	// configfileDescUpdatedAt is the schema descriptor for updated_at field.
-	configfileDescUpdatedAt := configfileFields[4].Descriptor()
+	configfileDescUpdatedAt := configfileFields[5].Descriptor()
 	// configfile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	configfile.DefaultUpdatedAt = configfileDescUpdatedAt.Default.(func() time.Time)
 	// configfile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -80,7 +80,7 @@ func init() {
 	configrevisionFields := schema.ConfigRevision{}.Fields()
 	_ = configrevisionFields
 	// configrevisionDescCreatedAt is the schema descriptor for created_at field.
-	configrevisionDescCreatedAt := configrevisionFields[4].Descriptor()
+	configrevisionDescCreatedAt := configrevisionFields[6].Descriptor()
 	// configrevision.DefaultCreatedAt holds the default value on creation for the created_at field.
 	configrevision.DefaultCreatedAt = configrevisionDescCreatedAt.Default.(func() time.Time)
 	configsnapshotFields := schema.ConfigSnapshot{}.Fields()

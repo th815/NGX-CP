@@ -13,7 +13,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/configblob"
-	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/predicate"
 )
@@ -21,15 +20,14 @@ import (
 // ConfigRevisionQuery is the builder for querying ConfigRevision entities.
 type ConfigRevisionQuery struct {
 	config
-	ctx            *QueryContext
-	order          []configrevision.OrderOption
-	inters         []Interceptor
-	predicates     []predicate.ConfigRevision
-	withBlob       *ConfigBlobQuery
-	withParent     *ConfigRevisionQuery
-	withChildren   *ConfigRevisionQuery
-	withConfigFile *ConfigFileQuery
-	withFKs        bool
+	ctx          *QueryContext
+	order        []configrevision.OrderOption
+	inters       []Interceptor
+	predicates   []predicate.ConfigRevision
+	withBlob     *ConfigBlobQuery
+	withParent   *ConfigRevisionQuery
+	withChildren *ConfigRevisionQuery
+	withFKs      bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -125,28 +123,6 @@ func (_q *ConfigRevisionQuery) QueryChildren() *ConfigRevisionQuery {
 			sqlgraph.From(configrevision.Table, configrevision.FieldID, selector),
 			sqlgraph.To(configrevision.Table, configrevision.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, configrevision.ChildrenTable, configrevision.ChildrenColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryConfigFile chains the current query on the "config_file" edge.
-func (_q *ConfigRevisionQuery) QueryConfigFile() *ConfigFileQuery {
-	query := (&ConfigFileClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(configrevision.Table, configrevision.FieldID, selector),
-			sqlgraph.To(configfile.Table, configfile.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, configrevision.ConfigFileTable, configrevision.ConfigFileColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -341,15 +317,14 @@ func (_q *ConfigRevisionQuery) Clone() *ConfigRevisionQuery {
 		return nil
 	}
 	return &ConfigRevisionQuery{
-		config:         _q.config,
-		ctx:            _q.ctx.Clone(),
-		order:          append([]configrevision.OrderOption{}, _q.order...),
-		inters:         append([]Interceptor{}, _q.inters...),
-		predicates:     append([]predicate.ConfigRevision{}, _q.predicates...),
-		withBlob:       _q.withBlob.Clone(),
-		withParent:     _q.withParent.Clone(),
-		withChildren:   _q.withChildren.Clone(),
-		withConfigFile: _q.withConfigFile.Clone(),
+		config:       _q.config,
+		ctx:          _q.ctx.Clone(),
+		order:        append([]configrevision.OrderOption{}, _q.order...),
+		inters:       append([]Interceptor{}, _q.inters...),
+		predicates:   append([]predicate.ConfigRevision{}, _q.predicates...),
+		withBlob:     _q.withBlob.Clone(),
+		withParent:   _q.withParent.Clone(),
+		withChildren: _q.withChildren.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -386,17 +361,6 @@ func (_q *ConfigRevisionQuery) WithChildren(opts ...func(*ConfigRevisionQuery)) 
 		opt(query)
 	}
 	_q.withChildren = query
-	return _q
-}
-
-// WithConfigFile tells the query-builder to eager-load the nodes that are connected to
-// the "config_file" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ConfigRevisionQuery) WithConfigFile(opts ...func(*ConfigFileQuery)) *ConfigRevisionQuery {
-	query := (&ConfigFileClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withConfigFile = query
 	return _q
 }
 
@@ -479,14 +443,13 @@ func (_q *ConfigRevisionQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 		nodes       = []*ConfigRevision{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [3]bool{
 			_q.withBlob != nil,
 			_q.withParent != nil,
 			_q.withChildren != nil,
-			_q.withConfigFile != nil,
 		}
 	)
-	if _q.withBlob != nil || _q.withParent != nil || _q.withConfigFile != nil {
+	if _q.withBlob != nil || _q.withParent != nil {
 		withFKs = true
 	}
 	if withFKs {
@@ -526,12 +489,6 @@ func (_q *ConfigRevisionQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 		if err := _q.loadChildren(ctx, query, nodes,
 			func(n *ConfigRevision) { n.Edges.Children = []*ConfigRevision{} },
 			func(n *ConfigRevision, e *ConfigRevision) { n.Edges.Children = append(n.Edges.Children, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withConfigFile; query != nil {
-		if err := _q.loadConfigFile(ctx, query, nodes, nil,
-			func(n *ConfigRevision, e *ConfigFile) { n.Edges.ConfigFile = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -630,38 +587,6 @@ func (_q *ConfigRevisionQuery) loadChildren(ctx context.Context, query *ConfigRe
 			return fmt.Errorf(`unexpected referenced foreign-key "config_revision_children" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
-	}
-	return nil
-}
-func (_q *ConfigRevisionQuery) loadConfigFile(ctx context.Context, query *ConfigFileQuery, nodes []*ConfigRevision, init func(*ConfigRevision), assign func(*ConfigRevision, *ConfigFile)) error {
-	ids := make([]int, 0, len(nodes))
-	nodeids := make(map[int][]*ConfigRevision)
-	for i := range nodes {
-		if nodes[i].config_file_current_revision == nil {
-			continue
-		}
-		fk := *nodes[i].config_file_current_revision
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(configfile.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "config_file_current_revision" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
 	}
 	return nil
 }

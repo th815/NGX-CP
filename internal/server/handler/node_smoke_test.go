@@ -66,7 +66,7 @@ func decodeBody(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 func TestNodeHandlerCapabilityAndTargets(t *testing.T) {
 	client, id := setupNode(t)
 	defer client.Close()
-	svc := node.New(client)
+	svc := node.New(client, nil)
 	h := NewNodeHandler(svc, nil)
 	ctx := context.Background()
 

@@ -100,19 +100,18 @@ func TestDualPathSchemaAndCRUD(t *testing.T) {
 		SetNodeID(node.ID).
 		SetPath("/etc/nginx/nginx.conf").
 		SetFormat("nginx").
-		SetCurrentRevision(childRev).
+		SetCurrentRevisionID(childRev.ID). // 字段级 FK 标记当前生效版本（current_revision 边已移除）
 		SaveX(ctx)
 
-	// 回查：从 ConfigFile 反查当前版本 → 父版本链
+	// 回查：ConfigFile.current_revision_id → ConfigRevision → parent 边 → 父版本链
 	got := client.ConfigFile.Query().
 		Where(configfile.Path(cf.Path)).
-		WithCurrentRevision(func(q *ent.ConfigRevisionQuery) {
-			q.WithParent()
-		}).
 		OnlyX(ctx)
-	require.Equal(t, childRev.ID, got.Edges.CurrentRevision.ID)
-	require.NotNil(t, got.Edges.CurrentRevision.Edges.Parent)
-	require.Equal(t, parentRev.ID, got.Edges.CurrentRevision.Edges.Parent.ID)
+	require.Equal(t, childRev.ID, got.CurrentRevisionID)
+	cur := client.ConfigRevision.GetX(ctx, got.CurrentRevisionID)
+	require.Equal(t, childRev.ID, cur.ID)
+	parent := cur.QueryParent().OnlyX(ctx)
+	require.Equal(t, parentRev.ID, parent.ID)
 
 	// 3) 变更单 + 发布任务（验证状态机枚举与双向边）
 	co := client.ChangeOrder.Create().

@@ -77,8 +77,9 @@ var (
 	ConfigFilesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "node_id", Type: field.TypeInt},
-		{Name: "path", Type: field.TypeString, Unique: true},
+		{Name: "path", Type: field.TypeString},
 		{Name: "format", Type: field.TypeEnum, Enums: []string{"nginx", "keepalived", "stream", "other"}, Default: "nginx"},
+		{Name: "current_revision_id", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
@@ -88,17 +89,25 @@ var (
 		Name:       "config_files",
 		Columns:    ConfigFilesColumns,
 		PrimaryKey: []*schema.Column{ConfigFilesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "configfile_node_id_path",
+				Unique:  true,
+				Columns: []*schema.Column{ConfigFilesColumns[1], ConfigFilesColumns[2]},
+			},
+		},
 	}
 	// ConfigRevisionsColumns holds the columns for the "config_revisions" table.
 	ConfigRevisionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "node_id", Type: field.TypeInt},
 		{Name: "path", Type: field.TypeString},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"sync", "manual_edit", "cert_renew", "security_block", "rollback"}, Default: "sync"},
+		{Name: "change_order_id", Type: field.TypeInt, Nullable: true},
 		{Name: "message", Type: field.TypeString, Nullable: true},
 		{Name: "author", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "config_blob_revisions", Type: field.TypeInt, Nullable: true},
-		{Name: "config_file_current_revision", Type: field.TypeInt, Unique: true, Nullable: true},
 		{Name: "config_revision_children", Type: field.TypeInt, Nullable: true},
 	}
 	// ConfigRevisionsTable holds the schema information for the "config_revisions" table.
@@ -109,19 +118,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "config_revisions_config_blobs_revisions",
-				Columns:    []*schema.Column{ConfigRevisionsColumns[6]},
+				Columns:    []*schema.Column{ConfigRevisionsColumns[8]},
 				RefColumns: []*schema.Column{ConfigBlobsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
-				Symbol:     "config_revisions_config_files_current_revision",
-				Columns:    []*schema.Column{ConfigRevisionsColumns[7]},
-				RefColumns: []*schema.Column{ConfigFilesColumns[0]},
-				OnDelete:   schema.SetNull,
-			},
-			{
 				Symbol:     "config_revisions_config_revisions_children",
-				Columns:    []*schema.Column{ConfigRevisionsColumns[8]},
+				Columns:    []*schema.Column{ConfigRevisionsColumns[9]},
 				RefColumns: []*schema.Column{ConfigRevisionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -373,8 +376,7 @@ var (
 
 func init() {
 	ConfigRevisionsTable.ForeignKeys[0].RefTable = ConfigBlobsTable
-	ConfigRevisionsTable.ForeignKeys[1].RefTable = ConfigFilesTable
-	ConfigRevisionsTable.ForeignKeys[2].RefTable = ConfigRevisionsTable
+	ConfigRevisionsTable.ForeignKeys[1].RefTable = ConfigRevisionsTable
 	ConfigSnapshotsTable.ForeignKeys[0].RefTable = NodesTable
 	DeployTasksTable.ForeignKeys[0].RefTable = ChangeOrdersTable
 	DeployTasksTable.ForeignKeys[1].RefTable = NodesTable

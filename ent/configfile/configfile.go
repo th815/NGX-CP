@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -21,23 +20,16 @@ const (
 	FieldPath = "path"
 	// FieldFormat holds the string denoting the format field in the database.
 	FieldFormat = "format"
+	// FieldCurrentRevisionID holds the string denoting the current_revision_id field in the database.
+	FieldCurrentRevisionID = "current_revision_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
-	// EdgeCurrentRevision holds the string denoting the current_revision edge name in mutations.
-	EdgeCurrentRevision = "current_revision"
 	// Table holds the table name of the configfile in the database.
 	Table = "config_files"
-	// CurrentRevisionTable is the table that holds the current_revision relation/edge.
-	CurrentRevisionTable = "config_revisions"
-	// CurrentRevisionInverseTable is the table name for the ConfigRevision entity.
-	// It exists in this package in order to avoid circular dependency with the "configrevision" package.
-	CurrentRevisionInverseTable = "config_revisions"
-	// CurrentRevisionColumn is the table column denoting the current_revision relation/edge.
-	CurrentRevisionColumn = "config_file_current_revision"
 )
 
 // Columns holds all SQL columns for configfile fields.
@@ -46,6 +38,7 @@ var Columns = []string{
 	FieldNodeID,
 	FieldPath,
 	FieldFormat,
+	FieldCurrentRevisionID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldDeletedAt,
@@ -121,6 +114,11 @@ func ByFormat(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFormat, opts...).ToFunc()
 }
 
+// ByCurrentRevisionID orders the results by the current_revision_id field.
+func ByCurrentRevisionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrentRevisionID, opts...).ToFunc()
+}
+
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -134,18 +132,4 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedAt orders the results by the deleted_at field.
 func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
-}
-
-// ByCurrentRevisionField orders the results by current_revision field.
-func ByCurrentRevisionField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCurrentRevisionStep(), sql.OrderByField(field, opts...))
-	}
-}
-func newCurrentRevisionStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(CurrentRevisionInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2O, false, CurrentRevisionTable, CurrentRevisionColumn),
-	)
 }

@@ -993,22 +993,6 @@ func (c *ConfigFileClient) GetX(ctx context.Context, id int) *ConfigFile {
 	return obj
 }
 
-// QueryCurrentRevision queries the current_revision edge of a ConfigFile.
-func (c *ConfigFileClient) QueryCurrentRevision(_m *ConfigFile) *ConfigRevisionQuery {
-	query := (&ConfigRevisionClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(configfile.Table, configfile.FieldID, id),
-			sqlgraph.To(configrevision.Table, configrevision.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, false, configfile.CurrentRevisionTable, configfile.CurrentRevisionColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // Hooks returns the client hooks.
 func (c *ConfigFileClient) Hooks() []Hook {
 	return c.hooks.ConfigFile
@@ -1183,22 +1167,6 @@ func (c *ConfigRevisionClient) QueryChildren(_m *ConfigRevision) *ConfigRevision
 			sqlgraph.From(configrevision.Table, configrevision.FieldID, id),
 			sqlgraph.To(configrevision.Table, configrevision.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, configrevision.ChildrenTable, configrevision.ChildrenColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryConfigFile queries the config_file edge of a ConfigRevision.
-func (c *ConfigRevisionClient) QueryConfigFile(_m *ConfigRevision) *ConfigFileQuery {
-	query := (&ConfigFileClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(configrevision.Table, configrevision.FieldID, id),
-			sqlgraph.To(configfile.Table, configfile.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, configrevision.ConfigFileTable, configrevision.ConfigFileColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

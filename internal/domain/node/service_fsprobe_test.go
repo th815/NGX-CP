@@ -37,7 +37,7 @@ func newDBNode(t *testing.T, name string) (*ent.Client, int) {
 func TestFsProbeDegradesAndRecovers(t *testing.T) {
 	client, id := newDBNode(t, "fsprobe")
 	defer client.Close()
-	svc := New(client)
+	svc := New(client, nil)
 
 	fail := &agentv1.FsProbeReport{CheckedAt: 1, Items: []*agentv1.ComplianceItem{
 		{Name: "disk_usage_nginx_paths", Severity: "critical", Passed: false, Actual: "92%"},
@@ -66,7 +66,7 @@ func TestFsProbeDegradesAndRecovers(t *testing.T) {
 func TestHealthAggregationCrossDimension(t *testing.T) {
 	client, id := newDBNode(t, "agg")
 	defer client.Close()
-	svc := New(client)
+	svc := New(client, nil)
 
 	compFail := &agentv1.ComplianceReport{CheckedAt: 1, Items: []*agentv1.ComplianceItem{
 		{Name: "vip_on_lo", Severity: "critical", Passed: false},
@@ -105,7 +105,7 @@ func TestHealthAggregationCrossDimension(t *testing.T) {
 func TestFsProbeNilIgnored(t *testing.T) {
 	client, id := newDBNode(t, "fsnil")
 	defer client.Close()
-	svc := New(client)
+	svc := New(client, nil)
 	if err := svc.SetFsProbe(context.Background(), id, nil); err != nil {
 		t.Fatalf("SetFsProbe(nil): %v", err)
 	}

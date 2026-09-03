@@ -12,7 +12,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/configblob"
-	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
 )
 
@@ -33,6 +32,34 @@ func (_c *ConfigRevisionCreate) SetNodeID(v int) *ConfigRevisionCreate {
 // SetPath sets the "path" field.
 func (_c *ConfigRevisionCreate) SetPath(v string) *ConfigRevisionCreate {
 	_c.mutation.SetPath(v)
+	return _c
+}
+
+// SetSource sets the "source" field.
+func (_c *ConfigRevisionCreate) SetSource(v configrevision.Source) *ConfigRevisionCreate {
+	_c.mutation.SetSource(v)
+	return _c
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_c *ConfigRevisionCreate) SetNillableSource(v *configrevision.Source) *ConfigRevisionCreate {
+	if v != nil {
+		_c.SetSource(*v)
+	}
+	return _c
+}
+
+// SetChangeOrderID sets the "change_order_id" field.
+func (_c *ConfigRevisionCreate) SetChangeOrderID(v int) *ConfigRevisionCreate {
+	_c.mutation.SetChangeOrderID(v)
+	return _c
+}
+
+// SetNillableChangeOrderID sets the "change_order_id" field if the given value is not nil.
+func (_c *ConfigRevisionCreate) SetNillableChangeOrderID(v *int) *ConfigRevisionCreate {
+	if v != nil {
+		_c.SetChangeOrderID(*v)
+	}
 	return _c
 }
 
@@ -131,25 +158,6 @@ func (_c *ConfigRevisionCreate) AddChildren(v ...*ConfigRevision) *ConfigRevisio
 	return _c.AddChildIDs(ids...)
 }
 
-// SetConfigFileID sets the "config_file" edge to the ConfigFile entity by ID.
-func (_c *ConfigRevisionCreate) SetConfigFileID(id int) *ConfigRevisionCreate {
-	_c.mutation.SetConfigFileID(id)
-	return _c
-}
-
-// SetNillableConfigFileID sets the "config_file" edge to the ConfigFile entity by ID if the given value is not nil.
-func (_c *ConfigRevisionCreate) SetNillableConfigFileID(id *int) *ConfigRevisionCreate {
-	if id != nil {
-		_c = _c.SetConfigFileID(*id)
-	}
-	return _c
-}
-
-// SetConfigFile sets the "config_file" edge to the ConfigFile entity.
-func (_c *ConfigRevisionCreate) SetConfigFile(v *ConfigFile) *ConfigRevisionCreate {
-	return _c.SetConfigFileID(v.ID)
-}
-
 // Mutation returns the ConfigRevisionMutation object of the builder.
 func (_c *ConfigRevisionCreate) Mutation() *ConfigRevisionMutation {
 	return _c.mutation
@@ -185,6 +193,10 @@ func (_c *ConfigRevisionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ConfigRevisionCreate) defaults() {
+	if _, ok := _c.mutation.Source(); !ok {
+		v := configrevision.DefaultSource
+		_c.mutation.SetSource(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := configrevision.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -198,6 +210,14 @@ func (_c *ConfigRevisionCreate) check() error {
 	}
 	if _, ok := _c.mutation.Path(); !ok {
 		return &ValidationError{Name: "path", err: errors.New(`ent: missing required field "ConfigRevision.path"`)}
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "ConfigRevision.source"`)}
+	}
+	if v, ok := _c.mutation.Source(); ok {
+		if err := configrevision.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "ConfigRevision.source": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ConfigRevision.created_at"`)}
@@ -236,6 +256,14 @@ func (_c *ConfigRevisionCreate) createSpec() (*ConfigRevision, *sqlgraph.CreateS
 	if value, ok := _c.mutation.Path(); ok {
 		_spec.SetField(configrevision.FieldPath, field.TypeString, value)
 		_node.Path = value
+	}
+	if value, ok := _c.mutation.Source(); ok {
+		_spec.SetField(configrevision.FieldSource, field.TypeEnum, value)
+		_node.Source = value
+	}
+	if value, ok := _c.mutation.ChangeOrderID(); ok {
+		_spec.SetField(configrevision.FieldChangeOrderID, field.TypeInt, value)
+		_node.ChangeOrderID = value
 	}
 	if value, ok := _c.mutation.Message(); ok {
 		_spec.SetField(configrevision.FieldMessage, field.TypeString, value)
@@ -297,23 +325,6 @@ func (_c *ConfigRevisionCreate) createSpec() (*ConfigRevision, *sqlgraph.CreateS
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.ConfigFileIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
-			Inverse: true,
-			Table:   configrevision.ConfigFileTable,
-			Columns: []string{configrevision.ConfigFileColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(configfile.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.config_file_current_revision = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
@@ -395,6 +406,42 @@ func (u *ConfigRevisionUpsert) SetPath(v string) *ConfigRevisionUpsert {
 // UpdatePath sets the "path" field to the value that was provided on create.
 func (u *ConfigRevisionUpsert) UpdatePath() *ConfigRevisionUpsert {
 	u.SetExcluded(configrevision.FieldPath)
+	return u
+}
+
+// SetSource sets the "source" field.
+func (u *ConfigRevisionUpsert) SetSource(v configrevision.Source) *ConfigRevisionUpsert {
+	u.Set(configrevision.FieldSource, v)
+	return u
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *ConfigRevisionUpsert) UpdateSource() *ConfigRevisionUpsert {
+	u.SetExcluded(configrevision.FieldSource)
+	return u
+}
+
+// SetChangeOrderID sets the "change_order_id" field.
+func (u *ConfigRevisionUpsert) SetChangeOrderID(v int) *ConfigRevisionUpsert {
+	u.Set(configrevision.FieldChangeOrderID, v)
+	return u
+}
+
+// UpdateChangeOrderID sets the "change_order_id" field to the value that was provided on create.
+func (u *ConfigRevisionUpsert) UpdateChangeOrderID() *ConfigRevisionUpsert {
+	u.SetExcluded(configrevision.FieldChangeOrderID)
+	return u
+}
+
+// AddChangeOrderID adds v to the "change_order_id" field.
+func (u *ConfigRevisionUpsert) AddChangeOrderID(v int) *ConfigRevisionUpsert {
+	u.Add(configrevision.FieldChangeOrderID, v)
+	return u
+}
+
+// ClearChangeOrderID clears the value of the "change_order_id" field.
+func (u *ConfigRevisionUpsert) ClearChangeOrderID() *ConfigRevisionUpsert {
+	u.SetNull(configrevision.FieldChangeOrderID)
 	return u
 }
 
@@ -511,6 +558,48 @@ func (u *ConfigRevisionUpsertOne) SetPath(v string) *ConfigRevisionUpsertOne {
 func (u *ConfigRevisionUpsertOne) UpdatePath() *ConfigRevisionUpsertOne {
 	return u.Update(func(s *ConfigRevisionUpsert) {
 		s.UpdatePath()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *ConfigRevisionUpsertOne) SetSource(v configrevision.Source) *ConfigRevisionUpsertOne {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *ConfigRevisionUpsertOne) UpdateSource() *ConfigRevisionUpsertOne {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetChangeOrderID sets the "change_order_id" field.
+func (u *ConfigRevisionUpsertOne) SetChangeOrderID(v int) *ConfigRevisionUpsertOne {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.SetChangeOrderID(v)
+	})
+}
+
+// AddChangeOrderID adds v to the "change_order_id" field.
+func (u *ConfigRevisionUpsertOne) AddChangeOrderID(v int) *ConfigRevisionUpsertOne {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.AddChangeOrderID(v)
+	})
+}
+
+// UpdateChangeOrderID sets the "change_order_id" field to the value that was provided on create.
+func (u *ConfigRevisionUpsertOne) UpdateChangeOrderID() *ConfigRevisionUpsertOne {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.UpdateChangeOrderID()
+	})
+}
+
+// ClearChangeOrderID clears the value of the "change_order_id" field.
+func (u *ConfigRevisionUpsertOne) ClearChangeOrderID() *ConfigRevisionUpsertOne {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.ClearChangeOrderID()
 	})
 }
 
@@ -799,6 +888,48 @@ func (u *ConfigRevisionUpsertBulk) SetPath(v string) *ConfigRevisionUpsertBulk {
 func (u *ConfigRevisionUpsertBulk) UpdatePath() *ConfigRevisionUpsertBulk {
 	return u.Update(func(s *ConfigRevisionUpsert) {
 		s.UpdatePath()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *ConfigRevisionUpsertBulk) SetSource(v configrevision.Source) *ConfigRevisionUpsertBulk {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *ConfigRevisionUpsertBulk) UpdateSource() *ConfigRevisionUpsertBulk {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetChangeOrderID sets the "change_order_id" field.
+func (u *ConfigRevisionUpsertBulk) SetChangeOrderID(v int) *ConfigRevisionUpsertBulk {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.SetChangeOrderID(v)
+	})
+}
+
+// AddChangeOrderID adds v to the "change_order_id" field.
+func (u *ConfigRevisionUpsertBulk) AddChangeOrderID(v int) *ConfigRevisionUpsertBulk {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.AddChangeOrderID(v)
+	})
+}
+
+// UpdateChangeOrderID sets the "change_order_id" field to the value that was provided on create.
+func (u *ConfigRevisionUpsertBulk) UpdateChangeOrderID() *ConfigRevisionUpsertBulk {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.UpdateChangeOrderID()
+	})
+}
+
+// ClearChangeOrderID clears the value of the "change_order_id" field.
+func (u *ConfigRevisionUpsertBulk) ClearChangeOrderID() *ConfigRevisionUpsertBulk {
+	return u.Update(func(s *ConfigRevisionUpsert) {
+		s.ClearChangeOrderID()
 	})
 }
 

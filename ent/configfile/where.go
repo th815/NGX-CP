@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/th/ngxcp/ent/predicate"
 )
 
@@ -63,6 +62,11 @@ func NodeID(v int) predicate.ConfigFile {
 // Path applies equality check predicate on the "path" field. It's identical to PathEQ.
 func Path(v string) predicate.ConfigFile {
 	return predicate.ConfigFile(sql.FieldEQ(FieldPath, v))
+}
+
+// CurrentRevisionID applies equality check predicate on the "current_revision_id" field. It's identical to CurrentRevisionIDEQ.
+func CurrentRevisionID(v int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldEQ(FieldCurrentRevisionID, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -205,6 +209,56 @@ func FormatNotIn(vs ...Format) predicate.ConfigFile {
 	return predicate.ConfigFile(sql.FieldNotIn(FieldFormat, vs...))
 }
 
+// CurrentRevisionIDEQ applies the EQ predicate on the "current_revision_id" field.
+func CurrentRevisionIDEQ(v int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldEQ(FieldCurrentRevisionID, v))
+}
+
+// CurrentRevisionIDNEQ applies the NEQ predicate on the "current_revision_id" field.
+func CurrentRevisionIDNEQ(v int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldNEQ(FieldCurrentRevisionID, v))
+}
+
+// CurrentRevisionIDIn applies the In predicate on the "current_revision_id" field.
+func CurrentRevisionIDIn(vs ...int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldIn(FieldCurrentRevisionID, vs...))
+}
+
+// CurrentRevisionIDNotIn applies the NotIn predicate on the "current_revision_id" field.
+func CurrentRevisionIDNotIn(vs ...int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldNotIn(FieldCurrentRevisionID, vs...))
+}
+
+// CurrentRevisionIDGT applies the GT predicate on the "current_revision_id" field.
+func CurrentRevisionIDGT(v int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldGT(FieldCurrentRevisionID, v))
+}
+
+// CurrentRevisionIDGTE applies the GTE predicate on the "current_revision_id" field.
+func CurrentRevisionIDGTE(v int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldGTE(FieldCurrentRevisionID, v))
+}
+
+// CurrentRevisionIDLT applies the LT predicate on the "current_revision_id" field.
+func CurrentRevisionIDLT(v int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldLT(FieldCurrentRevisionID, v))
+}
+
+// CurrentRevisionIDLTE applies the LTE predicate on the "current_revision_id" field.
+func CurrentRevisionIDLTE(v int) predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldLTE(FieldCurrentRevisionID, v))
+}
+
+// CurrentRevisionIDIsNil applies the IsNil predicate on the "current_revision_id" field.
+func CurrentRevisionIDIsNil() predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldIsNull(FieldCurrentRevisionID))
+}
+
+// CurrentRevisionIDNotNil applies the NotNil predicate on the "current_revision_id" field.
+func CurrentRevisionIDNotNil() predicate.ConfigFile {
+	return predicate.ConfigFile(sql.FieldNotNull(FieldCurrentRevisionID))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.ConfigFile {
 	return predicate.ConfigFile(sql.FieldEQ(FieldCreatedAt, v))
@@ -333,29 +387,6 @@ func DeletedAtIsNil() predicate.ConfigFile {
 // DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
 func DeletedAtNotNil() predicate.ConfigFile {
 	return predicate.ConfigFile(sql.FieldNotNull(FieldDeletedAt))
-}
-
-// HasCurrentRevision applies the HasEdge predicate on the "current_revision" edge.
-func HasCurrentRevision() predicate.ConfigFile {
-	return predicate.ConfigFile(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, false, CurrentRevisionTable, CurrentRevisionColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasCurrentRevisionWith applies the HasEdge predicate on the "current_revision" edge with a given conditions (other predicates).
-func HasCurrentRevisionWith(preds ...predicate.ConfigRevision) predicate.ConfigFile {
-	return predicate.ConfigFile(func(s *sql.Selector) {
-		step := newCurrentRevisionStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
 }
 
 // And groups predicates with the AND operator between them.
