@@ -46,6 +46,8 @@ type HeartbeatCallbacks struct {
 	ReportConfigTree func(ctx context.Context) (*agentv1.ConfigTreeReport, error)
 	// ReportLogTargets 从配置提取日志采集目标（经心跳流 LOG_TARGETS 上报）。
 	ReportLogTargets func(ctx context.Context) (*agentv1.LogTargetsReport, error)
+	// ValidateConfig 在本地跑 nginx -t 校验（T024），经心跳流 CONFIG_VALIDATE 回传结果。
+	ValidateConfig func(ctx context.Context, task *agentv1.ValidateTask) (*agentv1.ValidateResult, error)
 }
 
 // Heartbeater 管理一条到控制面的心跳长连接。
@@ -127,6 +129,8 @@ func (h *Heartbeater) session(ctx context.Context) error {
 	// 配置树 / 日志目标汇集通道（周期采集 goroutine → 主循环发送）。
 	configTreeOut := make(chan *agentv1.ConfigTreeReport, 1)
 	logTargetsOut := make(chan *agentv1.LogTargetsReport, 1)
+	// 校验结果汇集通道（VALIDATE_CONFIG 指令触发 → 主循环经 CONFIG_VALIDATE 上报）。
+	validateOut := make(chan *agentv1.ValidateResult, 1)
 
 	// 收指令 goroutine：避免在主循环里 Recv 阻塞发送。
 	recvDone := make(chan error, 1)
@@ -137,7 +141,7 @@ func (h *Heartbeater) session(ctx context.Context) error {
 				recvDone <- rerr
 				return
 			}
-			h.handleCommand(ctx, resp, pendingCompliance)
+			h.handleCommand(ctx, resp, pendingCompliance, validateOut)
 		}
 	}()
 
@@ -269,12 +273,16 @@ func (h *Heartbeater) session(ctx context.Context) error {
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_LOG_TARGETS, rep); serr != nil {
 				return serr
 			}
+		case rep := <-validateOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CONFIG_VALIDATE, rep); serr != nil {
+				return serr
+			}
 		}
 	}
 }
 
 // handleCommand 处理控制面下发的指令。
-func (h *Heartbeater) handleCommand(ctx context.Context, resp *agentv1.HeartbeatResponse, pendingCompliance chan struct{}) {
+func (h *Heartbeater) handleCommand(ctx context.Context, resp *agentv1.HeartbeatResponse, pendingCompliance chan struct{}, validateOut chan *agentv1.ValidateResult) {
 	switch resp.GetCommand() {
 	case agentv1.HeartbeatResponse_REFRESH_CAPABILITY:
 		h.log.Info("control-plane requested capability refresh")
@@ -292,6 +300,24 @@ func (h *Heartbeater) handleCommand(ctx context.Context, resp *agentv1.Heartbeat
 		case pendingCompliance <- struct{}{}:
 		default:
 		}
+	case agentv1.HeartbeatResponse_VALIDATE_CONFIG:
+		h.log.Info("control-plane requested config validation")
+		task := resp.GetValidateTask()
+		if task == nil || h.cb.ValidateConfig == nil {
+			return
+		}
+		// 在收指令 goroutine 内异步执行（nginx -t 可能耗时），结果经 validateOut 由主循环上报。
+		go func() {
+			res, err := h.cb.ValidateConfig(ctx, task)
+			if err != nil {
+				h.log.Warn("config validation failed", "err", err)
+				res = &agentv1.ValidateResult{TaskId: task.GetTaskId(), Ok: false, Raw: err.Error()}
+			}
+			select {
+			case validateOut <- res:
+			default:
+			}
+		}()
 	default:
 		// NONE 等：无需动作。
 	}
@@ -320,6 +346,8 @@ func (h *Heartbeater) sendReport(stream agentv1.AgentService_HeartbeatClient, ty
 		req.ConfigTree = payload.(*agentv1.ConfigTreeReport)
 	case agentv1.HeartbeatRequest_LOG_TARGETS:
 		req.LogTargets = payload.(*agentv1.LogTargetsReport)
+	case agentv1.HeartbeatRequest_CONFIG_VALIDATE:
+		req.ValidateResult = payload.(*agentv1.ValidateResult)
 	}
 	return stream.Send(req)
 }

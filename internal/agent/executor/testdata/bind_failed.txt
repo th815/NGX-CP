@@ -1,0 +1,3 @@
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address already in use)
+nginx: configuration file /etc/nginx/nginx.conf test failed

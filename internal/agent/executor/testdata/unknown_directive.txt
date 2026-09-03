@@ -1,0 +1,2 @@
+nginx: [emerg] unknown directive "lstne" in /etc/nginx/conf.d/api.conf:12
+nginx: configuration file /etc/nginx/nginx.conf test failed

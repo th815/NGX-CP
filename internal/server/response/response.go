@@ -45,6 +45,16 @@ func Fail(c *gin.Context, err error) {
 	c.JSON(httpStatusOf(e.Code), envelope{Code: int(e.Code), Message: e.Message, Detail: detail})
 }
 
+// FailData 同 Fail，但额外携带 data（如校验结构化错误列表）到响应信封。
+func FailData(c *gin.Context, err error, data any) {
+	e := apperr.From(err)
+	detail := e.Detail
+	if len(detail) > maxDetail {
+		detail = detail[:maxDetail] + "...(truncated)"
+	}
+	c.JSON(httpStatusOf(e.Code), envelope{Code: int(e.Code), Message: e.Message, Detail: detail, Data: data})
+}
+
 func httpStatusOf(code apperr.Code) int {
 	switch code {
 	case apperr.CodeInvalid:

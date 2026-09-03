@@ -84,7 +84,8 @@ func Run(cfg *config.Config) error {
 	})
 
 	// HTTP 控制面（阻塞，直到进程退出）。
-	r := buildRouter(cfg, nodeSvc, cfgStore, sessions)
+	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
+	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv)
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
 }

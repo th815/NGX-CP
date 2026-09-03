@@ -27,13 +27,14 @@ const (
 type HeartbeatRequest_Type int32
 
 const (
-	HeartbeatRequest_PING        HeartbeatRequest_Type = 0
-	HeartbeatRequest_CAPABILITY  HeartbeatRequest_Type = 1
-	HeartbeatRequest_COMPLIANCE  HeartbeatRequest_Type = 2
-	HeartbeatRequest_METRICS     HeartbeatRequest_Type = 3
-	HeartbeatRequest_FS_PROBE    HeartbeatRequest_Type = 4 // T018：日志/FS 健康探测上报
-	HeartbeatRequest_CONFIG_TREE HeartbeatRequest_Type = 5 // T018：nginx -T 配置树上报
-	HeartbeatRequest_LOG_TARGETS HeartbeatRequest_Type = 6 // T018：日志采集目标上报
+	HeartbeatRequest_PING            HeartbeatRequest_Type = 0
+	HeartbeatRequest_CAPABILITY      HeartbeatRequest_Type = 1
+	HeartbeatRequest_COMPLIANCE      HeartbeatRequest_Type = 2
+	HeartbeatRequest_METRICS         HeartbeatRequest_Type = 3
+	HeartbeatRequest_FS_PROBE        HeartbeatRequest_Type = 4 // T018：日志/FS 健康探测上报
+	HeartbeatRequest_CONFIG_TREE     HeartbeatRequest_Type = 5 // T018：nginx -T 配置树上报
+	HeartbeatRequest_LOG_TARGETS     HeartbeatRequest_Type = 6 // T018：日志采集目标上报
+	HeartbeatRequest_CONFIG_VALIDATE HeartbeatRequest_Type = 7 // T024：nginx -t 校验结果上报
 )
 
 // Enum value maps for HeartbeatRequest_Type.
@@ -46,15 +47,17 @@ var (
 		4: "FS_PROBE",
 		5: "CONFIG_TREE",
 		6: "LOG_TARGETS",
+		7: "CONFIG_VALIDATE",
 	}
 	HeartbeatRequest_Type_value = map[string]int32{
-		"PING":        0,
-		"CAPABILITY":  1,
-		"COMPLIANCE":  2,
-		"METRICS":     3,
-		"FS_PROBE":    4,
-		"CONFIG_TREE": 5,
-		"LOG_TARGETS": 6,
+		"PING":            0,
+		"CAPABILITY":      1,
+		"COMPLIANCE":      2,
+		"METRICS":         3,
+		"FS_PROBE":        4,
+		"CONFIG_TREE":     5,
+		"LOG_TARGETS":     6,
+		"CONFIG_VALIDATE": 7,
 	}
 )
 
@@ -91,6 +94,7 @@ const (
 	HeartbeatResponse_NONE               HeartbeatResponse_Command = 0
 	HeartbeatResponse_REFRESH_CAPABILITY HeartbeatResponse_Command = 1 // 让 Agent 重新跑 nginx -V / -T 并上报
 	HeartbeatResponse_RUN_COMPLIANCE     HeartbeatResponse_Command = 2 // 让 Agent 重新跑 DR 合规自检
+	HeartbeatResponse_VALIDATE_CONFIG    HeartbeatResponse_Command = 3 // T024：让 Agent 在本地跑 nginx -t 校验（带待校验文件）
 )
 
 // Enum value maps for HeartbeatResponse_Command.
@@ -99,11 +103,13 @@ var (
 		0: "NONE",
 		1: "REFRESH_CAPABILITY",
 		2: "RUN_COMPLIANCE",
+		3: "VALIDATE_CONFIG",
 	}
 	HeartbeatResponse_Command_value = map[string]int32{
 		"NONE":               0,
 		"REFRESH_CAPABILITY": 1,
 		"RUN_COMPLIANCE":     2,
+		"VALIDATE_CONFIG":    3,
 	}
 )
 
@@ -340,6 +346,7 @@ type HeartbeatRequest struct {
 	FsProbe        *FsProbeReport         `protobuf:"bytes,6,opt,name=fs_probe,json=fsProbe,proto3" json:"fs_probe,omitempty"`                      // T018：日志/FS 健康探测结果
 	ConfigTree     *ConfigTreeReport      `protobuf:"bytes,7,opt,name=config_tree,json=configTree,proto3" json:"config_tree,omitempty"`             // T018：nginx -T 配置树
 	LogTargets     *LogTargetsReport      `protobuf:"bytes,8,opt,name=log_targets,json=logTargets,proto3" json:"log_targets,omitempty"`             // T018：日志采集目标清单
+	ValidateResult *ValidateResult        `protobuf:"bytes,9,opt,name=validate_result,json=validateResult,proto3" json:"validate_result,omitempty"` // T024：nginx -t 校验结果
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -430,10 +437,19 @@ func (x *HeartbeatRequest) GetLogTargets() *LogTargetsReport {
 	return nil
 }
 
+func (x *HeartbeatRequest) GetValidateResult() *ValidateResult {
+	if x != nil {
+		return x.ValidateResult
+	}
+	return nil
+}
+
 type HeartbeatResponse struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Command       HeartbeatResponse_Command `protobuf:"varint,1,opt,name=command,proto3,enum=agent.v1.HeartbeatResponse_Command" json:"command,omitempty"`
-	TaskId        string                    `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"` // 幂等键，防止重放
+	state   protoimpl.MessageState    `protogen:"open.v1"`
+	Command HeartbeatResponse_Command `protobuf:"varint,1,opt,name=command,proto3,enum=agent.v1.HeartbeatResponse_Command" json:"command,omitempty"`
+	TaskId  string                    `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"` // 幂等键，防止重放
+	// T024：VALIDATE_CONFIG 命令携带的校验任务（待校验文件 + 运行参数）。
+	ValidateTask  *ValidateTask `protobuf:"bytes,3,opt,name=validate_task,json=validateTask,proto3" json:"validate_task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -480,6 +496,13 @@ func (x *HeartbeatResponse) GetTaskId() string {
 		return x.TaskId
 	}
 	return ""
+}
+
+func (x *HeartbeatResponse) GetValidateTask() *ValidateTask {
+	if x != nil {
+		return x.ValidateTask
+	}
+	return nil
 }
 
 type CapabilityReport struct {
@@ -1525,6 +1548,274 @@ func (x *LogTarget) GetStatErr() string {
 	return ""
 }
 
+// NginxError 是 nginx -t 输出的单条结构化错误。
+type NginxError struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Level         string                 `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`     // emerg | alert | crit | error | warn
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"` // 不含文件路径/行号前缀的纯消息
+	File          string                 `protobuf:"bytes,3,opt,name=file,proto3" json:"file,omitempty"`       // 出错文件绝对路径（来自 nginx 输出）
+	Line          int64                  `protobuf:"varint,4,opt,name=line,proto3" json:"line,omitempty"`      // 出错行号，无则为 0
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NginxError) Reset() {
+	*x = NginxError{}
+	mi := &file_agent_v1_agent_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NginxError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NginxError) ProtoMessage() {}
+
+func (x *NginxError) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NginxError.ProtoReflect.Descriptor instead.
+func (*NginxError) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *NginxError) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *NginxError) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *NginxError) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *NginxError) GetLine() int64 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+// ValidateFile 是待校验的单个配置文件（path 相对 staging 根，content 为文件原文）。
+type ValidateFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`       // 如 "nginx.conf" 或 "conf.d/api.conf"
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"` // 文件原文
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateFile) Reset() {
+	*x = ValidateFile{}
+	mi := &file_agent_v1_agent_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateFile) ProtoMessage() {}
+
+func (x *ValidateFile) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateFile.ProtoReflect.Descriptor instead.
+func (*ValidateFile) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ValidateFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ValidateFile) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+// ValidateTask 是控制面下发给 Agent 的校验任务。
+type ValidateTask struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`          // 幂等键，结果回传时原样带回
+	NginxPath     string                 `protobuf:"bytes,2,opt,name=nginx_path,json=nginxPath,proto3" json:"nginx_path,omitempty"` // nginx 二进制路径，空则默认 /usr/sbin/nginx
+	Prefix        string                 `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`                        // -p 参数（nginx 前缀，保证 include 相对路径一致）
+	ConfPath      string                 `protobuf:"bytes,4,opt,name=conf_path,json=confPath,proto3" json:"conf_path,omitempty"`    // staging 内的主配置路径（相对），如 "nginx.conf"
+	Files         []*ValidateFile        `protobuf:"bytes,5,rep,name=files,proto3" json:"files,omitempty"`                          // 待写入 staging 的文件集合
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateTask) Reset() {
+	*x = ValidateTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateTask) ProtoMessage() {}
+
+func (x *ValidateTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateTask.ProtoReflect.Descriptor instead.
+func (*ValidateTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ValidateTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ValidateTask) GetNginxPath() string {
+	if x != nil {
+		return x.NginxPath
+	}
+	return ""
+}
+
+func (x *ValidateTask) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+func (x *ValidateTask) GetConfPath() string {
+	if x != nil {
+		return x.ConfPath
+	}
+	return ""
+}
+
+func (x *ValidateTask) GetFiles() []*ValidateFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+// ValidateResult 是 Agent 回传的校验结果。
+type ValidateResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Ok            bool                   `protobuf:"varint,2,opt,name=ok,proto3" json:"ok,omitempty"`        // 语法是否通过
+	Errors        []*NginxError          `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"` // 结构化错误（ok=false 时有内容）
+	Raw           string                 `protobuf:"bytes,4,opt,name=raw,proto3" json:"raw,omitempty"`       // nginx -t 原始输出
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateResult) Reset() {
+	*x = ValidateResult{}
+	mi := &file_agent_v1_agent_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateResult) ProtoMessage() {}
+
+func (x *ValidateResult) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateResult.ProtoReflect.Descriptor instead.
+func (*ValidateResult) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ValidateResult) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ValidateResult) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *ValidateResult) GetErrors() []*NginxError {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+func (x *ValidateResult) GetRaw() string {
+	if x != nil {
+		return x.Raw
+	}
+	return ""
+}
+
 var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
@@ -1544,7 +1835,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\fServerConfig\x124\n" +
 	"\x16heartbeat_interval_sec\x18\x01 \x01(\x03R\x14heartbeatIntervalSec\x122\n" +
 	"\x15heartbeat_timeout_sec\x18\x02 \x01(\x03R\x13heartbeatTimeoutSec\x12-\n" +
-	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\x9d\x04\n" +
+	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\xf6\x04\n" +
 	"\x10HeartbeatRequest\x123\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1f.agent.v1.HeartbeatRequest.TypeR\x04type\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x124\n" +
@@ -1559,7 +1850,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\vconfig_tree\x18\a \x01(\v2\x1a.agent.v1.ConfigTreeReportR\n" +
 	"configTree\x12;\n" +
 	"\vlog_targets\x18\b \x01(\v2\x1a.agent.v1.LogTargetsReportR\n" +
-	"logTargets\"m\n" +
+	"logTargets\x12A\n" +
+	"\x0fvalidate_result\x18\t \x01(\v2\x18.agent.v1.ValidateResultR\x0evalidateResult\"\x82\x01\n" +
 	"\x04Type\x12\b\n" +
 	"\x04PING\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -1569,14 +1861,17 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\aMETRICS\x10\x03\x12\f\n" +
 	"\bFS_PROBE\x10\x04\x12\x0f\n" +
 	"\vCONFIG_TREE\x10\x05\x12\x0f\n" +
-	"\vLOG_TARGETS\x10\x06\"\xac\x01\n" +
+	"\vLOG_TARGETS\x10\x06\x12\x13\n" +
+	"\x0fCONFIG_VALIDATE\x10\a\"\xfe\x01\n" +
 	"\x11HeartbeatResponse\x12=\n" +
 	"\acommand\x18\x01 \x01(\x0e2#.agent.v1.HeartbeatResponse.CommandR\acommand\x12\x17\n" +
-	"\atask_id\x18\x02 \x01(\tR\x06taskId\"?\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12;\n" +
+	"\rvalidate_task\x18\x03 \x01(\v2\x16.agent.v1.ValidateTaskR\fvalidateTask\"T\n" +
 	"\aCommand\x12\b\n" +
 	"\x04NONE\x10\x00\x12\x16\n" +
 	"\x12REFRESH_CAPABILITY\x10\x01\x12\x12\n" +
-	"\x0eRUN_COMPLIANCE\x10\x02\"a\n" +
+	"\x0eRUN_COMPLIANCE\x10\x02\x12\x13\n" +
+	"\x0fVALIDATE_CONFIG\x10\x03\"a\n" +
 	"\x10CapabilityReport\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\x03R\x06nodeId\x124\n" +
 	"\n" +
@@ -1685,7 +1980,28 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\x04size\x18\t \x01(\x03R\x04size\x12\x14\n" +
 	"\x05inode\x18\n" +
 	" \x01(\x04R\x05inode\x12\x19\n" +
-	"\bstat_err\x18\v \x01(\tR\astatErr2\xda\x01\n" +
+	"\bstat_err\x18\v \x01(\tR\astatErr\"d\n" +
+	"\n" +
+	"NginxError\x12\x14\n" +
+	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x12\n" +
+	"\x04file\x18\x03 \x01(\tR\x04file\x12\x12\n" +
+	"\x04line\x18\x04 \x01(\x03R\x04line\"<\n" +
+	"\fValidateFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"\xa9\x01\n" +
+	"\fValidateTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\n" +
+	"nginx_path\x18\x02 \x01(\tR\tnginxPath\x12\x16\n" +
+	"\x06prefix\x18\x03 \x01(\tR\x06prefix\x12\x1b\n" +
+	"\tconf_path\x18\x04 \x01(\tR\bconfPath\x12,\n" +
+	"\x05files\x18\x05 \x03(\v2\x16.agent.v1.ValidateFileR\x05files\"y\n" +
+	"\x0eValidateResult\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x0e\n" +
+	"\x02ok\x18\x02 \x01(\bR\x02ok\x12,\n" +
+	"\x06errors\x18\x03 \x03(\v2\x14.agent.v1.NginxErrorR\x06errors\x12\x10\n" +
+	"\x03raw\x18\x04 \x01(\tR\x03raw2\xda\x01\n" +
 	"\fAgentService\x12A\n" +
 	"\bRegister\x12\x19.agent.v1.RegisterRequest\x1a\x1a.agent.v1.RegisterResponse\x12H\n" +
 	"\tHeartbeat\x12\x1a.agent.v1.HeartbeatRequest\x1a\x1b.agent.v1.HeartbeatResponse(\x010\x01\x12=\n" +
@@ -1704,7 +2020,7 @@ func file_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_agent_v1_agent_proto_goTypes = []any{
 	(HeartbeatRequest_Type)(0),     // 0: agent.v1.HeartbeatRequest.Type
 	(HeartbeatResponse_Command)(0), // 1: agent.v1.HeartbeatResponse.Command
@@ -1725,7 +2041,11 @@ var file_agent_v1_agent_proto_goTypes = []any{
 	(*ConfigTreeReport)(nil),       // 16: agent.v1.ConfigTreeReport
 	(*LogTargetsReport)(nil),       // 17: agent.v1.LogTargetsReport
 	(*LogTarget)(nil),              // 18: agent.v1.LogTarget
-	nil,                            // 19: agent.v1.SystemInfo.DiskFreeEntry
+	(*NginxError)(nil),             // 19: agent.v1.NginxError
+	(*ValidateFile)(nil),           // 20: agent.v1.ValidateFile
+	(*ValidateTask)(nil),           // 21: agent.v1.ValidateTask
+	(*ValidateResult)(nil),         // 22: agent.v1.ValidateResult
+	nil,                            // 23: agent.v1.SystemInfo.DiskFreeEntry
 }
 var file_agent_v1_agent_proto_depIdxs = []int32{
 	4,  // 0: agent.v1.RegisterResponse.config:type_name -> agent.v1.ServerConfig
@@ -1735,28 +2055,32 @@ var file_agent_v1_agent_proto_depIdxs = []int32{
 	14, // 4: agent.v1.HeartbeatRequest.fs_probe:type_name -> agent.v1.FsProbeReport
 	16, // 5: agent.v1.HeartbeatRequest.config_tree:type_name -> agent.v1.ConfigTreeReport
 	17, // 6: agent.v1.HeartbeatRequest.log_targets:type_name -> agent.v1.LogTargetsReport
-	1,  // 7: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
-	9,  // 8: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
-	10, // 9: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
-	12, // 10: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
-	15, // 11: agent.v1.Capability.system:type_name -> agent.v1.SystemInfo
-	11, // 12: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
-	13, // 13: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
-	13, // 14: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
-	19, // 15: agent.v1.SystemInfo.disk_free:type_name -> agent.v1.SystemInfo.DiskFreeEntry
-	11, // 16: agent.v1.ConfigTreeReport.files:type_name -> agent.v1.ConfigFile
-	18, // 17: agent.v1.LogTargetsReport.items:type_name -> agent.v1.LogTarget
-	2,  // 18: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
-	5,  // 19: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
-	7,  // 20: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
-	3,  // 21: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
-	6,  // 22: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
-	8,  // 23: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
-	21, // [21:24] is the sub-list for method output_type
-	18, // [18:21] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	22, // 7: agent.v1.HeartbeatRequest.validate_result:type_name -> agent.v1.ValidateResult
+	1,  // 8: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
+	21, // 9: agent.v1.HeartbeatResponse.validate_task:type_name -> agent.v1.ValidateTask
+	9,  // 10: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
+	10, // 11: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
+	12, // 12: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
+	15, // 13: agent.v1.Capability.system:type_name -> agent.v1.SystemInfo
+	11, // 14: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
+	13, // 15: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
+	13, // 16: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
+	23, // 17: agent.v1.SystemInfo.disk_free:type_name -> agent.v1.SystemInfo.DiskFreeEntry
+	11, // 18: agent.v1.ConfigTreeReport.files:type_name -> agent.v1.ConfigFile
+	18, // 19: agent.v1.LogTargetsReport.items:type_name -> agent.v1.LogTarget
+	20, // 20: agent.v1.ValidateTask.files:type_name -> agent.v1.ValidateFile
+	19, // 21: agent.v1.ValidateResult.errors:type_name -> agent.v1.NginxError
+	2,  // 22: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
+	5,  // 23: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
+	7,  // 24: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
+	3,  // 25: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
+	6,  // 26: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
+	8,  // 27: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
+	25, // [25:28] is the sub-list for method output_type
+	22, // [22:25] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_agent_v1_agent_proto_init() }
@@ -1770,7 +2094,7 @@ func file_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_v1_agent_proto_rawDesc), len(file_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   18,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

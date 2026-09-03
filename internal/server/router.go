@@ -12,12 +12,13 @@ import (
 	"github.com/th/ngxcp/internal/pkg/version"
 )
 
-// buildRouter 构建 gin 引擎：中间件 + 路由（M1 节点域 + T021 配置中心）。
+// buildRouter 构建 gin 引擎：中间件 + 路由（M1 节点域 + T021/T024 配置中心）。
 // 鉴权策略（M1 最小可用）：只读接口放开，写接口与接入令牌需 Bearer 令牌。
 // nodeSvc 必须与 Agent gRPC 服务共用同一实例——接入令牌的内存表在两处共享（HTTP 签发 / gRPC 校验）。
 // sessions 提供实时会话指标（时钟偏差），注入 handler 后随节点详情返回。
 // cfgStore 为 T021 配置版本化存储（与 nodeSvc 共用同一 ent 客户端）。
-func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager) *gin.Engine {
+// validator 为 T024 校验触发入口（*transport.Server 经心跳命令流驱动 Agent 跑 nginx -t）。
+func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -34,6 +35,9 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			response.OK(c, gin.H{"version": version.String()})
 		})
 
+		// 写操作与接入令牌统一需 Bearer 鉴权（M1 最小可用安全策略）。
+		auth := middleware.RequireAuth(cfg.AuthAdminToken)
+
 		nh := handler.NewNodeHandler(nodeSvc, sessions.ClockSkewSeconds)
 		ns := v1.Group("/nodes")
 		{
@@ -44,8 +48,7 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			ns.GET("/:id/config-files", nh.ConfigFiles)
 			ns.GET("/:id/log-targets", nh.LogTargets)
 
-			// 写操作 + 接入令牌：需鉴权
-			auth := middleware.RequireAuth(cfg.AuthAdminToken)
+			// 写操作：需鉴权
 			ns.POST("", auth, nh.Create)
 			ns.POST("/:id/enroll-token", auth, nh.IssueEnrollToken)
 			ns.PATCH("/:id", auth, nh.Update)
@@ -57,9 +60,13 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 		ch := handler.NewConfigHandler(cfgStore)
 		cs := v1.Group("/configs")
 		{
-			cs.GET("", ch.ListByNode)                // ?node_id=1 列出节点配置文件
-			cs.GET("/:id", ch.GetFile)               // 单文件（含当前版本内容）
+			cs.GET("", ch.ListByNode)                  // ?node_id=1 列出节点配置文件
+			cs.GET("/:id", ch.GetFile)                 // 单文件（含当前版本内容）
 			cs.GET("/:id/revisions", ch.ListRevisions) // 版本链
+
+			// T024 配置校验：触发目标 Agent 跑 nginx -t（写类操作，需鉴权）。
+			vh := handler.NewValidateHandler(validator)
+			cs.POST("/validate", auth, vh.Validate)
 		}
 	}
 	return r

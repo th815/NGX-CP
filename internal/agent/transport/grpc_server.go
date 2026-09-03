@@ -6,13 +6,19 @@ package transport
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/domain/node"
+	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -43,6 +49,12 @@ type Server struct {
 	sessions     *session.SessionManager // 会话管理（T015）
 	hbCfg        session.HeartbeatConfig  // 心跳参数（T015）
 	serverConfig *agentv1.ServerConfig
+
+	// validateMu / validateChans 是 T024 校验结果回传的协调结构：
+	// 控制面下发 VALIDATE_CONFIG 命令时注册一个按 task_id 匹配的接收通道，
+	// Agent 经心跳流回传 CONFIG_VALIDATE 结果后由 Heartbeat 循环投递到此通道。
+	validateMu    sync.Mutex
+	validateChans map[string]chan *agentv1.ValidateResult
 }
 
 // NewServer 构造 gRPC 服务端。
@@ -74,6 +86,8 @@ func NewServer(log *slog.Logger, ca *pki.CA, enroll EnrollBackend, nodeSvc *node
 		sessions:     sessions,
 		hbCfg:        hbCfg,
 		serverConfig: sc,
+
+		validateChans: make(map[string]chan *agentv1.ValidateResult),
 	}
 }
 
@@ -266,10 +280,108 @@ func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
 			}
 		}
 
+		// 配置校验结果上报（T024）：按 task_id 投递给等待中的校验请求。
+		if vr := req.GetValidateResult(); vr != nil {
+			s.deliverValidateResult(vr.GetTaskId(), vr)
+		}
+
 		if s.nodeSvc != nil {
 			_ = s.nodeSvc.TouchHeartbeat(stream.Context(), nodeID)
 		}
 	}
+}
+
+// validateTimeout 是单次校验请求等待 Agent 回传结果的最长阻塞时间。
+const validateTimeout = 30 * time.Second
+
+// RequestValidate 经心跳命令流请求目标 Agent 执行 nginx -t 校验，并阻塞等待结果回传。
+// 这是 T024 控制面触发 Agent 校验的唯一入口（Agent 主动外连，控制面不主动连节点）。
+// 实现要点：
+//   - 生成/复用 task_id，注册按 task_id 匹配的接收通道；
+//   - 经会话 CmdCh 下发 VALIDATE_CONFIG 命令（会话满则少量重试）；
+//   - Agent 跑完 nginx -t 后经 CONFIG_VALIDATE 上报，Heartbeat 循环调 deliverValidateResult 投递；
+//   - 超时/取消/离线均返回 apperr（便于 HTTP 层映射为 4103 / 4012）。
+func (s *Server) ValidateConfig(ctx context.Context, nodeID int, task *agentv1.ValidateTask) (*agentv1.ValidateResult, error) {
+	if task == nil {
+		return nil, apperr.New(apperr.CodeInvalid, "校验任务为空")
+	}
+	taskID := task.GetTaskId()
+	if taskID == "" {
+		taskID = newTaskID()
+		task.TaskId = taskID
+	}
+
+	ch := make(chan *agentv1.ValidateResult, 1)
+	s.validateMu.Lock()
+	s.validateChans[taskID] = ch
+	s.validateMu.Unlock()
+	defer func() {
+		s.validateMu.Lock()
+		delete(s.validateChans, taskID)
+		s.validateMu.Unlock()
+	}()
+
+	cmd := &agentv1.HeartbeatResponse{
+		Command:      agentv1.HeartbeatResponse_VALIDATE_CONFIG,
+		TaskId:       taskID,
+		ValidateTask: task,
+	}
+
+	// 下发命令：会话满（极端热路径）时少量重试，仍失败视为 Agent 不可达。
+	var sendErr error
+	for i := 0; i < 3; i++ {
+		sendErr = s.sessions.Send(nodeID, cmd)
+		if sendErr == nil {
+			break
+		}
+		if errors.Is(sendErr, session.ErrSessionNotFound) {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if sendErr != nil {
+		if errors.Is(sendErr, session.ErrSessionNotFound) {
+			return nil, apperr.New(apperr.CodeUnavailable, "目标 Agent 未在线，无法执行校验")
+		}
+		return nil, apperr.New(apperr.CodeUnavailable, "下发校验指令失败").WithDetail(sendErr.Error())
+	}
+
+	select {
+	case res := <-ch:
+		return res, nil
+	case <-ctx.Done():
+		return nil, apperr.New(apperr.CodeUnavailable, "校验请求被取消").WithDetail(ctx.Err().Error())
+	case <-time.After(validateTimeout):
+		return nil, apperr.New(apperr.CodeUnavailable, "校验超时（Agent 未回传结果）")
+	}
+}
+
+// deliverValidateResult 把 Agent 回传的校验结果投递给等待中的请求（按 task_id 匹配）。
+func (s *Server) deliverValidateResult(taskID string, res *agentv1.ValidateResult) {
+	if taskID == "" {
+		return
+	}
+	s.validateMu.Lock()
+	ch, ok := s.validateChans[taskID]
+	if ok {
+		delete(s.validateChans, taskID)
+	}
+	s.validateMu.Unlock()
+	if ok {
+		select {
+		case ch <- res:
+		default:
+		}
+	}
+}
+
+// newTaskID 生成随机 task_id（幂等键），失败回退到时间戳。
+func newTaskID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }
 
 // NodeIDFromContext 从已验证的 mTLS 对端证书 Serial 反查 nodeID。

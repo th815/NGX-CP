@@ -48,6 +48,7 @@ message HeartbeatRequest {
     FS_PROBE = 4;                 // T018：日志/FS 健康探测上报
     CONFIG_TREE = 5;              // T018：nginx -T 配置树上报
     LOG_TARGETS = 6;              // T018：日志采集目标上报
+    CONFIG_VALIDATE = 7;          // T024：nginx -t 校验结果上报
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
@@ -57,6 +58,7 @@ message HeartbeatRequest {
   FsProbeReport fs_probe = 6;     // T018：日志/FS 健康探测结果
   ConfigTreeReport config_tree = 7;   // T018：nginx -T 配置树
   LogTargetsReport log_targets = 8;   // T018：日志采集目标清单
+  ValidateResult validate_result = 9; // T024：nginx -t 校验结果
 }
 
 message HeartbeatResponse {
@@ -64,9 +66,12 @@ message HeartbeatResponse {
     NONE = 0;
     REFRESH_CAPABILITY = 1; // 让 Agent 重新跑 nginx -V / -T 并上报
     RUN_COMPLIANCE = 2;     // 让 Agent 重新跑 DR 合规自检
+    VALIDATE_CONFIG = 3;    // T024：让 Agent 在本地跑 nginx -t 校验（带待校验文件）
   }
   Command command = 1;
   string task_id = 2;       // 幂等键，防止重放
+  // T024：VALIDATE_CONFIG 命令携带的校验任务（待校验文件 + 运行参数）。
+  ValidateTask validate_task = 3;
 }
 
 message CapabilityReport {
@@ -189,4 +194,39 @@ message LogTarget {
   int64 size = 9;                 // 字节；stat 失败为 -1
   uint64 inode = 10;              // logrotate 轮转检测
   string stat_err = 11;           // stat 失败原因
+}
+
+// ===== T024：nginx -t 校验（Agent 侧） =====
+// 校验必须带完整上下文（主配置 + 所有 include 文件），故以「文件集合」描述待校验配置，
+// Agent 写到 staging 目录后执行 `nginx -t -p <prefix> -c <conf>`，不能单独校验单文件。
+
+// NginxError 是 nginx -t 输出的单条结构化错误。
+message NginxError {
+  string level = 1;   // emerg | alert | crit | error | warn
+  string message = 2; // 不含文件路径/行号前缀的纯消息
+  string file = 3;    // 出错文件绝对路径（来自 nginx 输出）
+  int64 line = 4;     // 出错行号，无则为 0
+}
+
+// ValidateFile 是待校验的单个配置文件（path 相对 staging 根，content 为文件原文）。
+message ValidateFile {
+  string path = 1;    // 如 "nginx.conf" 或 "conf.d/api.conf"
+  string content = 2; // 文件原文
+}
+
+// ValidateTask 是控制面下发给 Agent 的校验任务。
+message ValidateTask {
+  string task_id = 1;     // 幂等键，结果回传时原样带回
+  string nginx_path = 2;  // nginx 二进制路径，空则默认 /usr/sbin/nginx
+  string prefix = 3;      // -p 参数（nginx 前缀，保证 include 相对路径一致）
+  string conf_path = 4;   // staging 内的主配置路径（相对），如 "nginx.conf"
+  repeated ValidateFile files = 5; // 待写入 staging 的文件集合
+}
+
+// ValidateResult 是 Agent 回传的校验结果。
+message ValidateResult {
+  string task_id = 1;
+  bool ok = 2;                  // 语法是否通过
+  repeated NginxError errors = 3; // 结构化错误（ok=false 时有内容）
+  string raw = 4;              // nginx -t 原始输出
 }

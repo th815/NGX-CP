@@ -1,0 +1,2 @@
+nginx: [emerg] host not found in upstream "nonexistent" in /etc/nginx/conf.d/api.conf:5
+nginx: configuration file /etc/nginx/nginx.conf test failed
