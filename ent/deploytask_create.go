@@ -14,6 +14,7 @@ import (
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
+	"github.com/th/ngxcp/ent/schema"
 )
 
 // DeployTaskCreate is the builder for creating a DeployTask entity.
@@ -76,6 +77,26 @@ func (_c *DeployTaskCreate) SetErrorDetail(v string) *DeployTaskCreate {
 func (_c *DeployTaskCreate) SetNillableErrorDetail(v *string) *DeployTaskCreate {
 	if v != nil {
 		_c.SetErrorDetail(*v)
+	}
+	return _c
+}
+
+// SetSteps sets the "steps" field.
+func (_c *DeployTaskCreate) SetSteps(v []schema.TaskStep) *DeployTaskCreate {
+	_c.mutation.SetSteps(v)
+	return _c
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (_c *DeployTaskCreate) SetCurrentStep(v int) *DeployTaskCreate {
+	_c.mutation.SetCurrentStep(v)
+	return _c
+}
+
+// SetNillableCurrentStep sets the "current_step" field if the given value is not nil.
+func (_c *DeployTaskCreate) SetNillableCurrentStep(v *int) *DeployTaskCreate {
+	if v != nil {
+		_c.SetCurrentStep(*v)
 	}
 	return _c
 }
@@ -231,6 +252,10 @@ func (_c *DeployTaskCreate) defaults() {
 		v := deploytask.DefaultAttempts
 		_c.mutation.SetAttempts(v)
 	}
+	if _, ok := _c.mutation.CurrentStep(); !ok {
+		v := deploytask.DefaultCurrentStep
+		_c.mutation.SetCurrentStep(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := deploytask.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -258,6 +283,9 @@ func (_c *DeployTaskCreate) check() error {
 	}
 	if _, ok := _c.mutation.Attempts(); !ok {
 		return &ValidationError{Name: "attempts", err: errors.New(`ent: missing required field "DeployTask.attempts"`)}
+	}
+	if _, ok := _c.mutation.CurrentStep(); !ok {
+		return &ValidationError{Name: "current_step", err: errors.New(`ent: missing required field "DeployTask.current_step"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "DeployTask.created_at"`)}
@@ -307,6 +335,14 @@ func (_c *DeployTaskCreate) createSpec() (*DeployTask, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ErrorDetail(); ok {
 		_spec.SetField(deploytask.FieldErrorDetail, field.TypeString, value)
 		_node.ErrorDetail = value
+	}
+	if value, ok := _c.mutation.Steps(); ok {
+		_spec.SetField(deploytask.FieldSteps, field.TypeJSON, value)
+		_node.Steps = value
+	}
+	if value, ok := _c.mutation.CurrentStep(); ok {
+		_spec.SetField(deploytask.FieldCurrentStep, field.TypeInt, value)
+		_node.CurrentStep = value
 	}
 	if value, ok := _c.mutation.StartedAt(); ok {
 		_spec.SetField(deploytask.FieldStartedAt, field.TypeTime, value)
@@ -477,6 +513,42 @@ func (u *DeployTaskUpsert) UpdateErrorDetail() *DeployTaskUpsert {
 // ClearErrorDetail clears the value of the "error_detail" field.
 func (u *DeployTaskUpsert) ClearErrorDetail() *DeployTaskUpsert {
 	u.SetNull(deploytask.FieldErrorDetail)
+	return u
+}
+
+// SetSteps sets the "steps" field.
+func (u *DeployTaskUpsert) SetSteps(v []schema.TaskStep) *DeployTaskUpsert {
+	u.Set(deploytask.FieldSteps, v)
+	return u
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *DeployTaskUpsert) UpdateSteps() *DeployTaskUpsert {
+	u.SetExcluded(deploytask.FieldSteps)
+	return u
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (u *DeployTaskUpsert) ClearSteps() *DeployTaskUpsert {
+	u.SetNull(deploytask.FieldSteps)
+	return u
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (u *DeployTaskUpsert) SetCurrentStep(v int) *DeployTaskUpsert {
+	u.Set(deploytask.FieldCurrentStep, v)
+	return u
+}
+
+// UpdateCurrentStep sets the "current_step" field to the value that was provided on create.
+func (u *DeployTaskUpsert) UpdateCurrentStep() *DeployTaskUpsert {
+	u.SetExcluded(deploytask.FieldCurrentStep)
+	return u
+}
+
+// AddCurrentStep adds v to the "current_step" field.
+func (u *DeployTaskUpsert) AddCurrentStep(v int) *DeployTaskUpsert {
+	u.Add(deploytask.FieldCurrentStep, v)
 	return u
 }
 
@@ -665,6 +737,48 @@ func (u *DeployTaskUpsertOne) UpdateErrorDetail() *DeployTaskUpsertOne {
 func (u *DeployTaskUpsertOne) ClearErrorDetail() *DeployTaskUpsertOne {
 	return u.Update(func(s *DeployTaskUpsert) {
 		s.ClearErrorDetail()
+	})
+}
+
+// SetSteps sets the "steps" field.
+func (u *DeployTaskUpsertOne) SetSteps(v []schema.TaskStep) *DeployTaskUpsertOne {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.SetSteps(v)
+	})
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *DeployTaskUpsertOne) UpdateSteps() *DeployTaskUpsertOne {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.UpdateSteps()
+	})
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (u *DeployTaskUpsertOne) ClearSteps() *DeployTaskUpsertOne {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.ClearSteps()
+	})
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (u *DeployTaskUpsertOne) SetCurrentStep(v int) *DeployTaskUpsertOne {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.SetCurrentStep(v)
+	})
+}
+
+// AddCurrentStep adds v to the "current_step" field.
+func (u *DeployTaskUpsertOne) AddCurrentStep(v int) *DeployTaskUpsertOne {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.AddCurrentStep(v)
+	})
+}
+
+// UpdateCurrentStep sets the "current_step" field to the value that was provided on create.
+func (u *DeployTaskUpsertOne) UpdateCurrentStep() *DeployTaskUpsertOne {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.UpdateCurrentStep()
 	})
 }
 
@@ -1030,6 +1144,48 @@ func (u *DeployTaskUpsertBulk) UpdateErrorDetail() *DeployTaskUpsertBulk {
 func (u *DeployTaskUpsertBulk) ClearErrorDetail() *DeployTaskUpsertBulk {
 	return u.Update(func(s *DeployTaskUpsert) {
 		s.ClearErrorDetail()
+	})
+}
+
+// SetSteps sets the "steps" field.
+func (u *DeployTaskUpsertBulk) SetSteps(v []schema.TaskStep) *DeployTaskUpsertBulk {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.SetSteps(v)
+	})
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *DeployTaskUpsertBulk) UpdateSteps() *DeployTaskUpsertBulk {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.UpdateSteps()
+	})
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (u *DeployTaskUpsertBulk) ClearSteps() *DeployTaskUpsertBulk {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.ClearSteps()
+	})
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (u *DeployTaskUpsertBulk) SetCurrentStep(v int) *DeployTaskUpsertBulk {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.SetCurrentStep(v)
+	})
+}
+
+// AddCurrentStep adds v to the "current_step" field.
+func (u *DeployTaskUpsertBulk) AddCurrentStep(v int) *DeployTaskUpsertBulk {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.AddCurrentStep(v)
+	})
+}
+
+// UpdateCurrentStep sets the "current_step" field to the value that was provided on create.
+func (u *DeployTaskUpsertBulk) UpdateCurrentStep() *DeployTaskUpsertBulk {
+	return u.Update(func(s *DeployTaskUpsert) {
+		s.UpdateCurrentStep()
 	})
 }
 

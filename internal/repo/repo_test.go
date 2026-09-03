@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/th/ngxcp/ent"
+	changeorder "github.com/th/ngxcp/ent/changeorder"
 	configfile "github.com/th/ngxcp/ent/configfile"
 )
 
@@ -116,8 +117,7 @@ func TestDualPathSchemaAndCRUD(t *testing.T) {
 	// 3) 变更单 + 发布任务（验证状态机枚举与双向边）
 	co := client.ChangeOrder.Create().
 		SetTitle("升级 upstream 配置").
-		SetStatus("applying").
-		SetPriority("high").
+		SetStatus(changeorder.StatusPending).
 		SaveX(ctx)
 
 	dt := client.DeployTask.Create().

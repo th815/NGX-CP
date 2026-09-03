@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
+	"github.com/th/ngxcp/ent/schema"
 )
 
 // DeployTask is the model entity for the DeployTask schema.
@@ -27,6 +29,10 @@ type DeployTask struct {
 	Attempts int `json:"attempts,omitempty"`
 	// ErrorDetail holds the value of the "error_detail" field.
 	ErrorDetail string `json:"error_detail,omitempty"`
+	// Steps holds the value of the "steps" field.
+	Steps []schema.TaskStep `json:"steps,omitempty"`
+	// CurrentStep holds the value of the "current_step" field.
+	CurrentStep int `json:"current_step,omitempty"`
 	// StartedAt holds the value of the "started_at" field.
 	StartedAt time.Time `json:"started_at,omitempty"`
 	// FinishedAt holds the value of the "finished_at" field.
@@ -83,7 +89,9 @@ func (*DeployTask) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case deploytask.FieldID, deploytask.FieldAttempts:
+		case deploytask.FieldSteps:
+			values[i] = new([]byte)
+		case deploytask.FieldID, deploytask.FieldAttempts, deploytask.FieldCurrentStep:
 			values[i] = new(sql.NullInt64)
 		case deploytask.FieldState, deploytask.FieldPhase, deploytask.FieldErrorDetail:
 			values[i] = new(sql.NullString)
@@ -137,6 +145,20 @@ func (_m *DeployTask) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field error_detail", values[i])
 			} else if value.Valid {
 				_m.ErrorDetail = value.String
+			}
+		case deploytask.FieldSteps:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field steps", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Steps); err != nil {
+					return fmt.Errorf("unmarshal field steps: %w", err)
+				}
+			}
+		case deploytask.FieldCurrentStep:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field current_step", values[i])
+			} else if value.Valid {
+				_m.CurrentStep = int(value.Int64)
 			}
 		case deploytask.FieldStartedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -239,6 +261,12 @@ func (_m *DeployTask) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("error_detail=")
 	builder.WriteString(_m.ErrorDetail)
+	builder.WriteString(", ")
+	builder.WriteString("steps=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Steps))
+	builder.WriteString(", ")
+	builder.WriteString("current_step=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CurrentStep))
 	builder.WriteString(", ")
 	builder.WriteString("started_at=")
 	builder.WriteString(_m.StartedAt.Format(time.ANSIC))

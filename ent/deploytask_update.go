@@ -10,11 +10,13 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/predicate"
+	"github.com/th/ngxcp/ent/schema"
 )
 
 // DeployTaskUpdate is the builder for updating DeployTask entities.
@@ -102,6 +104,45 @@ func (_u *DeployTaskUpdate) SetNillableErrorDetail(v *string) *DeployTaskUpdate 
 // ClearErrorDetail clears the value of the "error_detail" field.
 func (_u *DeployTaskUpdate) ClearErrorDetail() *DeployTaskUpdate {
 	_u.mutation.ClearErrorDetail()
+	return _u
+}
+
+// SetSteps sets the "steps" field.
+func (_u *DeployTaskUpdate) SetSteps(v []schema.TaskStep) *DeployTaskUpdate {
+	_u.mutation.SetSteps(v)
+	return _u
+}
+
+// AppendSteps appends value to the "steps" field.
+func (_u *DeployTaskUpdate) AppendSteps(v []schema.TaskStep) *DeployTaskUpdate {
+	_u.mutation.AppendSteps(v)
+	return _u
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (_u *DeployTaskUpdate) ClearSteps() *DeployTaskUpdate {
+	_u.mutation.ClearSteps()
+	return _u
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (_u *DeployTaskUpdate) SetCurrentStep(v int) *DeployTaskUpdate {
+	_u.mutation.ResetCurrentStep()
+	_u.mutation.SetCurrentStep(v)
+	return _u
+}
+
+// SetNillableCurrentStep sets the "current_step" field if the given value is not nil.
+func (_u *DeployTaskUpdate) SetNillableCurrentStep(v *int) *DeployTaskUpdate {
+	if v != nil {
+		_u.SetCurrentStep(*v)
+	}
+	return _u
+}
+
+// AddCurrentStep adds value to the "current_step" field.
+func (_u *DeployTaskUpdate) AddCurrentStep(v int) *DeployTaskUpdate {
+	_u.mutation.AddCurrentStep(v)
 	return _u
 }
 
@@ -310,6 +351,23 @@ func (_u *DeployTaskUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.ErrorDetailCleared() {
 		_spec.ClearField(deploytask.FieldErrorDetail, field.TypeString)
 	}
+	if value, ok := _u.mutation.Steps(); ok {
+		_spec.SetField(deploytask.FieldSteps, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSteps(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, deploytask.FieldSteps, value)
+		})
+	}
+	if _u.mutation.StepsCleared() {
+		_spec.ClearField(deploytask.FieldSteps, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CurrentStep(); ok {
+		_spec.SetField(deploytask.FieldCurrentStep, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCurrentStep(); ok {
+		_spec.AddField(deploytask.FieldCurrentStep, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(deploytask.FieldStartedAt, field.TypeTime, value)
 	}
@@ -481,6 +539,45 @@ func (_u *DeployTaskUpdateOne) SetNillableErrorDetail(v *string) *DeployTaskUpda
 // ClearErrorDetail clears the value of the "error_detail" field.
 func (_u *DeployTaskUpdateOne) ClearErrorDetail() *DeployTaskUpdateOne {
 	_u.mutation.ClearErrorDetail()
+	return _u
+}
+
+// SetSteps sets the "steps" field.
+func (_u *DeployTaskUpdateOne) SetSteps(v []schema.TaskStep) *DeployTaskUpdateOne {
+	_u.mutation.SetSteps(v)
+	return _u
+}
+
+// AppendSteps appends value to the "steps" field.
+func (_u *DeployTaskUpdateOne) AppendSteps(v []schema.TaskStep) *DeployTaskUpdateOne {
+	_u.mutation.AppendSteps(v)
+	return _u
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (_u *DeployTaskUpdateOne) ClearSteps() *DeployTaskUpdateOne {
+	_u.mutation.ClearSteps()
+	return _u
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (_u *DeployTaskUpdateOne) SetCurrentStep(v int) *DeployTaskUpdateOne {
+	_u.mutation.ResetCurrentStep()
+	_u.mutation.SetCurrentStep(v)
+	return _u
+}
+
+// SetNillableCurrentStep sets the "current_step" field if the given value is not nil.
+func (_u *DeployTaskUpdateOne) SetNillableCurrentStep(v *int) *DeployTaskUpdateOne {
+	if v != nil {
+		_u.SetCurrentStep(*v)
+	}
+	return _u
+}
+
+// AddCurrentStep adds value to the "current_step" field.
+func (_u *DeployTaskUpdateOne) AddCurrentStep(v int) *DeployTaskUpdateOne {
+	_u.mutation.AddCurrentStep(v)
 	return _u
 }
 
@@ -718,6 +815,23 @@ func (_u *DeployTaskUpdateOne) sqlSave(ctx context.Context) (_node *DeployTask, 
 	}
 	if _u.mutation.ErrorDetailCleared() {
 		_spec.ClearField(deploytask.FieldErrorDetail, field.TypeString)
+	}
+	if value, ok := _u.mutation.Steps(); ok {
+		_spec.SetField(deploytask.FieldSteps, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSteps(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, deploytask.FieldSteps, value)
+		})
+	}
+	if _u.mutation.StepsCleared() {
+		_spec.ClearField(deploytask.FieldSteps, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CurrentStep(); ok {
+		_spec.SetField(deploytask.FieldCurrentStep, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCurrentStep(); ok {
+		_spec.AddField(deploytask.FieldCurrentStep, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(deploytask.FieldStartedAt, field.TypeTime, value)

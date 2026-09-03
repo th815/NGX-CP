@@ -12,6 +12,7 @@ import (
 	"github.com/th/ngxcp/internal/config"
 	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/config/rules"
+	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/logging"
@@ -110,6 +111,9 @@ func Run(cfg *config.Config) error {
 	// T027 模板与三级变量服务：复用 ent 客户端，提供配置模板渲染与变量解析。
 	tmplSvc := configstore.NewTemplateService(client)
 
+	// T030 发布引擎：变更单状态机与持久化（复用同一 ent 客户端）。
+	deploySvc := deploy.New(client)
+
 	// T026 漂移定时巡检：ctx 取消即退出（与进程同生命周期）。
 	go func() {
 		if err := driftDetector.RunWorker(ctx, driftCfg.CheckInterval); err != nil && ctx.Err() == nil {
@@ -119,7 +123,7 @@ func Run(cfg *config.Config) error {
 
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc)
+	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc)
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
 }

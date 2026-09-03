@@ -10,10 +10,12 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/predicate"
+	"github.com/th/ngxcp/ent/schema"
 )
 
 // ChangeOrderUpdate is the builder for updating ChangeOrder entities.
@@ -43,23 +45,31 @@ func (_u *ChangeOrderUpdate) SetNillableTitle(v *string) *ChangeOrderUpdate {
 	return _u
 }
 
-// SetDescription sets the "description" field.
-func (_u *ChangeOrderUpdate) SetDescription(v string) *ChangeOrderUpdate {
-	_u.mutation.SetDescription(v)
+// SetType sets the "type" field.
+func (_u *ChangeOrderUpdate) SetType(v changeorder.Type) *ChangeOrderUpdate {
+	_u.mutation.SetType(v)
 	return _u
 }
 
-// SetNillableDescription sets the "description" field if the given value is not nil.
-func (_u *ChangeOrderUpdate) SetNillableDescription(v *string) *ChangeOrderUpdate {
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_u *ChangeOrderUpdate) SetNillableType(v *changeorder.Type) *ChangeOrderUpdate {
 	if v != nil {
-		_u.SetDescription(*v)
+		_u.SetType(*v)
 	}
 	return _u
 }
 
-// ClearDescription clears the value of the "description" field.
-func (_u *ChangeOrderUpdate) ClearDescription() *ChangeOrderUpdate {
-	_u.mutation.ClearDescription()
+// SetSource sets the "source" field.
+func (_u *ChangeOrderUpdate) SetSource(v changeorder.Source) *ChangeOrderUpdate {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *ChangeOrderUpdate) SetNillableSource(v *changeorder.Source) *ChangeOrderUpdate {
+	if v != nil {
+		_u.SetSource(*v)
+	}
 	return _u
 }
 
@@ -77,17 +87,86 @@ func (_u *ChangeOrderUpdate) SetNillableStatus(v *changeorder.Status) *ChangeOrd
 	return _u
 }
 
-// SetPriority sets the "priority" field.
-func (_u *ChangeOrderUpdate) SetPriority(v changeorder.Priority) *ChangeOrderUpdate {
-	_u.mutation.SetPriority(v)
+// SetTargetNodes sets the "target_nodes" field.
+func (_u *ChangeOrderUpdate) SetTargetNodes(v []int) *ChangeOrderUpdate {
+	_u.mutation.SetTargetNodes(v)
 	return _u
 }
 
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *ChangeOrderUpdate) SetNillablePriority(v *changeorder.Priority) *ChangeOrderUpdate {
+// AppendTargetNodes appends value to the "target_nodes" field.
+func (_u *ChangeOrderUpdate) AppendTargetNodes(v []int) *ChangeOrderUpdate {
+	_u.mutation.AppendTargetNodes(v)
+	return _u
+}
+
+// ClearTargetNodes clears the value of the "target_nodes" field.
+func (_u *ChangeOrderUpdate) ClearTargetNodes() *ChangeOrderUpdate {
+	_u.mutation.ClearTargetNodes()
+	return _u
+}
+
+// SetConfigRevisionIds sets the "config_revision_ids" field.
+func (_u *ChangeOrderUpdate) SetConfigRevisionIds(v []int) *ChangeOrderUpdate {
+	_u.mutation.SetConfigRevisionIds(v)
+	return _u
+}
+
+// AppendConfigRevisionIds appends value to the "config_revision_ids" field.
+func (_u *ChangeOrderUpdate) AppendConfigRevisionIds(v []int) *ChangeOrderUpdate {
+	_u.mutation.AppendConfigRevisionIds(v)
+	return _u
+}
+
+// ClearConfigRevisionIds clears the value of the "config_revision_ids" field.
+func (_u *ChangeOrderUpdate) ClearConfigRevisionIds() *ChangeOrderUpdate {
+	_u.mutation.ClearConfigRevisionIds()
+	return _u
+}
+
+// SetStrategy sets the "strategy" field.
+func (_u *ChangeOrderUpdate) SetStrategy(v schema.DeployStrategy) *ChangeOrderUpdate {
+	_u.mutation.SetStrategy(v)
+	return _u
+}
+
+// SetNillableStrategy sets the "strategy" field if the given value is not nil.
+func (_u *ChangeOrderUpdate) SetNillableStrategy(v *schema.DeployStrategy) *ChangeOrderUpdate {
 	if v != nil {
-		_u.SetPriority(*v)
+		_u.SetStrategy(*v)
 	}
+	return _u
+}
+
+// ClearStrategy clears the value of the "strategy" field.
+func (_u *ChangeOrderUpdate) ClearStrategy() *ChangeOrderUpdate {
+	_u.mutation.ClearStrategy()
+	return _u
+}
+
+// SetSnapshotID sets the "snapshot_id" field.
+func (_u *ChangeOrderUpdate) SetSnapshotID(v int) *ChangeOrderUpdate {
+	_u.mutation.ResetSnapshotID()
+	_u.mutation.SetSnapshotID(v)
+	return _u
+}
+
+// SetNillableSnapshotID sets the "snapshot_id" field if the given value is not nil.
+func (_u *ChangeOrderUpdate) SetNillableSnapshotID(v *int) *ChangeOrderUpdate {
+	if v != nil {
+		_u.SetSnapshotID(*v)
+	}
+	return _u
+}
+
+// AddSnapshotID adds value to the "snapshot_id" field.
+func (_u *ChangeOrderUpdate) AddSnapshotID(v int) *ChangeOrderUpdate {
+	_u.mutation.AddSnapshotID(v)
+	return _u
+}
+
+// ClearSnapshotID clears the value of the "snapshot_id" field.
+func (_u *ChangeOrderUpdate) ClearSnapshotID() *ChangeOrderUpdate {
+	_u.mutation.ClearSnapshotID()
 	return _u
 }
 
@@ -128,6 +207,66 @@ func (_u *ChangeOrderUpdate) SetNillableApprovedBy(v *string) *ChangeOrderUpdate
 // ClearApprovedBy clears the value of the "approved_by" field.
 func (_u *ChangeOrderUpdate) ClearApprovedBy() *ChangeOrderUpdate {
 	_u.mutation.ClearApprovedBy()
+	return _u
+}
+
+// SetComment sets the "comment" field.
+func (_u *ChangeOrderUpdate) SetComment(v string) *ChangeOrderUpdate {
+	_u.mutation.SetComment(v)
+	return _u
+}
+
+// SetNillableComment sets the "comment" field if the given value is not nil.
+func (_u *ChangeOrderUpdate) SetNillableComment(v *string) *ChangeOrderUpdate {
+	if v != nil {
+		_u.SetComment(*v)
+	}
+	return _u
+}
+
+// ClearComment clears the value of the "comment" field.
+func (_u *ChangeOrderUpdate) ClearComment() *ChangeOrderUpdate {
+	_u.mutation.ClearComment()
+	return _u
+}
+
+// SetStartedAt sets the "started_at" field.
+func (_u *ChangeOrderUpdate) SetStartedAt(v time.Time) *ChangeOrderUpdate {
+	_u.mutation.SetStartedAt(v)
+	return _u
+}
+
+// SetNillableStartedAt sets the "started_at" field if the given value is not nil.
+func (_u *ChangeOrderUpdate) SetNillableStartedAt(v *time.Time) *ChangeOrderUpdate {
+	if v != nil {
+		_u.SetStartedAt(*v)
+	}
+	return _u
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (_u *ChangeOrderUpdate) ClearStartedAt() *ChangeOrderUpdate {
+	_u.mutation.ClearStartedAt()
+	return _u
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (_u *ChangeOrderUpdate) SetFinishedAt(v time.Time) *ChangeOrderUpdate {
+	_u.mutation.SetFinishedAt(v)
+	return _u
+}
+
+// SetNillableFinishedAt sets the "finished_at" field if the given value is not nil.
+func (_u *ChangeOrderUpdate) SetNillableFinishedAt(v *time.Time) *ChangeOrderUpdate {
+	if v != nil {
+		_u.SetFinishedAt(*v)
+	}
+	return _u
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (_u *ChangeOrderUpdate) ClearFinishedAt() *ChangeOrderUpdate {
+	_u.mutation.ClearFinishedAt()
 	return _u
 }
 
@@ -236,14 +375,19 @@ func (_u *ChangeOrderUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ChangeOrderUpdate) check() error {
+	if v, ok := _u.mutation.GetType(); ok {
+		if err := changeorder.TypeValidator(v); err != nil {
+			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Source(); ok {
+		if err := changeorder.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := changeorder.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.status": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.Priority(); ok {
-		if err := changeorder.PriorityValidator(v); err != nil {
-			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.priority": %w`, err)}
 		}
 	}
 	return nil
@@ -264,17 +408,51 @@ func (_u *ChangeOrderUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(changeorder.FieldTitle, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Description(); ok {
-		_spec.SetField(changeorder.FieldDescription, field.TypeString, value)
+	if value, ok := _u.mutation.GetType(); ok {
+		_spec.SetField(changeorder.FieldType, field.TypeEnum, value)
 	}
-	if _u.mutation.DescriptionCleared() {
-		_spec.ClearField(changeorder.FieldDescription, field.TypeString)
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(changeorder.FieldSource, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(changeorder.FieldStatus, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.Priority(); ok {
-		_spec.SetField(changeorder.FieldPriority, field.TypeEnum, value)
+	if value, ok := _u.mutation.TargetNodes(); ok {
+		_spec.SetField(changeorder.FieldTargetNodes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTargetNodes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, changeorder.FieldTargetNodes, value)
+		})
+	}
+	if _u.mutation.TargetNodesCleared() {
+		_spec.ClearField(changeorder.FieldTargetNodes, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ConfigRevisionIds(); ok {
+		_spec.SetField(changeorder.FieldConfigRevisionIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedConfigRevisionIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, changeorder.FieldConfigRevisionIds, value)
+		})
+	}
+	if _u.mutation.ConfigRevisionIdsCleared() {
+		_spec.ClearField(changeorder.FieldConfigRevisionIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Strategy(); ok {
+		_spec.SetField(changeorder.FieldStrategy, field.TypeJSON, value)
+	}
+	if _u.mutation.StrategyCleared() {
+		_spec.ClearField(changeorder.FieldStrategy, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.SnapshotID(); ok {
+		_spec.SetField(changeorder.FieldSnapshotID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSnapshotID(); ok {
+		_spec.AddField(changeorder.FieldSnapshotID, field.TypeInt, value)
+	}
+	if _u.mutation.SnapshotIDCleared() {
+		_spec.ClearField(changeorder.FieldSnapshotID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(changeorder.FieldCreatedBy, field.TypeString, value)
@@ -287,6 +465,24 @@ func (_u *ChangeOrderUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.ApprovedByCleared() {
 		_spec.ClearField(changeorder.FieldApprovedBy, field.TypeString)
+	}
+	if value, ok := _u.mutation.Comment(); ok {
+		_spec.SetField(changeorder.FieldComment, field.TypeString, value)
+	}
+	if _u.mutation.CommentCleared() {
+		_spec.ClearField(changeorder.FieldComment, field.TypeString)
+	}
+	if value, ok := _u.mutation.StartedAt(); ok {
+		_spec.SetField(changeorder.FieldStartedAt, field.TypeTime, value)
+	}
+	if _u.mutation.StartedAtCleared() {
+		_spec.ClearField(changeorder.FieldStartedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.FinishedAt(); ok {
+		_spec.SetField(changeorder.FieldFinishedAt, field.TypeTime, value)
+	}
+	if _u.mutation.FinishedAtCleared() {
+		_spec.ClearField(changeorder.FieldFinishedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(changeorder.FieldUpdatedAt, field.TypeTime, value)
@@ -376,23 +572,31 @@ func (_u *ChangeOrderUpdateOne) SetNillableTitle(v *string) *ChangeOrderUpdateOn
 	return _u
 }
 
-// SetDescription sets the "description" field.
-func (_u *ChangeOrderUpdateOne) SetDescription(v string) *ChangeOrderUpdateOne {
-	_u.mutation.SetDescription(v)
+// SetType sets the "type" field.
+func (_u *ChangeOrderUpdateOne) SetType(v changeorder.Type) *ChangeOrderUpdateOne {
+	_u.mutation.SetType(v)
 	return _u
 }
 
-// SetNillableDescription sets the "description" field if the given value is not nil.
-func (_u *ChangeOrderUpdateOne) SetNillableDescription(v *string) *ChangeOrderUpdateOne {
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_u *ChangeOrderUpdateOne) SetNillableType(v *changeorder.Type) *ChangeOrderUpdateOne {
 	if v != nil {
-		_u.SetDescription(*v)
+		_u.SetType(*v)
 	}
 	return _u
 }
 
-// ClearDescription clears the value of the "description" field.
-func (_u *ChangeOrderUpdateOne) ClearDescription() *ChangeOrderUpdateOne {
-	_u.mutation.ClearDescription()
+// SetSource sets the "source" field.
+func (_u *ChangeOrderUpdateOne) SetSource(v changeorder.Source) *ChangeOrderUpdateOne {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *ChangeOrderUpdateOne) SetNillableSource(v *changeorder.Source) *ChangeOrderUpdateOne {
+	if v != nil {
+		_u.SetSource(*v)
+	}
 	return _u
 }
 
@@ -410,17 +614,86 @@ func (_u *ChangeOrderUpdateOne) SetNillableStatus(v *changeorder.Status) *Change
 	return _u
 }
 
-// SetPriority sets the "priority" field.
-func (_u *ChangeOrderUpdateOne) SetPriority(v changeorder.Priority) *ChangeOrderUpdateOne {
-	_u.mutation.SetPriority(v)
+// SetTargetNodes sets the "target_nodes" field.
+func (_u *ChangeOrderUpdateOne) SetTargetNodes(v []int) *ChangeOrderUpdateOne {
+	_u.mutation.SetTargetNodes(v)
 	return _u
 }
 
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_u *ChangeOrderUpdateOne) SetNillablePriority(v *changeorder.Priority) *ChangeOrderUpdateOne {
+// AppendTargetNodes appends value to the "target_nodes" field.
+func (_u *ChangeOrderUpdateOne) AppendTargetNodes(v []int) *ChangeOrderUpdateOne {
+	_u.mutation.AppendTargetNodes(v)
+	return _u
+}
+
+// ClearTargetNodes clears the value of the "target_nodes" field.
+func (_u *ChangeOrderUpdateOne) ClearTargetNodes() *ChangeOrderUpdateOne {
+	_u.mutation.ClearTargetNodes()
+	return _u
+}
+
+// SetConfigRevisionIds sets the "config_revision_ids" field.
+func (_u *ChangeOrderUpdateOne) SetConfigRevisionIds(v []int) *ChangeOrderUpdateOne {
+	_u.mutation.SetConfigRevisionIds(v)
+	return _u
+}
+
+// AppendConfigRevisionIds appends value to the "config_revision_ids" field.
+func (_u *ChangeOrderUpdateOne) AppendConfigRevisionIds(v []int) *ChangeOrderUpdateOne {
+	_u.mutation.AppendConfigRevisionIds(v)
+	return _u
+}
+
+// ClearConfigRevisionIds clears the value of the "config_revision_ids" field.
+func (_u *ChangeOrderUpdateOne) ClearConfigRevisionIds() *ChangeOrderUpdateOne {
+	_u.mutation.ClearConfigRevisionIds()
+	return _u
+}
+
+// SetStrategy sets the "strategy" field.
+func (_u *ChangeOrderUpdateOne) SetStrategy(v schema.DeployStrategy) *ChangeOrderUpdateOne {
+	_u.mutation.SetStrategy(v)
+	return _u
+}
+
+// SetNillableStrategy sets the "strategy" field if the given value is not nil.
+func (_u *ChangeOrderUpdateOne) SetNillableStrategy(v *schema.DeployStrategy) *ChangeOrderUpdateOne {
 	if v != nil {
-		_u.SetPriority(*v)
+		_u.SetStrategy(*v)
 	}
+	return _u
+}
+
+// ClearStrategy clears the value of the "strategy" field.
+func (_u *ChangeOrderUpdateOne) ClearStrategy() *ChangeOrderUpdateOne {
+	_u.mutation.ClearStrategy()
+	return _u
+}
+
+// SetSnapshotID sets the "snapshot_id" field.
+func (_u *ChangeOrderUpdateOne) SetSnapshotID(v int) *ChangeOrderUpdateOne {
+	_u.mutation.ResetSnapshotID()
+	_u.mutation.SetSnapshotID(v)
+	return _u
+}
+
+// SetNillableSnapshotID sets the "snapshot_id" field if the given value is not nil.
+func (_u *ChangeOrderUpdateOne) SetNillableSnapshotID(v *int) *ChangeOrderUpdateOne {
+	if v != nil {
+		_u.SetSnapshotID(*v)
+	}
+	return _u
+}
+
+// AddSnapshotID adds value to the "snapshot_id" field.
+func (_u *ChangeOrderUpdateOne) AddSnapshotID(v int) *ChangeOrderUpdateOne {
+	_u.mutation.AddSnapshotID(v)
+	return _u
+}
+
+// ClearSnapshotID clears the value of the "snapshot_id" field.
+func (_u *ChangeOrderUpdateOne) ClearSnapshotID() *ChangeOrderUpdateOne {
+	_u.mutation.ClearSnapshotID()
 	return _u
 }
 
@@ -461,6 +734,66 @@ func (_u *ChangeOrderUpdateOne) SetNillableApprovedBy(v *string) *ChangeOrderUpd
 // ClearApprovedBy clears the value of the "approved_by" field.
 func (_u *ChangeOrderUpdateOne) ClearApprovedBy() *ChangeOrderUpdateOne {
 	_u.mutation.ClearApprovedBy()
+	return _u
+}
+
+// SetComment sets the "comment" field.
+func (_u *ChangeOrderUpdateOne) SetComment(v string) *ChangeOrderUpdateOne {
+	_u.mutation.SetComment(v)
+	return _u
+}
+
+// SetNillableComment sets the "comment" field if the given value is not nil.
+func (_u *ChangeOrderUpdateOne) SetNillableComment(v *string) *ChangeOrderUpdateOne {
+	if v != nil {
+		_u.SetComment(*v)
+	}
+	return _u
+}
+
+// ClearComment clears the value of the "comment" field.
+func (_u *ChangeOrderUpdateOne) ClearComment() *ChangeOrderUpdateOne {
+	_u.mutation.ClearComment()
+	return _u
+}
+
+// SetStartedAt sets the "started_at" field.
+func (_u *ChangeOrderUpdateOne) SetStartedAt(v time.Time) *ChangeOrderUpdateOne {
+	_u.mutation.SetStartedAt(v)
+	return _u
+}
+
+// SetNillableStartedAt sets the "started_at" field if the given value is not nil.
+func (_u *ChangeOrderUpdateOne) SetNillableStartedAt(v *time.Time) *ChangeOrderUpdateOne {
+	if v != nil {
+		_u.SetStartedAt(*v)
+	}
+	return _u
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (_u *ChangeOrderUpdateOne) ClearStartedAt() *ChangeOrderUpdateOne {
+	_u.mutation.ClearStartedAt()
+	return _u
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (_u *ChangeOrderUpdateOne) SetFinishedAt(v time.Time) *ChangeOrderUpdateOne {
+	_u.mutation.SetFinishedAt(v)
+	return _u
+}
+
+// SetNillableFinishedAt sets the "finished_at" field if the given value is not nil.
+func (_u *ChangeOrderUpdateOne) SetNillableFinishedAt(v *time.Time) *ChangeOrderUpdateOne {
+	if v != nil {
+		_u.SetFinishedAt(*v)
+	}
+	return _u
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (_u *ChangeOrderUpdateOne) ClearFinishedAt() *ChangeOrderUpdateOne {
+	_u.mutation.ClearFinishedAt()
 	return _u
 }
 
@@ -582,14 +915,19 @@ func (_u *ChangeOrderUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ChangeOrderUpdateOne) check() error {
+	if v, ok := _u.mutation.GetType(); ok {
+		if err := changeorder.TypeValidator(v); err != nil {
+			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Source(); ok {
+		if err := changeorder.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := changeorder.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.status": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.Priority(); ok {
-		if err := changeorder.PriorityValidator(v); err != nil {
-			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.priority": %w`, err)}
 		}
 	}
 	return nil
@@ -627,17 +965,51 @@ func (_u *ChangeOrderUpdateOne) sqlSave(ctx context.Context) (_node *ChangeOrder
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(changeorder.FieldTitle, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Description(); ok {
-		_spec.SetField(changeorder.FieldDescription, field.TypeString, value)
+	if value, ok := _u.mutation.GetType(); ok {
+		_spec.SetField(changeorder.FieldType, field.TypeEnum, value)
 	}
-	if _u.mutation.DescriptionCleared() {
-		_spec.ClearField(changeorder.FieldDescription, field.TypeString)
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(changeorder.FieldSource, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(changeorder.FieldStatus, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.Priority(); ok {
-		_spec.SetField(changeorder.FieldPriority, field.TypeEnum, value)
+	if value, ok := _u.mutation.TargetNodes(); ok {
+		_spec.SetField(changeorder.FieldTargetNodes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTargetNodes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, changeorder.FieldTargetNodes, value)
+		})
+	}
+	if _u.mutation.TargetNodesCleared() {
+		_spec.ClearField(changeorder.FieldTargetNodes, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ConfigRevisionIds(); ok {
+		_spec.SetField(changeorder.FieldConfigRevisionIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedConfigRevisionIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, changeorder.FieldConfigRevisionIds, value)
+		})
+	}
+	if _u.mutation.ConfigRevisionIdsCleared() {
+		_spec.ClearField(changeorder.FieldConfigRevisionIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Strategy(); ok {
+		_spec.SetField(changeorder.FieldStrategy, field.TypeJSON, value)
+	}
+	if _u.mutation.StrategyCleared() {
+		_spec.ClearField(changeorder.FieldStrategy, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.SnapshotID(); ok {
+		_spec.SetField(changeorder.FieldSnapshotID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSnapshotID(); ok {
+		_spec.AddField(changeorder.FieldSnapshotID, field.TypeInt, value)
+	}
+	if _u.mutation.SnapshotIDCleared() {
+		_spec.ClearField(changeorder.FieldSnapshotID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(changeorder.FieldCreatedBy, field.TypeString, value)
@@ -650,6 +1022,24 @@ func (_u *ChangeOrderUpdateOne) sqlSave(ctx context.Context) (_node *ChangeOrder
 	}
 	if _u.mutation.ApprovedByCleared() {
 		_spec.ClearField(changeorder.FieldApprovedBy, field.TypeString)
+	}
+	if value, ok := _u.mutation.Comment(); ok {
+		_spec.SetField(changeorder.FieldComment, field.TypeString, value)
+	}
+	if _u.mutation.CommentCleared() {
+		_spec.ClearField(changeorder.FieldComment, field.TypeString)
+	}
+	if value, ok := _u.mutation.StartedAt(); ok {
+		_spec.SetField(changeorder.FieldStartedAt, field.TypeTime, value)
+	}
+	if _u.mutation.StartedAtCleared() {
+		_spec.ClearField(changeorder.FieldStartedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.FinishedAt(); ok {
+		_spec.SetField(changeorder.FieldFinishedAt, field.TypeTime, value)
+	}
+	if _u.mutation.FinishedAtCleared() {
+		_spec.ClearField(changeorder.FieldFinishedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(changeorder.FieldUpdatedAt, field.TypeTime, value)

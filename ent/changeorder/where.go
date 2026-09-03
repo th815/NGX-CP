@@ -60,9 +60,9 @@ func Title(v string) predicate.ChangeOrder {
 	return predicate.ChangeOrder(sql.FieldEQ(FieldTitle, v))
 }
 
-// Description applies equality check predicate on the "description" field. It's identical to DescriptionEQ.
-func Description(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldEQ(FieldDescription, v))
+// SnapshotID applies equality check predicate on the "snapshot_id" field. It's identical to SnapshotIDEQ.
+func SnapshotID(v int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldSnapshotID, v))
 }
 
 // CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
@@ -73,6 +73,21 @@ func CreatedBy(v string) predicate.ChangeOrder {
 // ApprovedBy applies equality check predicate on the "approved_by" field. It's identical to ApprovedByEQ.
 func ApprovedBy(v string) predicate.ChangeOrder {
 	return predicate.ChangeOrder(sql.FieldEQ(FieldApprovedBy, v))
+}
+
+// Comment applies equality check predicate on the "comment" field. It's identical to CommentEQ.
+func Comment(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldComment, v))
+}
+
+// StartedAt applies equality check predicate on the "started_at" field. It's identical to StartedAtEQ.
+func StartedAt(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldStartedAt, v))
+}
+
+// FinishedAt applies equality check predicate on the "finished_at" field. It's identical to FinishedAtEQ.
+func FinishedAt(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldFinishedAt, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -155,79 +170,44 @@ func TitleContainsFold(v string) predicate.ChangeOrder {
 	return predicate.ChangeOrder(sql.FieldContainsFold(FieldTitle, v))
 }
 
-// DescriptionEQ applies the EQ predicate on the "description" field.
-func DescriptionEQ(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldEQ(FieldDescription, v))
+// TypeEQ applies the EQ predicate on the "type" field.
+func TypeEQ(v Type) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldType, v))
 }
 
-// DescriptionNEQ applies the NEQ predicate on the "description" field.
-func DescriptionNEQ(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldNEQ(FieldDescription, v))
+// TypeNEQ applies the NEQ predicate on the "type" field.
+func TypeNEQ(v Type) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNEQ(FieldType, v))
 }
 
-// DescriptionIn applies the In predicate on the "description" field.
-func DescriptionIn(vs ...string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldIn(FieldDescription, vs...))
+// TypeIn applies the In predicate on the "type" field.
+func TypeIn(vs ...Type) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIn(FieldType, vs...))
 }
 
-// DescriptionNotIn applies the NotIn predicate on the "description" field.
-func DescriptionNotIn(vs ...string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldNotIn(FieldDescription, vs...))
+// TypeNotIn applies the NotIn predicate on the "type" field.
+func TypeNotIn(vs ...Type) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotIn(FieldType, vs...))
 }
 
-// DescriptionGT applies the GT predicate on the "description" field.
-func DescriptionGT(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldGT(FieldDescription, v))
+// SourceEQ applies the EQ predicate on the "source" field.
+func SourceEQ(v Source) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldSource, v))
 }
 
-// DescriptionGTE applies the GTE predicate on the "description" field.
-func DescriptionGTE(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldGTE(FieldDescription, v))
+// SourceNEQ applies the NEQ predicate on the "source" field.
+func SourceNEQ(v Source) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNEQ(FieldSource, v))
 }
 
-// DescriptionLT applies the LT predicate on the "description" field.
-func DescriptionLT(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldLT(FieldDescription, v))
+// SourceIn applies the In predicate on the "source" field.
+func SourceIn(vs ...Source) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIn(FieldSource, vs...))
 }
 
-// DescriptionLTE applies the LTE predicate on the "description" field.
-func DescriptionLTE(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldLTE(FieldDescription, v))
-}
-
-// DescriptionContains applies the Contains predicate on the "description" field.
-func DescriptionContains(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldContains(FieldDescription, v))
-}
-
-// DescriptionHasPrefix applies the HasPrefix predicate on the "description" field.
-func DescriptionHasPrefix(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldHasPrefix(FieldDescription, v))
-}
-
-// DescriptionHasSuffix applies the HasSuffix predicate on the "description" field.
-func DescriptionHasSuffix(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldHasSuffix(FieldDescription, v))
-}
-
-// DescriptionIsNil applies the IsNil predicate on the "description" field.
-func DescriptionIsNil() predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldIsNull(FieldDescription))
-}
-
-// DescriptionNotNil applies the NotNil predicate on the "description" field.
-func DescriptionNotNil() predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldNotNull(FieldDescription))
-}
-
-// DescriptionEqualFold applies the EqualFold predicate on the "description" field.
-func DescriptionEqualFold(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldEqualFold(FieldDescription, v))
-}
-
-// DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
-func DescriptionContainsFold(v string) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldContainsFold(FieldDescription, v))
+// SourceNotIn applies the NotIn predicate on the "source" field.
+func SourceNotIn(vs ...Source) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotIn(FieldSource, vs...))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -250,24 +230,84 @@ func StatusNotIn(vs ...Status) predicate.ChangeOrder {
 	return predicate.ChangeOrder(sql.FieldNotIn(FieldStatus, vs...))
 }
 
-// PriorityEQ applies the EQ predicate on the "priority" field.
-func PriorityEQ(v Priority) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldEQ(FieldPriority, v))
+// TargetNodesIsNil applies the IsNil predicate on the "target_nodes" field.
+func TargetNodesIsNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIsNull(FieldTargetNodes))
 }
 
-// PriorityNEQ applies the NEQ predicate on the "priority" field.
-func PriorityNEQ(v Priority) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldNEQ(FieldPriority, v))
+// TargetNodesNotNil applies the NotNil predicate on the "target_nodes" field.
+func TargetNodesNotNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotNull(FieldTargetNodes))
 }
 
-// PriorityIn applies the In predicate on the "priority" field.
-func PriorityIn(vs ...Priority) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldIn(FieldPriority, vs...))
+// ConfigRevisionIdsIsNil applies the IsNil predicate on the "config_revision_ids" field.
+func ConfigRevisionIdsIsNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIsNull(FieldConfigRevisionIds))
 }
 
-// PriorityNotIn applies the NotIn predicate on the "priority" field.
-func PriorityNotIn(vs ...Priority) predicate.ChangeOrder {
-	return predicate.ChangeOrder(sql.FieldNotIn(FieldPriority, vs...))
+// ConfigRevisionIdsNotNil applies the NotNil predicate on the "config_revision_ids" field.
+func ConfigRevisionIdsNotNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotNull(FieldConfigRevisionIds))
+}
+
+// StrategyIsNil applies the IsNil predicate on the "strategy" field.
+func StrategyIsNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIsNull(FieldStrategy))
+}
+
+// StrategyNotNil applies the NotNil predicate on the "strategy" field.
+func StrategyNotNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotNull(FieldStrategy))
+}
+
+// SnapshotIDEQ applies the EQ predicate on the "snapshot_id" field.
+func SnapshotIDEQ(v int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldSnapshotID, v))
+}
+
+// SnapshotIDNEQ applies the NEQ predicate on the "snapshot_id" field.
+func SnapshotIDNEQ(v int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNEQ(FieldSnapshotID, v))
+}
+
+// SnapshotIDIn applies the In predicate on the "snapshot_id" field.
+func SnapshotIDIn(vs ...int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIn(FieldSnapshotID, vs...))
+}
+
+// SnapshotIDNotIn applies the NotIn predicate on the "snapshot_id" field.
+func SnapshotIDNotIn(vs ...int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotIn(FieldSnapshotID, vs...))
+}
+
+// SnapshotIDGT applies the GT predicate on the "snapshot_id" field.
+func SnapshotIDGT(v int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGT(FieldSnapshotID, v))
+}
+
+// SnapshotIDGTE applies the GTE predicate on the "snapshot_id" field.
+func SnapshotIDGTE(v int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGTE(FieldSnapshotID, v))
+}
+
+// SnapshotIDLT applies the LT predicate on the "snapshot_id" field.
+func SnapshotIDLT(v int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLT(FieldSnapshotID, v))
+}
+
+// SnapshotIDLTE applies the LTE predicate on the "snapshot_id" field.
+func SnapshotIDLTE(v int) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLTE(FieldSnapshotID, v))
+}
+
+// SnapshotIDIsNil applies the IsNil predicate on the "snapshot_id" field.
+func SnapshotIDIsNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIsNull(FieldSnapshotID))
+}
+
+// SnapshotIDNotNil applies the NotNil predicate on the "snapshot_id" field.
+func SnapshotIDNotNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotNull(FieldSnapshotID))
 }
 
 // CreatedByEQ applies the EQ predicate on the "created_by" field.
@@ -418,6 +458,181 @@ func ApprovedByEqualFold(v string) predicate.ChangeOrder {
 // ApprovedByContainsFold applies the ContainsFold predicate on the "approved_by" field.
 func ApprovedByContainsFold(v string) predicate.ChangeOrder {
 	return predicate.ChangeOrder(sql.FieldContainsFold(FieldApprovedBy, v))
+}
+
+// CommentEQ applies the EQ predicate on the "comment" field.
+func CommentEQ(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldComment, v))
+}
+
+// CommentNEQ applies the NEQ predicate on the "comment" field.
+func CommentNEQ(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNEQ(FieldComment, v))
+}
+
+// CommentIn applies the In predicate on the "comment" field.
+func CommentIn(vs ...string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIn(FieldComment, vs...))
+}
+
+// CommentNotIn applies the NotIn predicate on the "comment" field.
+func CommentNotIn(vs ...string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotIn(FieldComment, vs...))
+}
+
+// CommentGT applies the GT predicate on the "comment" field.
+func CommentGT(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGT(FieldComment, v))
+}
+
+// CommentGTE applies the GTE predicate on the "comment" field.
+func CommentGTE(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGTE(FieldComment, v))
+}
+
+// CommentLT applies the LT predicate on the "comment" field.
+func CommentLT(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLT(FieldComment, v))
+}
+
+// CommentLTE applies the LTE predicate on the "comment" field.
+func CommentLTE(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLTE(FieldComment, v))
+}
+
+// CommentContains applies the Contains predicate on the "comment" field.
+func CommentContains(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldContains(FieldComment, v))
+}
+
+// CommentHasPrefix applies the HasPrefix predicate on the "comment" field.
+func CommentHasPrefix(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldHasPrefix(FieldComment, v))
+}
+
+// CommentHasSuffix applies the HasSuffix predicate on the "comment" field.
+func CommentHasSuffix(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldHasSuffix(FieldComment, v))
+}
+
+// CommentIsNil applies the IsNil predicate on the "comment" field.
+func CommentIsNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIsNull(FieldComment))
+}
+
+// CommentNotNil applies the NotNil predicate on the "comment" field.
+func CommentNotNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotNull(FieldComment))
+}
+
+// CommentEqualFold applies the EqualFold predicate on the "comment" field.
+func CommentEqualFold(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEqualFold(FieldComment, v))
+}
+
+// CommentContainsFold applies the ContainsFold predicate on the "comment" field.
+func CommentContainsFold(v string) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldContainsFold(FieldComment, v))
+}
+
+// StartedAtEQ applies the EQ predicate on the "started_at" field.
+func StartedAtEQ(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldStartedAt, v))
+}
+
+// StartedAtNEQ applies the NEQ predicate on the "started_at" field.
+func StartedAtNEQ(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNEQ(FieldStartedAt, v))
+}
+
+// StartedAtIn applies the In predicate on the "started_at" field.
+func StartedAtIn(vs ...time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIn(FieldStartedAt, vs...))
+}
+
+// StartedAtNotIn applies the NotIn predicate on the "started_at" field.
+func StartedAtNotIn(vs ...time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotIn(FieldStartedAt, vs...))
+}
+
+// StartedAtGT applies the GT predicate on the "started_at" field.
+func StartedAtGT(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGT(FieldStartedAt, v))
+}
+
+// StartedAtGTE applies the GTE predicate on the "started_at" field.
+func StartedAtGTE(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGTE(FieldStartedAt, v))
+}
+
+// StartedAtLT applies the LT predicate on the "started_at" field.
+func StartedAtLT(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLT(FieldStartedAt, v))
+}
+
+// StartedAtLTE applies the LTE predicate on the "started_at" field.
+func StartedAtLTE(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLTE(FieldStartedAt, v))
+}
+
+// StartedAtIsNil applies the IsNil predicate on the "started_at" field.
+func StartedAtIsNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIsNull(FieldStartedAt))
+}
+
+// StartedAtNotNil applies the NotNil predicate on the "started_at" field.
+func StartedAtNotNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotNull(FieldStartedAt))
+}
+
+// FinishedAtEQ applies the EQ predicate on the "finished_at" field.
+func FinishedAtEQ(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldEQ(FieldFinishedAt, v))
+}
+
+// FinishedAtNEQ applies the NEQ predicate on the "finished_at" field.
+func FinishedAtNEQ(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNEQ(FieldFinishedAt, v))
+}
+
+// FinishedAtIn applies the In predicate on the "finished_at" field.
+func FinishedAtIn(vs ...time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIn(FieldFinishedAt, vs...))
+}
+
+// FinishedAtNotIn applies the NotIn predicate on the "finished_at" field.
+func FinishedAtNotIn(vs ...time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotIn(FieldFinishedAt, vs...))
+}
+
+// FinishedAtGT applies the GT predicate on the "finished_at" field.
+func FinishedAtGT(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGT(FieldFinishedAt, v))
+}
+
+// FinishedAtGTE applies the GTE predicate on the "finished_at" field.
+func FinishedAtGTE(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldGTE(FieldFinishedAt, v))
+}
+
+// FinishedAtLT applies the LT predicate on the "finished_at" field.
+func FinishedAtLT(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLT(FieldFinishedAt, v))
+}
+
+// FinishedAtLTE applies the LTE predicate on the "finished_at" field.
+func FinishedAtLTE(v time.Time) predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldLTE(FieldFinishedAt, v))
+}
+
+// FinishedAtIsNil applies the IsNil predicate on the "finished_at" field.
+func FinishedAtIsNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldIsNull(FieldFinishedAt))
+}
+
+// FinishedAtNotNil applies the NotNil predicate on the "finished_at" field.
+func FinishedAtNotNil() predicate.ChangeOrder {
+	return predicate.ChangeOrder(sql.FieldNotNull(FieldFinishedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

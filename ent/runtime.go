@@ -36,11 +36,11 @@ func init() {
 	changeorderFields := schema.ChangeOrder{}.Fields()
 	_ = changeorderFields
 	// changeorderDescCreatedAt is the schema descriptor for created_at field.
-	changeorderDescCreatedAt := changeorderFields[6].Descriptor()
+	changeorderDescCreatedAt := changeorderFields[13].Descriptor()
 	// changeorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	changeorder.DefaultCreatedAt = changeorderDescCreatedAt.Default.(func() time.Time)
 	// changeorderDescUpdatedAt is the schema descriptor for updated_at field.
-	changeorderDescUpdatedAt := changeorderFields[7].Descriptor()
+	changeorderDescUpdatedAt := changeorderFields[14].Descriptor()
 	// changeorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	changeorder.DefaultUpdatedAt = changeorderDescUpdatedAt.Default.(func() time.Time)
 	// changeorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -133,12 +133,16 @@ func init() {
 	deploytaskDescAttempts := deploytaskFields[2].Descriptor()
 	// deploytask.DefaultAttempts holds the default value on creation for the attempts field.
 	deploytask.DefaultAttempts = deploytaskDescAttempts.Default.(int)
+	// deploytaskDescCurrentStep is the schema descriptor for current_step field.
+	deploytaskDescCurrentStep := deploytaskFields[5].Descriptor()
+	// deploytask.DefaultCurrentStep holds the default value on creation for the current_step field.
+	deploytask.DefaultCurrentStep = deploytaskDescCurrentStep.Default.(int)
 	// deploytaskDescCreatedAt is the schema descriptor for created_at field.
-	deploytaskDescCreatedAt := deploytaskFields[6].Descriptor()
+	deploytaskDescCreatedAt := deploytaskFields[8].Descriptor()
 	// deploytask.DefaultCreatedAt holds the default value on creation for the created_at field.
 	deploytask.DefaultCreatedAt = deploytaskDescCreatedAt.Default.(func() time.Time)
 	// deploytaskDescUpdatedAt is the schema descriptor for updated_at field.
-	deploytaskDescUpdatedAt := deploytaskFields[7].Descriptor()
+	deploytaskDescUpdatedAt := deploytaskFields[9].Descriptor()
 	// deploytask.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	deploytask.DefaultUpdatedAt = deploytaskDescUpdatedAt.Default.(func() time.Time)
 	// deploytask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

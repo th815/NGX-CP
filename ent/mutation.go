@@ -27,6 +27,7 @@ import (
 	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/predicate"
 	"github.com/th/ngxcp/ent/realserver"
+	"github.com/th/ngxcp/ent/schema"
 )
 
 const (
@@ -824,25 +825,35 @@ func (m *AuditLogMutation) ResetEdge(name string) error {
 // ChangeOrderMutation represents an operation that mutates the ChangeOrder nodes in the graph.
 type ChangeOrderMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	title               *string
-	description         *string
-	status              *changeorder.Status
-	priority            *changeorder.Priority
-	created_by          *string
-	approved_by         *string
-	created_at          *time.Time
-	updated_at          *time.Time
-	deleted_at          *time.Time
-	clearedFields       map[string]struct{}
-	deploy_tasks        map[int]struct{}
-	removeddeploy_tasks map[int]struct{}
-	cleareddeploy_tasks bool
-	done                bool
-	oldValue            func(context.Context) (*ChangeOrder, error)
-	predicates          []predicate.ChangeOrder
+	op                        Op
+	typ                       string
+	id                        *int
+	title                     *string
+	_type                     *changeorder.Type
+	source                    *changeorder.Source
+	status                    *changeorder.Status
+	target_nodes              *[]int
+	appendtarget_nodes        []int
+	config_revision_ids       *[]int
+	appendconfig_revision_ids []int
+	strategy                  *schema.DeployStrategy
+	snapshot_id               *int
+	addsnapshot_id            *int
+	created_by                *string
+	approved_by               *string
+	comment                   *string
+	started_at                *time.Time
+	finished_at               *time.Time
+	created_at                *time.Time
+	updated_at                *time.Time
+	deleted_at                *time.Time
+	clearedFields             map[string]struct{}
+	deploy_tasks              map[int]struct{}
+	removeddeploy_tasks       map[int]struct{}
+	cleareddeploy_tasks       bool
+	done                      bool
+	oldValue                  func(context.Context) (*ChangeOrder, error)
+	predicates                []predicate.ChangeOrder
 }
 
 var _ ent.Mutation = (*ChangeOrderMutation)(nil)
@@ -979,53 +990,76 @@ func (m *ChangeOrderMutation) ResetTitle() {
 	m.title = nil
 }
 
-// SetDescription sets the "description" field.
-func (m *ChangeOrderMutation) SetDescription(s string) {
-	m.description = &s
+// SetType sets the "type" field.
+func (m *ChangeOrderMutation) SetType(c changeorder.Type) {
+	m._type = &c
 }
 
-// Description returns the value of the "description" field in the mutation.
-func (m *ChangeOrderMutation) Description() (r string, exists bool) {
-	v := m.description
+// GetType returns the value of the "type" field in the mutation.
+func (m *ChangeOrderMutation) GetType() (r changeorder.Type, exists bool) {
+	v := m._type
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldDescription returns the old "description" field's value of the ChangeOrder entity.
+// OldType returns the old "type" field's value of the ChangeOrder entity.
 // If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChangeOrderMutation) OldDescription(ctx context.Context) (v string, err error) {
+func (m *ChangeOrderMutation) OldType(ctx context.Context) (v changeorder.Type, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldDescription requires an ID field in the mutation")
+		return v, errors.New("OldType requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
 	}
-	return oldValue.Description, nil
+	return oldValue.Type, nil
 }
 
-// ClearDescription clears the value of the "description" field.
-func (m *ChangeOrderMutation) ClearDescription() {
-	m.description = nil
-	m.clearedFields[changeorder.FieldDescription] = struct{}{}
+// ResetType resets all changes to the "type" field.
+func (m *ChangeOrderMutation) ResetType() {
+	m._type = nil
 }
 
-// DescriptionCleared returns if the "description" field was cleared in this mutation.
-func (m *ChangeOrderMutation) DescriptionCleared() bool {
-	_, ok := m.clearedFields[changeorder.FieldDescription]
-	return ok
+// SetSource sets the "source" field.
+func (m *ChangeOrderMutation) SetSource(c changeorder.Source) {
+	m.source = &c
 }
 
-// ResetDescription resets all changes to the "description" field.
-func (m *ChangeOrderMutation) ResetDescription() {
-	m.description = nil
-	delete(m.clearedFields, changeorder.FieldDescription)
+// Source returns the value of the "source" field in the mutation.
+func (m *ChangeOrderMutation) Source() (r changeorder.Source, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the ChangeOrder entity.
+// If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeOrderMutation) OldSource(ctx context.Context) (v changeorder.Source, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *ChangeOrderMutation) ResetSource() {
+	m.source = nil
 }
 
 // SetStatus sets the "status" field.
@@ -1064,40 +1098,253 @@ func (m *ChangeOrderMutation) ResetStatus() {
 	m.status = nil
 }
 
-// SetPriority sets the "priority" field.
-func (m *ChangeOrderMutation) SetPriority(c changeorder.Priority) {
-	m.priority = &c
+// SetTargetNodes sets the "target_nodes" field.
+func (m *ChangeOrderMutation) SetTargetNodes(i []int) {
+	m.target_nodes = &i
+	m.appendtarget_nodes = nil
 }
 
-// Priority returns the value of the "priority" field in the mutation.
-func (m *ChangeOrderMutation) Priority() (r changeorder.Priority, exists bool) {
-	v := m.priority
+// TargetNodes returns the value of the "target_nodes" field in the mutation.
+func (m *ChangeOrderMutation) TargetNodes() (r []int, exists bool) {
+	v := m.target_nodes
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldPriority returns the old "priority" field's value of the ChangeOrder entity.
+// OldTargetNodes returns the old "target_nodes" field's value of the ChangeOrder entity.
 // If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChangeOrderMutation) OldPriority(ctx context.Context) (v changeorder.Priority, err error) {
+func (m *ChangeOrderMutation) OldTargetNodes(ctx context.Context) (v []int, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+		return v, errors.New("OldTargetNodes is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPriority requires an ID field in the mutation")
+		return v, errors.New("OldTargetNodes requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+		return v, fmt.Errorf("querying old value for OldTargetNodes: %w", err)
 	}
-	return oldValue.Priority, nil
+	return oldValue.TargetNodes, nil
 }
 
-// ResetPriority resets all changes to the "priority" field.
-func (m *ChangeOrderMutation) ResetPriority() {
-	m.priority = nil
+// AppendTargetNodes adds i to the "target_nodes" field.
+func (m *ChangeOrderMutation) AppendTargetNodes(i []int) {
+	m.appendtarget_nodes = append(m.appendtarget_nodes, i...)
+}
+
+// AppendedTargetNodes returns the list of values that were appended to the "target_nodes" field in this mutation.
+func (m *ChangeOrderMutation) AppendedTargetNodes() ([]int, bool) {
+	if len(m.appendtarget_nodes) == 0 {
+		return nil, false
+	}
+	return m.appendtarget_nodes, true
+}
+
+// ClearTargetNodes clears the value of the "target_nodes" field.
+func (m *ChangeOrderMutation) ClearTargetNodes() {
+	m.target_nodes = nil
+	m.appendtarget_nodes = nil
+	m.clearedFields[changeorder.FieldTargetNodes] = struct{}{}
+}
+
+// TargetNodesCleared returns if the "target_nodes" field was cleared in this mutation.
+func (m *ChangeOrderMutation) TargetNodesCleared() bool {
+	_, ok := m.clearedFields[changeorder.FieldTargetNodes]
+	return ok
+}
+
+// ResetTargetNodes resets all changes to the "target_nodes" field.
+func (m *ChangeOrderMutation) ResetTargetNodes() {
+	m.target_nodes = nil
+	m.appendtarget_nodes = nil
+	delete(m.clearedFields, changeorder.FieldTargetNodes)
+}
+
+// SetConfigRevisionIds sets the "config_revision_ids" field.
+func (m *ChangeOrderMutation) SetConfigRevisionIds(i []int) {
+	m.config_revision_ids = &i
+	m.appendconfig_revision_ids = nil
+}
+
+// ConfigRevisionIds returns the value of the "config_revision_ids" field in the mutation.
+func (m *ChangeOrderMutation) ConfigRevisionIds() (r []int, exists bool) {
+	v := m.config_revision_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfigRevisionIds returns the old "config_revision_ids" field's value of the ChangeOrder entity.
+// If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeOrderMutation) OldConfigRevisionIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfigRevisionIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfigRevisionIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfigRevisionIds: %w", err)
+	}
+	return oldValue.ConfigRevisionIds, nil
+}
+
+// AppendConfigRevisionIds adds i to the "config_revision_ids" field.
+func (m *ChangeOrderMutation) AppendConfigRevisionIds(i []int) {
+	m.appendconfig_revision_ids = append(m.appendconfig_revision_ids, i...)
+}
+
+// AppendedConfigRevisionIds returns the list of values that were appended to the "config_revision_ids" field in this mutation.
+func (m *ChangeOrderMutation) AppendedConfigRevisionIds() ([]int, bool) {
+	if len(m.appendconfig_revision_ids) == 0 {
+		return nil, false
+	}
+	return m.appendconfig_revision_ids, true
+}
+
+// ClearConfigRevisionIds clears the value of the "config_revision_ids" field.
+func (m *ChangeOrderMutation) ClearConfigRevisionIds() {
+	m.config_revision_ids = nil
+	m.appendconfig_revision_ids = nil
+	m.clearedFields[changeorder.FieldConfigRevisionIds] = struct{}{}
+}
+
+// ConfigRevisionIdsCleared returns if the "config_revision_ids" field was cleared in this mutation.
+func (m *ChangeOrderMutation) ConfigRevisionIdsCleared() bool {
+	_, ok := m.clearedFields[changeorder.FieldConfigRevisionIds]
+	return ok
+}
+
+// ResetConfigRevisionIds resets all changes to the "config_revision_ids" field.
+func (m *ChangeOrderMutation) ResetConfigRevisionIds() {
+	m.config_revision_ids = nil
+	m.appendconfig_revision_ids = nil
+	delete(m.clearedFields, changeorder.FieldConfigRevisionIds)
+}
+
+// SetStrategy sets the "strategy" field.
+func (m *ChangeOrderMutation) SetStrategy(ss schema.DeployStrategy) {
+	m.strategy = &ss
+}
+
+// Strategy returns the value of the "strategy" field in the mutation.
+func (m *ChangeOrderMutation) Strategy() (r schema.DeployStrategy, exists bool) {
+	v := m.strategy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStrategy returns the old "strategy" field's value of the ChangeOrder entity.
+// If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeOrderMutation) OldStrategy(ctx context.Context) (v schema.DeployStrategy, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStrategy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStrategy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStrategy: %w", err)
+	}
+	return oldValue.Strategy, nil
+}
+
+// ClearStrategy clears the value of the "strategy" field.
+func (m *ChangeOrderMutation) ClearStrategy() {
+	m.strategy = nil
+	m.clearedFields[changeorder.FieldStrategy] = struct{}{}
+}
+
+// StrategyCleared returns if the "strategy" field was cleared in this mutation.
+func (m *ChangeOrderMutation) StrategyCleared() bool {
+	_, ok := m.clearedFields[changeorder.FieldStrategy]
+	return ok
+}
+
+// ResetStrategy resets all changes to the "strategy" field.
+func (m *ChangeOrderMutation) ResetStrategy() {
+	m.strategy = nil
+	delete(m.clearedFields, changeorder.FieldStrategy)
+}
+
+// SetSnapshotID sets the "snapshot_id" field.
+func (m *ChangeOrderMutation) SetSnapshotID(i int) {
+	m.snapshot_id = &i
+	m.addsnapshot_id = nil
+}
+
+// SnapshotID returns the value of the "snapshot_id" field in the mutation.
+func (m *ChangeOrderMutation) SnapshotID() (r int, exists bool) {
+	v := m.snapshot_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshotID returns the old "snapshot_id" field's value of the ChangeOrder entity.
+// If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeOrderMutation) OldSnapshotID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshotID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshotID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshotID: %w", err)
+	}
+	return oldValue.SnapshotID, nil
+}
+
+// AddSnapshotID adds i to the "snapshot_id" field.
+func (m *ChangeOrderMutation) AddSnapshotID(i int) {
+	if m.addsnapshot_id != nil {
+		*m.addsnapshot_id += i
+	} else {
+		m.addsnapshot_id = &i
+	}
+}
+
+// AddedSnapshotID returns the value that was added to the "snapshot_id" field in this mutation.
+func (m *ChangeOrderMutation) AddedSnapshotID() (r int, exists bool) {
+	v := m.addsnapshot_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSnapshotID clears the value of the "snapshot_id" field.
+func (m *ChangeOrderMutation) ClearSnapshotID() {
+	m.snapshot_id = nil
+	m.addsnapshot_id = nil
+	m.clearedFields[changeorder.FieldSnapshotID] = struct{}{}
+}
+
+// SnapshotIDCleared returns if the "snapshot_id" field was cleared in this mutation.
+func (m *ChangeOrderMutation) SnapshotIDCleared() bool {
+	_, ok := m.clearedFields[changeorder.FieldSnapshotID]
+	return ok
+}
+
+// ResetSnapshotID resets all changes to the "snapshot_id" field.
+func (m *ChangeOrderMutation) ResetSnapshotID() {
+	m.snapshot_id = nil
+	m.addsnapshot_id = nil
+	delete(m.clearedFields, changeorder.FieldSnapshotID)
 }
 
 // SetCreatedBy sets the "created_by" field.
@@ -1196,6 +1443,153 @@ func (m *ChangeOrderMutation) ApprovedByCleared() bool {
 func (m *ChangeOrderMutation) ResetApprovedBy() {
 	m.approved_by = nil
 	delete(m.clearedFields, changeorder.FieldApprovedBy)
+}
+
+// SetComment sets the "comment" field.
+func (m *ChangeOrderMutation) SetComment(s string) {
+	m.comment = &s
+}
+
+// Comment returns the value of the "comment" field in the mutation.
+func (m *ChangeOrderMutation) Comment() (r string, exists bool) {
+	v := m.comment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldComment returns the old "comment" field's value of the ChangeOrder entity.
+// If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeOrderMutation) OldComment(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldComment is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldComment requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldComment: %w", err)
+	}
+	return oldValue.Comment, nil
+}
+
+// ClearComment clears the value of the "comment" field.
+func (m *ChangeOrderMutation) ClearComment() {
+	m.comment = nil
+	m.clearedFields[changeorder.FieldComment] = struct{}{}
+}
+
+// CommentCleared returns if the "comment" field was cleared in this mutation.
+func (m *ChangeOrderMutation) CommentCleared() bool {
+	_, ok := m.clearedFields[changeorder.FieldComment]
+	return ok
+}
+
+// ResetComment resets all changes to the "comment" field.
+func (m *ChangeOrderMutation) ResetComment() {
+	m.comment = nil
+	delete(m.clearedFields, changeorder.FieldComment)
+}
+
+// SetStartedAt sets the "started_at" field.
+func (m *ChangeOrderMutation) SetStartedAt(t time.Time) {
+	m.started_at = &t
+}
+
+// StartedAt returns the value of the "started_at" field in the mutation.
+func (m *ChangeOrderMutation) StartedAt() (r time.Time, exists bool) {
+	v := m.started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartedAt returns the old "started_at" field's value of the ChangeOrder entity.
+// If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeOrderMutation) OldStartedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartedAt: %w", err)
+	}
+	return oldValue.StartedAt, nil
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (m *ChangeOrderMutation) ClearStartedAt() {
+	m.started_at = nil
+	m.clearedFields[changeorder.FieldStartedAt] = struct{}{}
+}
+
+// StartedAtCleared returns if the "started_at" field was cleared in this mutation.
+func (m *ChangeOrderMutation) StartedAtCleared() bool {
+	_, ok := m.clearedFields[changeorder.FieldStartedAt]
+	return ok
+}
+
+// ResetStartedAt resets all changes to the "started_at" field.
+func (m *ChangeOrderMutation) ResetStartedAt() {
+	m.started_at = nil
+	delete(m.clearedFields, changeorder.FieldStartedAt)
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (m *ChangeOrderMutation) SetFinishedAt(t time.Time) {
+	m.finished_at = &t
+}
+
+// FinishedAt returns the value of the "finished_at" field in the mutation.
+func (m *ChangeOrderMutation) FinishedAt() (r time.Time, exists bool) {
+	v := m.finished_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinishedAt returns the old "finished_at" field's value of the ChangeOrder entity.
+// If the ChangeOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChangeOrderMutation) OldFinishedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinishedAt: %w", err)
+	}
+	return oldValue.FinishedAt, nil
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (m *ChangeOrderMutation) ClearFinishedAt() {
+	m.finished_at = nil
+	m.clearedFields[changeorder.FieldFinishedAt] = struct{}{}
+}
+
+// FinishedAtCleared returns if the "finished_at" field was cleared in this mutation.
+func (m *ChangeOrderMutation) FinishedAtCleared() bool {
+	_, ok := m.clearedFields[changeorder.FieldFinishedAt]
+	return ok
+}
+
+// ResetFinishedAt resets all changes to the "finished_at" field.
+func (m *ChangeOrderMutation) ResetFinishedAt() {
+	m.finished_at = nil
+	delete(m.clearedFields, changeorder.FieldFinishedAt)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -1407,24 +1801,45 @@ func (m *ChangeOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChangeOrderMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 16)
 	if m.title != nil {
 		fields = append(fields, changeorder.FieldTitle)
 	}
-	if m.description != nil {
-		fields = append(fields, changeorder.FieldDescription)
+	if m._type != nil {
+		fields = append(fields, changeorder.FieldType)
+	}
+	if m.source != nil {
+		fields = append(fields, changeorder.FieldSource)
 	}
 	if m.status != nil {
 		fields = append(fields, changeorder.FieldStatus)
 	}
-	if m.priority != nil {
-		fields = append(fields, changeorder.FieldPriority)
+	if m.target_nodes != nil {
+		fields = append(fields, changeorder.FieldTargetNodes)
+	}
+	if m.config_revision_ids != nil {
+		fields = append(fields, changeorder.FieldConfigRevisionIds)
+	}
+	if m.strategy != nil {
+		fields = append(fields, changeorder.FieldStrategy)
+	}
+	if m.snapshot_id != nil {
+		fields = append(fields, changeorder.FieldSnapshotID)
 	}
 	if m.created_by != nil {
 		fields = append(fields, changeorder.FieldCreatedBy)
 	}
 	if m.approved_by != nil {
 		fields = append(fields, changeorder.FieldApprovedBy)
+	}
+	if m.comment != nil {
+		fields = append(fields, changeorder.FieldComment)
+	}
+	if m.started_at != nil {
+		fields = append(fields, changeorder.FieldStartedAt)
+	}
+	if m.finished_at != nil {
+		fields = append(fields, changeorder.FieldFinishedAt)
 	}
 	if m.created_at != nil {
 		fields = append(fields, changeorder.FieldCreatedAt)
@@ -1445,16 +1860,30 @@ func (m *ChangeOrderMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case changeorder.FieldTitle:
 		return m.Title()
-	case changeorder.FieldDescription:
-		return m.Description()
+	case changeorder.FieldType:
+		return m.GetType()
+	case changeorder.FieldSource:
+		return m.Source()
 	case changeorder.FieldStatus:
 		return m.Status()
-	case changeorder.FieldPriority:
-		return m.Priority()
+	case changeorder.FieldTargetNodes:
+		return m.TargetNodes()
+	case changeorder.FieldConfigRevisionIds:
+		return m.ConfigRevisionIds()
+	case changeorder.FieldStrategy:
+		return m.Strategy()
+	case changeorder.FieldSnapshotID:
+		return m.SnapshotID()
 	case changeorder.FieldCreatedBy:
 		return m.CreatedBy()
 	case changeorder.FieldApprovedBy:
 		return m.ApprovedBy()
+	case changeorder.FieldComment:
+		return m.Comment()
+	case changeorder.FieldStartedAt:
+		return m.StartedAt()
+	case changeorder.FieldFinishedAt:
+		return m.FinishedAt()
 	case changeorder.FieldCreatedAt:
 		return m.CreatedAt()
 	case changeorder.FieldUpdatedAt:
@@ -1472,16 +1901,30 @@ func (m *ChangeOrderMutation) OldField(ctx context.Context, name string) (ent.Va
 	switch name {
 	case changeorder.FieldTitle:
 		return m.OldTitle(ctx)
-	case changeorder.FieldDescription:
-		return m.OldDescription(ctx)
+	case changeorder.FieldType:
+		return m.OldType(ctx)
+	case changeorder.FieldSource:
+		return m.OldSource(ctx)
 	case changeorder.FieldStatus:
 		return m.OldStatus(ctx)
-	case changeorder.FieldPriority:
-		return m.OldPriority(ctx)
+	case changeorder.FieldTargetNodes:
+		return m.OldTargetNodes(ctx)
+	case changeorder.FieldConfigRevisionIds:
+		return m.OldConfigRevisionIds(ctx)
+	case changeorder.FieldStrategy:
+		return m.OldStrategy(ctx)
+	case changeorder.FieldSnapshotID:
+		return m.OldSnapshotID(ctx)
 	case changeorder.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
 	case changeorder.FieldApprovedBy:
 		return m.OldApprovedBy(ctx)
+	case changeorder.FieldComment:
+		return m.OldComment(ctx)
+	case changeorder.FieldStartedAt:
+		return m.OldStartedAt(ctx)
+	case changeorder.FieldFinishedAt:
+		return m.OldFinishedAt(ctx)
 	case changeorder.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case changeorder.FieldUpdatedAt:
@@ -1504,12 +1947,19 @@ func (m *ChangeOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTitle(v)
 		return nil
-	case changeorder.FieldDescription:
-		v, ok := value.(string)
+	case changeorder.FieldType:
+		v, ok := value.(changeorder.Type)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetDescription(v)
+		m.SetType(v)
+		return nil
+	case changeorder.FieldSource:
+		v, ok := value.(changeorder.Source)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
 		return nil
 	case changeorder.FieldStatus:
 		v, ok := value.(changeorder.Status)
@@ -1518,12 +1968,33 @@ func (m *ChangeOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
-	case changeorder.FieldPriority:
-		v, ok := value.(changeorder.Priority)
+	case changeorder.FieldTargetNodes:
+		v, ok := value.([]int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetPriority(v)
+		m.SetTargetNodes(v)
+		return nil
+	case changeorder.FieldConfigRevisionIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfigRevisionIds(v)
+		return nil
+	case changeorder.FieldStrategy:
+		v, ok := value.(schema.DeployStrategy)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStrategy(v)
+		return nil
+	case changeorder.FieldSnapshotID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshotID(v)
 		return nil
 	case changeorder.FieldCreatedBy:
 		v, ok := value.(string)
@@ -1538,6 +2009,27 @@ func (m *ChangeOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetApprovedBy(v)
+		return nil
+	case changeorder.FieldComment:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetComment(v)
+		return nil
+	case changeorder.FieldStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartedAt(v)
+		return nil
+	case changeorder.FieldFinishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinishedAt(v)
 		return nil
 	case changeorder.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1567,13 +2059,21 @@ func (m *ChangeOrderMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *ChangeOrderMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addsnapshot_id != nil {
+		fields = append(fields, changeorder.FieldSnapshotID)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *ChangeOrderMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case changeorder.FieldSnapshotID:
+		return m.AddedSnapshotID()
+	}
 	return nil, false
 }
 
@@ -1582,6 +2082,13 @@ func (m *ChangeOrderMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *ChangeOrderMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case changeorder.FieldSnapshotID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSnapshotID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ChangeOrder numeric field %s", name)
 }
@@ -1590,14 +2097,32 @@ func (m *ChangeOrderMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *ChangeOrderMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(changeorder.FieldDescription) {
-		fields = append(fields, changeorder.FieldDescription)
+	if m.FieldCleared(changeorder.FieldTargetNodes) {
+		fields = append(fields, changeorder.FieldTargetNodes)
+	}
+	if m.FieldCleared(changeorder.FieldConfigRevisionIds) {
+		fields = append(fields, changeorder.FieldConfigRevisionIds)
+	}
+	if m.FieldCleared(changeorder.FieldStrategy) {
+		fields = append(fields, changeorder.FieldStrategy)
+	}
+	if m.FieldCleared(changeorder.FieldSnapshotID) {
+		fields = append(fields, changeorder.FieldSnapshotID)
 	}
 	if m.FieldCleared(changeorder.FieldCreatedBy) {
 		fields = append(fields, changeorder.FieldCreatedBy)
 	}
 	if m.FieldCleared(changeorder.FieldApprovedBy) {
 		fields = append(fields, changeorder.FieldApprovedBy)
+	}
+	if m.FieldCleared(changeorder.FieldComment) {
+		fields = append(fields, changeorder.FieldComment)
+	}
+	if m.FieldCleared(changeorder.FieldStartedAt) {
+		fields = append(fields, changeorder.FieldStartedAt)
+	}
+	if m.FieldCleared(changeorder.FieldFinishedAt) {
+		fields = append(fields, changeorder.FieldFinishedAt)
 	}
 	if m.FieldCleared(changeorder.FieldDeletedAt) {
 		fields = append(fields, changeorder.FieldDeletedAt)
@@ -1616,14 +2141,32 @@ func (m *ChangeOrderMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ChangeOrderMutation) ClearField(name string) error {
 	switch name {
-	case changeorder.FieldDescription:
-		m.ClearDescription()
+	case changeorder.FieldTargetNodes:
+		m.ClearTargetNodes()
+		return nil
+	case changeorder.FieldConfigRevisionIds:
+		m.ClearConfigRevisionIds()
+		return nil
+	case changeorder.FieldStrategy:
+		m.ClearStrategy()
+		return nil
+	case changeorder.FieldSnapshotID:
+		m.ClearSnapshotID()
 		return nil
 	case changeorder.FieldCreatedBy:
 		m.ClearCreatedBy()
 		return nil
 	case changeorder.FieldApprovedBy:
 		m.ClearApprovedBy()
+		return nil
+	case changeorder.FieldComment:
+		m.ClearComment()
+		return nil
+	case changeorder.FieldStartedAt:
+		m.ClearStartedAt()
+		return nil
+	case changeorder.FieldFinishedAt:
+		m.ClearFinishedAt()
 		return nil
 	case changeorder.FieldDeletedAt:
 		m.ClearDeletedAt()
@@ -1639,20 +2182,41 @@ func (m *ChangeOrderMutation) ResetField(name string) error {
 	case changeorder.FieldTitle:
 		m.ResetTitle()
 		return nil
-	case changeorder.FieldDescription:
-		m.ResetDescription()
+	case changeorder.FieldType:
+		m.ResetType()
+		return nil
+	case changeorder.FieldSource:
+		m.ResetSource()
 		return nil
 	case changeorder.FieldStatus:
 		m.ResetStatus()
 		return nil
-	case changeorder.FieldPriority:
-		m.ResetPriority()
+	case changeorder.FieldTargetNodes:
+		m.ResetTargetNodes()
+		return nil
+	case changeorder.FieldConfigRevisionIds:
+		m.ResetConfigRevisionIds()
+		return nil
+	case changeorder.FieldStrategy:
+		m.ResetStrategy()
+		return nil
+	case changeorder.FieldSnapshotID:
+		m.ResetSnapshotID()
 		return nil
 	case changeorder.FieldCreatedBy:
 		m.ResetCreatedBy()
 		return nil
 	case changeorder.FieldApprovedBy:
 		m.ResetApprovedBy()
+		return nil
+	case changeorder.FieldComment:
+		m.ResetComment()
+		return nil
+	case changeorder.FieldStartedAt:
+		m.ResetStartedAt()
+		return nil
+	case changeorder.FieldFinishedAt:
+		m.ResetFinishedAt()
 		return nil
 	case changeorder.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -6900,6 +7464,10 @@ type DeployTaskMutation struct {
 	attempts            *int
 	addattempts         *int
 	error_detail        *string
+	steps               *[]schema.TaskStep
+	appendsteps         []schema.TaskStep
+	current_step        *int
+	addcurrent_step     *int
 	started_at          *time.Time
 	finished_at         *time.Time
 	created_at          *time.Time
@@ -7201,6 +7769,127 @@ func (m *DeployTaskMutation) ErrorDetailCleared() bool {
 func (m *DeployTaskMutation) ResetErrorDetail() {
 	m.error_detail = nil
 	delete(m.clearedFields, deploytask.FieldErrorDetail)
+}
+
+// SetSteps sets the "steps" field.
+func (m *DeployTaskMutation) SetSteps(ss []schema.TaskStep) {
+	m.steps = &ss
+	m.appendsteps = nil
+}
+
+// Steps returns the value of the "steps" field in the mutation.
+func (m *DeployTaskMutation) Steps() (r []schema.TaskStep, exists bool) {
+	v := m.steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSteps returns the old "steps" field's value of the DeployTask entity.
+// If the DeployTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeployTaskMutation) OldSteps(ctx context.Context) (v []schema.TaskStep, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSteps: %w", err)
+	}
+	return oldValue.Steps, nil
+}
+
+// AppendSteps adds ss to the "steps" field.
+func (m *DeployTaskMutation) AppendSteps(ss []schema.TaskStep) {
+	m.appendsteps = append(m.appendsteps, ss...)
+}
+
+// AppendedSteps returns the list of values that were appended to the "steps" field in this mutation.
+func (m *DeployTaskMutation) AppendedSteps() ([]schema.TaskStep, bool) {
+	if len(m.appendsteps) == 0 {
+		return nil, false
+	}
+	return m.appendsteps, true
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (m *DeployTaskMutation) ClearSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+	m.clearedFields[deploytask.FieldSteps] = struct{}{}
+}
+
+// StepsCleared returns if the "steps" field was cleared in this mutation.
+func (m *DeployTaskMutation) StepsCleared() bool {
+	_, ok := m.clearedFields[deploytask.FieldSteps]
+	return ok
+}
+
+// ResetSteps resets all changes to the "steps" field.
+func (m *DeployTaskMutation) ResetSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+	delete(m.clearedFields, deploytask.FieldSteps)
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (m *DeployTaskMutation) SetCurrentStep(i int) {
+	m.current_step = &i
+	m.addcurrent_step = nil
+}
+
+// CurrentStep returns the value of the "current_step" field in the mutation.
+func (m *DeployTaskMutation) CurrentStep() (r int, exists bool) {
+	v := m.current_step
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentStep returns the old "current_step" field's value of the DeployTask entity.
+// If the DeployTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeployTaskMutation) OldCurrentStep(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentStep is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentStep requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentStep: %w", err)
+	}
+	return oldValue.CurrentStep, nil
+}
+
+// AddCurrentStep adds i to the "current_step" field.
+func (m *DeployTaskMutation) AddCurrentStep(i int) {
+	if m.addcurrent_step != nil {
+		*m.addcurrent_step += i
+	} else {
+		m.addcurrent_step = &i
+	}
+}
+
+// AddedCurrentStep returns the value that was added to the "current_step" field in this mutation.
+func (m *DeployTaskMutation) AddedCurrentStep() (r int, exists bool) {
+	v := m.addcurrent_step
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCurrentStep resets all changes to the "current_step" field.
+func (m *DeployTaskMutation) ResetCurrentStep() {
+	m.current_step = nil
+	m.addcurrent_step = nil
 }
 
 // SetStartedAt sets the "started_at" field.
@@ -7534,7 +8223,7 @@ func (m *DeployTaskMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DeployTaskMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.state != nil {
 		fields = append(fields, deploytask.FieldState)
 	}
@@ -7546,6 +8235,12 @@ func (m *DeployTaskMutation) Fields() []string {
 	}
 	if m.error_detail != nil {
 		fields = append(fields, deploytask.FieldErrorDetail)
+	}
+	if m.steps != nil {
+		fields = append(fields, deploytask.FieldSteps)
+	}
+	if m.current_step != nil {
+		fields = append(fields, deploytask.FieldCurrentStep)
 	}
 	if m.started_at != nil {
 		fields = append(fields, deploytask.FieldStartedAt)
@@ -7578,6 +8273,10 @@ func (m *DeployTaskMutation) Field(name string) (ent.Value, bool) {
 		return m.Attempts()
 	case deploytask.FieldErrorDetail:
 		return m.ErrorDetail()
+	case deploytask.FieldSteps:
+		return m.Steps()
+	case deploytask.FieldCurrentStep:
+		return m.CurrentStep()
 	case deploytask.FieldStartedAt:
 		return m.StartedAt()
 	case deploytask.FieldFinishedAt:
@@ -7605,6 +8304,10 @@ func (m *DeployTaskMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldAttempts(ctx)
 	case deploytask.FieldErrorDetail:
 		return m.OldErrorDetail(ctx)
+	case deploytask.FieldSteps:
+		return m.OldSteps(ctx)
+	case deploytask.FieldCurrentStep:
+		return m.OldCurrentStep(ctx)
 	case deploytask.FieldStartedAt:
 		return m.OldStartedAt(ctx)
 	case deploytask.FieldFinishedAt:
@@ -7652,6 +8355,20 @@ func (m *DeployTaskMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetErrorDetail(v)
 		return nil
+	case deploytask.FieldSteps:
+		v, ok := value.([]schema.TaskStep)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSteps(v)
+		return nil
+	case deploytask.FieldCurrentStep:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentStep(v)
+		return nil
 	case deploytask.FieldStartedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -7698,6 +8415,9 @@ func (m *DeployTaskMutation) AddedFields() []string {
 	if m.addattempts != nil {
 		fields = append(fields, deploytask.FieldAttempts)
 	}
+	if m.addcurrent_step != nil {
+		fields = append(fields, deploytask.FieldCurrentStep)
+	}
 	return fields
 }
 
@@ -7708,6 +8428,8 @@ func (m *DeployTaskMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case deploytask.FieldAttempts:
 		return m.AddedAttempts()
+	case deploytask.FieldCurrentStep:
+		return m.AddedCurrentStep()
 	}
 	return nil, false
 }
@@ -7724,6 +8446,13 @@ func (m *DeployTaskMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddAttempts(v)
 		return nil
+	case deploytask.FieldCurrentStep:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCurrentStep(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DeployTask numeric field %s", name)
 }
@@ -7737,6 +8466,9 @@ func (m *DeployTaskMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(deploytask.FieldErrorDetail) {
 		fields = append(fields, deploytask.FieldErrorDetail)
+	}
+	if m.FieldCleared(deploytask.FieldSteps) {
+		fields = append(fields, deploytask.FieldSteps)
 	}
 	if m.FieldCleared(deploytask.FieldStartedAt) {
 		fields = append(fields, deploytask.FieldStartedAt)
@@ -7767,6 +8499,9 @@ func (m *DeployTaskMutation) ClearField(name string) error {
 	case deploytask.FieldErrorDetail:
 		m.ClearErrorDetail()
 		return nil
+	case deploytask.FieldSteps:
+		m.ClearSteps()
+		return nil
 	case deploytask.FieldStartedAt:
 		m.ClearStartedAt()
 		return nil
@@ -7795,6 +8530,12 @@ func (m *DeployTaskMutation) ResetField(name string) error {
 		return nil
 	case deploytask.FieldErrorDetail:
 		m.ResetErrorDetail()
+		return nil
+	case deploytask.FieldSteps:
+		m.ResetSteps()
+		return nil
+	case deploytask.FieldCurrentStep:
+		m.ResetCurrentStep()
 		return nil
 	case deploytask.FieldStartedAt:
 		m.ResetStartedAt()

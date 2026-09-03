@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/th/ngxcp/ent/changeorder"
+	"github.com/th/ngxcp/ent/schema"
 )
 
 // ChangeOrder is the model entity for the ChangeOrder schema.
@@ -19,16 +21,30 @@ type ChangeOrder struct {
 	ID int `json:"id,omitempty"`
 	// Title holds the value of the "title" field.
 	Title string `json:"title,omitempty"`
-	// Description holds the value of the "description" field.
-	Description string `json:"description,omitempty"`
+	// Type holds the value of the "type" field.
+	Type changeorder.Type `json:"type,omitempty"`
+	// Source holds the value of the "source" field.
+	Source changeorder.Source `json:"source,omitempty"`
 	// Status holds the value of the "status" field.
 	Status changeorder.Status `json:"status,omitempty"`
-	// Priority holds the value of the "priority" field.
-	Priority changeorder.Priority `json:"priority,omitempty"`
+	// TargetNodes holds the value of the "target_nodes" field.
+	TargetNodes []int `json:"target_nodes,omitempty"`
+	// ConfigRevisionIds holds the value of the "config_revision_ids" field.
+	ConfigRevisionIds []int `json:"config_revision_ids,omitempty"`
+	// Strategy holds the value of the "strategy" field.
+	Strategy schema.DeployStrategy `json:"strategy,omitempty"`
+	// SnapshotID holds the value of the "snapshot_id" field.
+	SnapshotID *int `json:"snapshot_id,omitempty"`
 	// CreatedBy holds the value of the "created_by" field.
 	CreatedBy string `json:"created_by,omitempty"`
 	// ApprovedBy holds the value of the "approved_by" field.
 	ApprovedBy string `json:"approved_by,omitempty"`
+	// Comment holds the value of the "comment" field.
+	Comment string `json:"comment,omitempty"`
+	// StartedAt holds the value of the "started_at" field.
+	StartedAt time.Time `json:"started_at,omitempty"`
+	// FinishedAt holds the value of the "finished_at" field.
+	FinishedAt time.Time `json:"finished_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -64,11 +80,13 @@ func (*ChangeOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case changeorder.FieldID:
+		case changeorder.FieldTargetNodes, changeorder.FieldConfigRevisionIds, changeorder.FieldStrategy:
+			values[i] = new([]byte)
+		case changeorder.FieldID, changeorder.FieldSnapshotID:
 			values[i] = new(sql.NullInt64)
-		case changeorder.FieldTitle, changeorder.FieldDescription, changeorder.FieldStatus, changeorder.FieldPriority, changeorder.FieldCreatedBy, changeorder.FieldApprovedBy:
+		case changeorder.FieldTitle, changeorder.FieldType, changeorder.FieldSource, changeorder.FieldStatus, changeorder.FieldCreatedBy, changeorder.FieldApprovedBy, changeorder.FieldComment:
 			values[i] = new(sql.NullString)
-		case changeorder.FieldCreatedAt, changeorder.FieldUpdatedAt, changeorder.FieldDeletedAt:
+		case changeorder.FieldStartedAt, changeorder.FieldFinishedAt, changeorder.FieldCreatedAt, changeorder.FieldUpdatedAt, changeorder.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -97,11 +115,17 @@ func (_m *ChangeOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Title = value.String
 			}
-		case changeorder.FieldDescription:
+		case changeorder.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field description", values[i])
+				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
-				_m.Description = value.String
+				_m.Type = changeorder.Type(value.String)
+			}
+		case changeorder.FieldSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source", values[i])
+			} else if value.Valid {
+				_m.Source = changeorder.Source(value.String)
 			}
 		case changeorder.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -109,11 +133,36 @@ func (_m *ChangeOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Status = changeorder.Status(value.String)
 			}
-		case changeorder.FieldPriority:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field priority", values[i])
+		case changeorder.FieldTargetNodes:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field target_nodes", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.TargetNodes); err != nil {
+					return fmt.Errorf("unmarshal field target_nodes: %w", err)
+				}
+			}
+		case changeorder.FieldConfigRevisionIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field config_revision_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ConfigRevisionIds); err != nil {
+					return fmt.Errorf("unmarshal field config_revision_ids: %w", err)
+				}
+			}
+		case changeorder.FieldStrategy:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field strategy", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Strategy); err != nil {
+					return fmt.Errorf("unmarshal field strategy: %w", err)
+				}
+			}
+		case changeorder.FieldSnapshotID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field snapshot_id", values[i])
 			} else if value.Valid {
-				_m.Priority = changeorder.Priority(value.String)
+				_m.SnapshotID = new(int)
+				*_m.SnapshotID = int(value.Int64)
 			}
 		case changeorder.FieldCreatedBy:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -126,6 +175,24 @@ func (_m *ChangeOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field approved_by", values[i])
 			} else if value.Valid {
 				_m.ApprovedBy = value.String
+			}
+		case changeorder.FieldComment:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field comment", values[i])
+			} else if value.Valid {
+				_m.Comment = value.String
+			}
+		case changeorder.FieldStartedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field started_at", values[i])
+			} else if value.Valid {
+				_m.StartedAt = value.Time
+			}
+		case changeorder.FieldFinishedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field finished_at", values[i])
+			} else if value.Valid {
+				_m.FinishedAt = value.Time
 			}
 		case changeorder.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -189,20 +256,43 @@ func (_m *ChangeOrder) String() string {
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)
 	builder.WriteString(", ")
-	builder.WriteString("description=")
-	builder.WriteString(_m.Description)
+	builder.WriteString("type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Type))
+	builder.WriteString(", ")
+	builder.WriteString("source=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Source))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
 	builder.WriteString(", ")
-	builder.WriteString("priority=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Priority))
+	builder.WriteString("target_nodes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TargetNodes))
+	builder.WriteString(", ")
+	builder.WriteString("config_revision_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ConfigRevisionIds))
+	builder.WriteString(", ")
+	builder.WriteString("strategy=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Strategy))
+	builder.WriteString(", ")
+	if v := _m.SnapshotID; v != nil {
+		builder.WriteString("snapshot_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(_m.CreatedBy)
 	builder.WriteString(", ")
 	builder.WriteString("approved_by=")
 	builder.WriteString(_m.ApprovedBy)
+	builder.WriteString(", ")
+	builder.WriteString("comment=")
+	builder.WriteString(_m.Comment)
+	builder.WriteString(", ")
+	builder.WriteString("started_at=")
+	builder.WriteString(_m.StartedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("finished_at=")
+	builder.WriteString(_m.FinishedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

@@ -65,6 +65,11 @@ func ErrorDetail(v string) predicate.DeployTask {
 	return predicate.DeployTask(sql.FieldEQ(FieldErrorDetail, v))
 }
 
+// CurrentStep applies equality check predicate on the "current_step" field. It's identical to CurrentStepEQ.
+func CurrentStep(v int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldEQ(FieldCurrentStep, v))
+}
+
 // StartedAt applies equality check predicate on the "started_at" field. It's identical to StartedAtEQ.
 func StartedAt(v time.Time) predicate.DeployTask {
 	return predicate.DeployTask(sql.FieldEQ(FieldStartedAt, v))
@@ -253,6 +258,56 @@ func ErrorDetailEqualFold(v string) predicate.DeployTask {
 // ErrorDetailContainsFold applies the ContainsFold predicate on the "error_detail" field.
 func ErrorDetailContainsFold(v string) predicate.DeployTask {
 	return predicate.DeployTask(sql.FieldContainsFold(FieldErrorDetail, v))
+}
+
+// StepsIsNil applies the IsNil predicate on the "steps" field.
+func StepsIsNil() predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldIsNull(FieldSteps))
+}
+
+// StepsNotNil applies the NotNil predicate on the "steps" field.
+func StepsNotNil() predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldNotNull(FieldSteps))
+}
+
+// CurrentStepEQ applies the EQ predicate on the "current_step" field.
+func CurrentStepEQ(v int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldEQ(FieldCurrentStep, v))
+}
+
+// CurrentStepNEQ applies the NEQ predicate on the "current_step" field.
+func CurrentStepNEQ(v int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldNEQ(FieldCurrentStep, v))
+}
+
+// CurrentStepIn applies the In predicate on the "current_step" field.
+func CurrentStepIn(vs ...int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldIn(FieldCurrentStep, vs...))
+}
+
+// CurrentStepNotIn applies the NotIn predicate on the "current_step" field.
+func CurrentStepNotIn(vs ...int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldNotIn(FieldCurrentStep, vs...))
+}
+
+// CurrentStepGT applies the GT predicate on the "current_step" field.
+func CurrentStepGT(v int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldGT(FieldCurrentStep, v))
+}
+
+// CurrentStepGTE applies the GTE predicate on the "current_step" field.
+func CurrentStepGTE(v int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldGTE(FieldCurrentStep, v))
+}
+
+// CurrentStepLT applies the LT predicate on the "current_step" field.
+func CurrentStepLT(v int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldLT(FieldCurrentStep, v))
+}
+
+// CurrentStepLTE applies the LTE predicate on the "current_step" field.
+func CurrentStepLTE(v int) predicate.DeployTask {
+	return predicate.DeployTask(sql.FieldLTE(FieldCurrentStep, v))
 }
 
 // StartedAtEQ applies the EQ predicate on the "started_at" field.

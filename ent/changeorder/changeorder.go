@@ -17,16 +17,30 @@ const (
 	FieldID = "id"
 	// FieldTitle holds the string denoting the title field in the database.
 	FieldTitle = "title"
-	// FieldDescription holds the string denoting the description field in the database.
-	FieldDescription = "description"
+	// FieldType holds the string denoting the type field in the database.
+	FieldType = "type"
+	// FieldSource holds the string denoting the source field in the database.
+	FieldSource = "source"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
-	// FieldPriority holds the string denoting the priority field in the database.
-	FieldPriority = "priority"
+	// FieldTargetNodes holds the string denoting the target_nodes field in the database.
+	FieldTargetNodes = "target_nodes"
+	// FieldConfigRevisionIds holds the string denoting the config_revision_ids field in the database.
+	FieldConfigRevisionIds = "config_revision_ids"
+	// FieldStrategy holds the string denoting the strategy field in the database.
+	FieldStrategy = "strategy"
+	// FieldSnapshotID holds the string denoting the snapshot_id field in the database.
+	FieldSnapshotID = "snapshot_id"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
 	// FieldApprovedBy holds the string denoting the approved_by field in the database.
 	FieldApprovedBy = "approved_by"
+	// FieldComment holds the string denoting the comment field in the database.
+	FieldComment = "comment"
+	// FieldStartedAt holds the string denoting the started_at field in the database.
+	FieldStartedAt = "started_at"
+	// FieldFinishedAt holds the string denoting the finished_at field in the database.
+	FieldFinishedAt = "finished_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -50,11 +64,18 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTitle,
-	FieldDescription,
+	FieldType,
+	FieldSource,
 	FieldStatus,
-	FieldPriority,
+	FieldTargetNodes,
+	FieldConfigRevisionIds,
+	FieldStrategy,
+	FieldSnapshotID,
 	FieldCreatedBy,
 	FieldApprovedBy,
+	FieldComment,
+	FieldStartedAt,
+	FieldFinishedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldDeletedAt,
@@ -79,6 +100,64 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 )
 
+// Type defines the type for the "type" enum field.
+type Type string
+
+// TypeConfig is the default value of the Type enum.
+const DefaultType = TypeConfig
+
+// Type values.
+const (
+	TypeConfig        Type = "config"
+	TypeCertRenew     Type = "cert_renew"
+	TypeSecurityBlock Type = "security_block"
+	TypeLvs           Type = "lvs"
+	TypeUpgrade       Type = "upgrade"
+	TypeRollback      Type = "rollback"
+)
+
+func (_type Type) String() string {
+	return string(_type)
+}
+
+// TypeValidator is a validator for the "type" field enum values. It is called by the builders before save.
+func TypeValidator(_type Type) error {
+	switch _type {
+	case TypeConfig, TypeCertRenew, TypeSecurityBlock, TypeLvs, TypeUpgrade, TypeRollback:
+		return nil
+	default:
+		return fmt.Errorf("changeorder: invalid enum value for type field: %q", _type)
+	}
+}
+
+// Source defines the type for the "source" enum field.
+type Source string
+
+// SourceManual is the default value of the Source enum.
+const DefaultSource = SourceManual
+
+// Source values.
+const (
+	SourceManual    Source = "manual"
+	SourceAPI       Source = "api"
+	SourceSchedule  Source = "schedule"
+	SourceAutoRenew Source = "auto_renew"
+)
+
+func (s Source) String() string {
+	return string(s)
+}
+
+// SourceValidator is a validator for the "source" field enum values. It is called by the builders before save.
+func SourceValidator(s Source) error {
+	switch s {
+	case SourceManual, SourceAPI, SourceSchedule, SourceAutoRenew:
+		return nil
+	default:
+		return fmt.Errorf("changeorder: invalid enum value for source field: %q", s)
+	}
+}
+
 // Status defines the type for the "status" enum field.
 type Status string
 
@@ -87,14 +166,18 @@ const DefaultStatus = StatusDraft
 
 // Status values.
 const (
-	StatusDraft      Status = "draft"
-	StatusPending    Status = "pending"
-	StatusApproved   Status = "approved"
-	StatusRejected   Status = "rejected"
-	StatusApplying   Status = "applying"
-	StatusDone       Status = "done"
-	StatusFailed     Status = "failed"
-	StatusRolledBack Status = "rolled_back"
+	StatusDraft           Status = "draft"
+	StatusPendingApproval Status = "pending_approval"
+	StatusPending         Status = "pending"
+	StatusRunning         Status = "running"
+	StatusSuccess         Status = "success"
+	StatusFailed          Status = "failed"
+	StatusRollingBack     Status = "rolling_back"
+	StatusRolledBack      Status = "rolled_back"
+	StatusRollbackFailed  Status = "rollback_failed"
+	StatusPartialSuccess  Status = "partial_success"
+	StatusRejected        Status = "rejected"
+	StatusCanceled        Status = "canceled"
 )
 
 func (s Status) String() string {
@@ -104,38 +187,10 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusDraft, StatusPending, StatusApproved, StatusRejected, StatusApplying, StatusDone, StatusFailed, StatusRolledBack:
+	case StatusDraft, StatusPendingApproval, StatusPending, StatusRunning, StatusSuccess, StatusFailed, StatusRollingBack, StatusRolledBack, StatusRollbackFailed, StatusPartialSuccess, StatusRejected, StatusCanceled:
 		return nil
 	default:
 		return fmt.Errorf("changeorder: invalid enum value for status field: %q", s)
-	}
-}
-
-// Priority defines the type for the "priority" enum field.
-type Priority string
-
-// PriorityNormal is the default value of the Priority enum.
-const DefaultPriority = PriorityNormal
-
-// Priority values.
-const (
-	PriorityLow    Priority = "low"
-	PriorityNormal Priority = "normal"
-	PriorityHigh   Priority = "high"
-	PriorityUrgent Priority = "urgent"
-)
-
-func (pr Priority) String() string {
-	return string(pr)
-}
-
-// PriorityValidator is a validator for the "priority" field enum values. It is called by the builders before save.
-func PriorityValidator(pr Priority) error {
-	switch pr {
-	case PriorityLow, PriorityNormal, PriorityHigh, PriorityUrgent:
-		return nil
-	default:
-		return fmt.Errorf("changeorder: invalid enum value for priority field: %q", pr)
 	}
 }
 
@@ -152,9 +207,14 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTitle, opts...).ToFunc()
 }
 
-// ByDescription orders the results by the description field.
-func ByDescription(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+// ByType orders the results by the type field.
+func ByType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldType, opts...).ToFunc()
+}
+
+// BySource orders the results by the source field.
+func BySource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSource, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.
@@ -162,9 +222,9 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
-// ByPriority orders the results by the priority field.
-func ByPriority(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPriority, opts...).ToFunc()
+// BySnapshotID orders the results by the snapshot_id field.
+func BySnapshotID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSnapshotID, opts...).ToFunc()
 }
 
 // ByCreatedBy orders the results by the created_by field.
@@ -175,6 +235,21 @@ func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByApprovedBy orders the results by the approved_by field.
 func ByApprovedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldApprovedBy, opts...).ToFunc()
+}
+
+// ByComment orders the results by the comment field.
+func ByComment(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldComment, opts...).ToFunc()
+}
+
+// ByStartedAt orders the results by the started_at field.
+func ByStartedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStartedAt, opts...).ToFunc()
+}
+
+// ByFinishedAt orders the results by the finished_at field.
+func ByFinishedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFinishedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

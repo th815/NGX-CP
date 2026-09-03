@@ -23,6 +23,10 @@ const (
 	FieldAttempts = "attempts"
 	// FieldErrorDetail holds the string denoting the error_detail field in the database.
 	FieldErrorDetail = "error_detail"
+	// FieldSteps holds the string denoting the steps field in the database.
+	FieldSteps = "steps"
+	// FieldCurrentStep holds the string denoting the current_step field in the database.
+	FieldCurrentStep = "current_step"
 	// FieldStartedAt holds the string denoting the started_at field in the database.
 	FieldStartedAt = "started_at"
 	// FieldFinishedAt holds the string denoting the finished_at field in the database.
@@ -62,6 +66,8 @@ var Columns = []string{
 	FieldPhase,
 	FieldAttempts,
 	FieldErrorDetail,
+	FieldSteps,
+	FieldCurrentStep,
 	FieldStartedAt,
 	FieldFinishedAt,
 	FieldCreatedAt,
@@ -94,6 +100,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultAttempts holds the default value on creation for the "attempts" field.
 	DefaultAttempts int
+	// DefaultCurrentStep holds the default value on creation for the "current_step" field.
+	DefaultCurrentStep int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -110,12 +118,14 @@ const DefaultState = StatePending
 
 // State values.
 const (
-	StatePending    State = "pending"
-	StateRunning    State = "running"
-	StateSucceeded  State = "succeeded"
-	StateFailed     State = "failed"
-	StateRolledBack State = "rolled_back"
-	StateSkipped    State = "skipped"
+	StatePending        State = "pending"
+	StateRunning        State = "running"
+	StateSuccess        State = "success"
+	StateFailed         State = "failed"
+	StateRollingBack    State = "rolling_back"
+	StateRolledBack     State = "rolled_back"
+	StateRollbackFailed State = "rollback_failed"
+	StateSkipped        State = "skipped"
 )
 
 func (s State) String() string {
@@ -125,7 +135,7 @@ func (s State) String() string {
 // StateValidator is a validator for the "state" field enum values. It is called by the builders before save.
 func StateValidator(s State) error {
 	switch s {
-	case StatePending, StateRunning, StateSucceeded, StateFailed, StateRolledBack, StateSkipped:
+	case StatePending, StateRunning, StateSuccess, StateFailed, StateRollingBack, StateRolledBack, StateRollbackFailed, StateSkipped:
 		return nil
 	default:
 		return fmt.Errorf("deploytask: invalid enum value for state field: %q", s)
@@ -184,6 +194,11 @@ func ByAttempts(opts ...sql.OrderTermOption) OrderOption {
 // ByErrorDetail orders the results by the error_detail field.
 func ByErrorDetail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldErrorDetail, opts...).ToFunc()
+}
+
+// ByCurrentStep orders the results by the current_step field.
+func ByCurrentStep(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrentStep, opts...).ToFunc()
 }
 
 // ByStartedAt orders the results by the started_at field.

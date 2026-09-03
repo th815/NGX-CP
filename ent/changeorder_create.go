@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/schema"
 )
 
 // ChangeOrderCreate is the builder for creating a ChangeOrder entity.
@@ -29,16 +30,30 @@ func (_c *ChangeOrderCreate) SetTitle(v string) *ChangeOrderCreate {
 	return _c
 }
 
-// SetDescription sets the "description" field.
-func (_c *ChangeOrderCreate) SetDescription(v string) *ChangeOrderCreate {
-	_c.mutation.SetDescription(v)
+// SetType sets the "type" field.
+func (_c *ChangeOrderCreate) SetType(v changeorder.Type) *ChangeOrderCreate {
+	_c.mutation.SetType(v)
 	return _c
 }
 
-// SetNillableDescription sets the "description" field if the given value is not nil.
-func (_c *ChangeOrderCreate) SetNillableDescription(v *string) *ChangeOrderCreate {
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_c *ChangeOrderCreate) SetNillableType(v *changeorder.Type) *ChangeOrderCreate {
 	if v != nil {
-		_c.SetDescription(*v)
+		_c.SetType(*v)
+	}
+	return _c
+}
+
+// SetSource sets the "source" field.
+func (_c *ChangeOrderCreate) SetSource(v changeorder.Source) *ChangeOrderCreate {
+	_c.mutation.SetSource(v)
+	return _c
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_c *ChangeOrderCreate) SetNillableSource(v *changeorder.Source) *ChangeOrderCreate {
+	if v != nil {
+		_c.SetSource(*v)
 	}
 	return _c
 }
@@ -57,16 +72,42 @@ func (_c *ChangeOrderCreate) SetNillableStatus(v *changeorder.Status) *ChangeOrd
 	return _c
 }
 
-// SetPriority sets the "priority" field.
-func (_c *ChangeOrderCreate) SetPriority(v changeorder.Priority) *ChangeOrderCreate {
-	_c.mutation.SetPriority(v)
+// SetTargetNodes sets the "target_nodes" field.
+func (_c *ChangeOrderCreate) SetTargetNodes(v []int) *ChangeOrderCreate {
+	_c.mutation.SetTargetNodes(v)
 	return _c
 }
 
-// SetNillablePriority sets the "priority" field if the given value is not nil.
-func (_c *ChangeOrderCreate) SetNillablePriority(v *changeorder.Priority) *ChangeOrderCreate {
+// SetConfigRevisionIds sets the "config_revision_ids" field.
+func (_c *ChangeOrderCreate) SetConfigRevisionIds(v []int) *ChangeOrderCreate {
+	_c.mutation.SetConfigRevisionIds(v)
+	return _c
+}
+
+// SetStrategy sets the "strategy" field.
+func (_c *ChangeOrderCreate) SetStrategy(v schema.DeployStrategy) *ChangeOrderCreate {
+	_c.mutation.SetStrategy(v)
+	return _c
+}
+
+// SetNillableStrategy sets the "strategy" field if the given value is not nil.
+func (_c *ChangeOrderCreate) SetNillableStrategy(v *schema.DeployStrategy) *ChangeOrderCreate {
 	if v != nil {
-		_c.SetPriority(*v)
+		_c.SetStrategy(*v)
+	}
+	return _c
+}
+
+// SetSnapshotID sets the "snapshot_id" field.
+func (_c *ChangeOrderCreate) SetSnapshotID(v int) *ChangeOrderCreate {
+	_c.mutation.SetSnapshotID(v)
+	return _c
+}
+
+// SetNillableSnapshotID sets the "snapshot_id" field if the given value is not nil.
+func (_c *ChangeOrderCreate) SetNillableSnapshotID(v *int) *ChangeOrderCreate {
+	if v != nil {
+		_c.SetSnapshotID(*v)
 	}
 	return _c
 }
@@ -95,6 +136,48 @@ func (_c *ChangeOrderCreate) SetApprovedBy(v string) *ChangeOrderCreate {
 func (_c *ChangeOrderCreate) SetNillableApprovedBy(v *string) *ChangeOrderCreate {
 	if v != nil {
 		_c.SetApprovedBy(*v)
+	}
+	return _c
+}
+
+// SetComment sets the "comment" field.
+func (_c *ChangeOrderCreate) SetComment(v string) *ChangeOrderCreate {
+	_c.mutation.SetComment(v)
+	return _c
+}
+
+// SetNillableComment sets the "comment" field if the given value is not nil.
+func (_c *ChangeOrderCreate) SetNillableComment(v *string) *ChangeOrderCreate {
+	if v != nil {
+		_c.SetComment(*v)
+	}
+	return _c
+}
+
+// SetStartedAt sets the "started_at" field.
+func (_c *ChangeOrderCreate) SetStartedAt(v time.Time) *ChangeOrderCreate {
+	_c.mutation.SetStartedAt(v)
+	return _c
+}
+
+// SetNillableStartedAt sets the "started_at" field if the given value is not nil.
+func (_c *ChangeOrderCreate) SetNillableStartedAt(v *time.Time) *ChangeOrderCreate {
+	if v != nil {
+		_c.SetStartedAt(*v)
+	}
+	return _c
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (_c *ChangeOrderCreate) SetFinishedAt(v time.Time) *ChangeOrderCreate {
+	_c.mutation.SetFinishedAt(v)
+	return _c
+}
+
+// SetNillableFinishedAt sets the "finished_at" field if the given value is not nil.
+func (_c *ChangeOrderCreate) SetNillableFinishedAt(v *time.Time) *ChangeOrderCreate {
+	if v != nil {
+		_c.SetFinishedAt(*v)
 	}
 	return _c
 }
@@ -191,13 +274,17 @@ func (_c *ChangeOrderCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ChangeOrderCreate) defaults() {
+	if _, ok := _c.mutation.GetType(); !ok {
+		v := changeorder.DefaultType
+		_c.mutation.SetType(v)
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		v := changeorder.DefaultSource
+		_c.mutation.SetSource(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := changeorder.DefaultStatus
 		_c.mutation.SetStatus(v)
-	}
-	if _, ok := _c.mutation.Priority(); !ok {
-		v := changeorder.DefaultPriority
-		_c.mutation.SetPriority(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := changeorder.DefaultCreatedAt()
@@ -214,20 +301,28 @@ func (_c *ChangeOrderCreate) check() error {
 	if _, ok := _c.mutation.Title(); !ok {
 		return &ValidationError{Name: "title", err: errors.New(`ent: missing required field "ChangeOrder.title"`)}
 	}
+	if _, ok := _c.mutation.GetType(); !ok {
+		return &ValidationError{Name: "type", err: errors.New(`ent: missing required field "ChangeOrder.type"`)}
+	}
+	if v, ok := _c.mutation.GetType(); ok {
+		if err := changeorder.TypeValidator(v); err != nil {
+			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "ChangeOrder.source"`)}
+	}
+	if v, ok := _c.mutation.Source(); ok {
+		if err := changeorder.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.source": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "ChangeOrder.status"`)}
 	}
 	if v, ok := _c.mutation.Status(); ok {
 		if err := changeorder.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.status": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.Priority(); !ok {
-		return &ValidationError{Name: "priority", err: errors.New(`ent: missing required field "ChangeOrder.priority"`)}
-	}
-	if v, ok := _c.mutation.Priority(); ok {
-		if err := changeorder.PriorityValidator(v); err != nil {
-			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "ChangeOrder.priority": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
@@ -267,17 +362,33 @@ func (_c *ChangeOrderCreate) createSpec() (*ChangeOrder, *sqlgraph.CreateSpec) {
 		_spec.SetField(changeorder.FieldTitle, field.TypeString, value)
 		_node.Title = value
 	}
-	if value, ok := _c.mutation.Description(); ok {
-		_spec.SetField(changeorder.FieldDescription, field.TypeString, value)
-		_node.Description = value
+	if value, ok := _c.mutation.GetType(); ok {
+		_spec.SetField(changeorder.FieldType, field.TypeEnum, value)
+		_node.Type = value
+	}
+	if value, ok := _c.mutation.Source(); ok {
+		_spec.SetField(changeorder.FieldSource, field.TypeEnum, value)
+		_node.Source = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(changeorder.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
-	if value, ok := _c.mutation.Priority(); ok {
-		_spec.SetField(changeorder.FieldPriority, field.TypeEnum, value)
-		_node.Priority = value
+	if value, ok := _c.mutation.TargetNodes(); ok {
+		_spec.SetField(changeorder.FieldTargetNodes, field.TypeJSON, value)
+		_node.TargetNodes = value
+	}
+	if value, ok := _c.mutation.ConfigRevisionIds(); ok {
+		_spec.SetField(changeorder.FieldConfigRevisionIds, field.TypeJSON, value)
+		_node.ConfigRevisionIds = value
+	}
+	if value, ok := _c.mutation.Strategy(); ok {
+		_spec.SetField(changeorder.FieldStrategy, field.TypeJSON, value)
+		_node.Strategy = value
+	}
+	if value, ok := _c.mutation.SnapshotID(); ok {
+		_spec.SetField(changeorder.FieldSnapshotID, field.TypeInt, value)
+		_node.SnapshotID = &value
 	}
 	if value, ok := _c.mutation.CreatedBy(); ok {
 		_spec.SetField(changeorder.FieldCreatedBy, field.TypeString, value)
@@ -286,6 +397,18 @@ func (_c *ChangeOrderCreate) createSpec() (*ChangeOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ApprovedBy(); ok {
 		_spec.SetField(changeorder.FieldApprovedBy, field.TypeString, value)
 		_node.ApprovedBy = value
+	}
+	if value, ok := _c.mutation.Comment(); ok {
+		_spec.SetField(changeorder.FieldComment, field.TypeString, value)
+		_node.Comment = value
+	}
+	if value, ok := _c.mutation.StartedAt(); ok {
+		_spec.SetField(changeorder.FieldStartedAt, field.TypeTime, value)
+		_node.StartedAt = value
+	}
+	if value, ok := _c.mutation.FinishedAt(); ok {
+		_spec.SetField(changeorder.FieldFinishedAt, field.TypeTime, value)
+		_node.FinishedAt = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(changeorder.FieldCreatedAt, field.TypeTime, value)
@@ -379,21 +502,27 @@ func (u *ChangeOrderUpsert) UpdateTitle() *ChangeOrderUpsert {
 	return u
 }
 
-// SetDescription sets the "description" field.
-func (u *ChangeOrderUpsert) SetDescription(v string) *ChangeOrderUpsert {
-	u.Set(changeorder.FieldDescription, v)
+// SetType sets the "type" field.
+func (u *ChangeOrderUpsert) SetType(v changeorder.Type) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldType, v)
 	return u
 }
 
-// UpdateDescription sets the "description" field to the value that was provided on create.
-func (u *ChangeOrderUpsert) UpdateDescription() *ChangeOrderUpsert {
-	u.SetExcluded(changeorder.FieldDescription)
+// UpdateType sets the "type" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateType() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldType)
 	return u
 }
 
-// ClearDescription clears the value of the "description" field.
-func (u *ChangeOrderUpsert) ClearDescription() *ChangeOrderUpsert {
-	u.SetNull(changeorder.FieldDescription)
+// SetSource sets the "source" field.
+func (u *ChangeOrderUpsert) SetSource(v changeorder.Source) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldSource, v)
+	return u
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateSource() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldSource)
 	return u
 }
 
@@ -409,15 +538,81 @@ func (u *ChangeOrderUpsert) UpdateStatus() *ChangeOrderUpsert {
 	return u
 }
 
-// SetPriority sets the "priority" field.
-func (u *ChangeOrderUpsert) SetPriority(v changeorder.Priority) *ChangeOrderUpsert {
-	u.Set(changeorder.FieldPriority, v)
+// SetTargetNodes sets the "target_nodes" field.
+func (u *ChangeOrderUpsert) SetTargetNodes(v []int) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldTargetNodes, v)
 	return u
 }
 
-// UpdatePriority sets the "priority" field to the value that was provided on create.
-func (u *ChangeOrderUpsert) UpdatePriority() *ChangeOrderUpsert {
-	u.SetExcluded(changeorder.FieldPriority)
+// UpdateTargetNodes sets the "target_nodes" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateTargetNodes() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldTargetNodes)
+	return u
+}
+
+// ClearTargetNodes clears the value of the "target_nodes" field.
+func (u *ChangeOrderUpsert) ClearTargetNodes() *ChangeOrderUpsert {
+	u.SetNull(changeorder.FieldTargetNodes)
+	return u
+}
+
+// SetConfigRevisionIds sets the "config_revision_ids" field.
+func (u *ChangeOrderUpsert) SetConfigRevisionIds(v []int) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldConfigRevisionIds, v)
+	return u
+}
+
+// UpdateConfigRevisionIds sets the "config_revision_ids" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateConfigRevisionIds() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldConfigRevisionIds)
+	return u
+}
+
+// ClearConfigRevisionIds clears the value of the "config_revision_ids" field.
+func (u *ChangeOrderUpsert) ClearConfigRevisionIds() *ChangeOrderUpsert {
+	u.SetNull(changeorder.FieldConfigRevisionIds)
+	return u
+}
+
+// SetStrategy sets the "strategy" field.
+func (u *ChangeOrderUpsert) SetStrategy(v schema.DeployStrategy) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldStrategy, v)
+	return u
+}
+
+// UpdateStrategy sets the "strategy" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateStrategy() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldStrategy)
+	return u
+}
+
+// ClearStrategy clears the value of the "strategy" field.
+func (u *ChangeOrderUpsert) ClearStrategy() *ChangeOrderUpsert {
+	u.SetNull(changeorder.FieldStrategy)
+	return u
+}
+
+// SetSnapshotID sets the "snapshot_id" field.
+func (u *ChangeOrderUpsert) SetSnapshotID(v int) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldSnapshotID, v)
+	return u
+}
+
+// UpdateSnapshotID sets the "snapshot_id" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateSnapshotID() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldSnapshotID)
+	return u
+}
+
+// AddSnapshotID adds v to the "snapshot_id" field.
+func (u *ChangeOrderUpsert) AddSnapshotID(v int) *ChangeOrderUpsert {
+	u.Add(changeorder.FieldSnapshotID, v)
+	return u
+}
+
+// ClearSnapshotID clears the value of the "snapshot_id" field.
+func (u *ChangeOrderUpsert) ClearSnapshotID() *ChangeOrderUpsert {
+	u.SetNull(changeorder.FieldSnapshotID)
 	return u
 }
 
@@ -454,6 +649,60 @@ func (u *ChangeOrderUpsert) UpdateApprovedBy() *ChangeOrderUpsert {
 // ClearApprovedBy clears the value of the "approved_by" field.
 func (u *ChangeOrderUpsert) ClearApprovedBy() *ChangeOrderUpsert {
 	u.SetNull(changeorder.FieldApprovedBy)
+	return u
+}
+
+// SetComment sets the "comment" field.
+func (u *ChangeOrderUpsert) SetComment(v string) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldComment, v)
+	return u
+}
+
+// UpdateComment sets the "comment" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateComment() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldComment)
+	return u
+}
+
+// ClearComment clears the value of the "comment" field.
+func (u *ChangeOrderUpsert) ClearComment() *ChangeOrderUpsert {
+	u.SetNull(changeorder.FieldComment)
+	return u
+}
+
+// SetStartedAt sets the "started_at" field.
+func (u *ChangeOrderUpsert) SetStartedAt(v time.Time) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldStartedAt, v)
+	return u
+}
+
+// UpdateStartedAt sets the "started_at" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateStartedAt() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldStartedAt)
+	return u
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (u *ChangeOrderUpsert) ClearStartedAt() *ChangeOrderUpsert {
+	u.SetNull(changeorder.FieldStartedAt)
+	return u
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (u *ChangeOrderUpsert) SetFinishedAt(v time.Time) *ChangeOrderUpsert {
+	u.Set(changeorder.FieldFinishedAt, v)
+	return u
+}
+
+// UpdateFinishedAt sets the "finished_at" field to the value that was provided on create.
+func (u *ChangeOrderUpsert) UpdateFinishedAt() *ChangeOrderUpsert {
+	u.SetExcluded(changeorder.FieldFinishedAt)
+	return u
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (u *ChangeOrderUpsert) ClearFinishedAt() *ChangeOrderUpsert {
+	u.SetNull(changeorder.FieldFinishedAt)
 	return u
 }
 
@@ -546,24 +795,31 @@ func (u *ChangeOrderUpsertOne) UpdateTitle() *ChangeOrderUpsertOne {
 	})
 }
 
-// SetDescription sets the "description" field.
-func (u *ChangeOrderUpsertOne) SetDescription(v string) *ChangeOrderUpsertOne {
+// SetType sets the "type" field.
+func (u *ChangeOrderUpsertOne) SetType(v changeorder.Type) *ChangeOrderUpsertOne {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.SetDescription(v)
+		s.SetType(v)
 	})
 }
 
-// UpdateDescription sets the "description" field to the value that was provided on create.
-func (u *ChangeOrderUpsertOne) UpdateDescription() *ChangeOrderUpsertOne {
+// UpdateType sets the "type" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateType() *ChangeOrderUpsertOne {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.UpdateDescription()
+		s.UpdateType()
 	})
 }
 
-// ClearDescription clears the value of the "description" field.
-func (u *ChangeOrderUpsertOne) ClearDescription() *ChangeOrderUpsertOne {
+// SetSource sets the "source" field.
+func (u *ChangeOrderUpsertOne) SetSource(v changeorder.Source) *ChangeOrderUpsertOne {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.ClearDescription()
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateSource() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateSource()
 	})
 }
 
@@ -581,17 +837,94 @@ func (u *ChangeOrderUpsertOne) UpdateStatus() *ChangeOrderUpsertOne {
 	})
 }
 
-// SetPriority sets the "priority" field.
-func (u *ChangeOrderUpsertOne) SetPriority(v changeorder.Priority) *ChangeOrderUpsertOne {
+// SetTargetNodes sets the "target_nodes" field.
+func (u *ChangeOrderUpsertOne) SetTargetNodes(v []int) *ChangeOrderUpsertOne {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.SetPriority(v)
+		s.SetTargetNodes(v)
 	})
 }
 
-// UpdatePriority sets the "priority" field to the value that was provided on create.
-func (u *ChangeOrderUpsertOne) UpdatePriority() *ChangeOrderUpsertOne {
+// UpdateTargetNodes sets the "target_nodes" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateTargetNodes() *ChangeOrderUpsertOne {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.UpdatePriority()
+		s.UpdateTargetNodes()
+	})
+}
+
+// ClearTargetNodes clears the value of the "target_nodes" field.
+func (u *ChangeOrderUpsertOne) ClearTargetNodes() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearTargetNodes()
+	})
+}
+
+// SetConfigRevisionIds sets the "config_revision_ids" field.
+func (u *ChangeOrderUpsertOne) SetConfigRevisionIds(v []int) *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetConfigRevisionIds(v)
+	})
+}
+
+// UpdateConfigRevisionIds sets the "config_revision_ids" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateConfigRevisionIds() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateConfigRevisionIds()
+	})
+}
+
+// ClearConfigRevisionIds clears the value of the "config_revision_ids" field.
+func (u *ChangeOrderUpsertOne) ClearConfigRevisionIds() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearConfigRevisionIds()
+	})
+}
+
+// SetStrategy sets the "strategy" field.
+func (u *ChangeOrderUpsertOne) SetStrategy(v schema.DeployStrategy) *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetStrategy(v)
+	})
+}
+
+// UpdateStrategy sets the "strategy" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateStrategy() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateStrategy()
+	})
+}
+
+// ClearStrategy clears the value of the "strategy" field.
+func (u *ChangeOrderUpsertOne) ClearStrategy() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearStrategy()
+	})
+}
+
+// SetSnapshotID sets the "snapshot_id" field.
+func (u *ChangeOrderUpsertOne) SetSnapshotID(v int) *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetSnapshotID(v)
+	})
+}
+
+// AddSnapshotID adds v to the "snapshot_id" field.
+func (u *ChangeOrderUpsertOne) AddSnapshotID(v int) *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.AddSnapshotID(v)
+	})
+}
+
+// UpdateSnapshotID sets the "snapshot_id" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateSnapshotID() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateSnapshotID()
+	})
+}
+
+// ClearSnapshotID clears the value of the "snapshot_id" field.
+func (u *ChangeOrderUpsertOne) ClearSnapshotID() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearSnapshotID()
 	})
 }
 
@@ -634,6 +967,69 @@ func (u *ChangeOrderUpsertOne) UpdateApprovedBy() *ChangeOrderUpsertOne {
 func (u *ChangeOrderUpsertOne) ClearApprovedBy() *ChangeOrderUpsertOne {
 	return u.Update(func(s *ChangeOrderUpsert) {
 		s.ClearApprovedBy()
+	})
+}
+
+// SetComment sets the "comment" field.
+func (u *ChangeOrderUpsertOne) SetComment(v string) *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetComment(v)
+	})
+}
+
+// UpdateComment sets the "comment" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateComment() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateComment()
+	})
+}
+
+// ClearComment clears the value of the "comment" field.
+func (u *ChangeOrderUpsertOne) ClearComment() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearComment()
+	})
+}
+
+// SetStartedAt sets the "started_at" field.
+func (u *ChangeOrderUpsertOne) SetStartedAt(v time.Time) *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetStartedAt(v)
+	})
+}
+
+// UpdateStartedAt sets the "started_at" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateStartedAt() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateStartedAt()
+	})
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (u *ChangeOrderUpsertOne) ClearStartedAt() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearStartedAt()
+	})
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (u *ChangeOrderUpsertOne) SetFinishedAt(v time.Time) *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetFinishedAt(v)
+	})
+}
+
+// UpdateFinishedAt sets the "finished_at" field to the value that was provided on create.
+func (u *ChangeOrderUpsertOne) UpdateFinishedAt() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateFinishedAt()
+	})
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (u *ChangeOrderUpsertOne) ClearFinishedAt() *ChangeOrderUpsertOne {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearFinishedAt()
 	})
 }
 
@@ -897,24 +1293,31 @@ func (u *ChangeOrderUpsertBulk) UpdateTitle() *ChangeOrderUpsertBulk {
 	})
 }
 
-// SetDescription sets the "description" field.
-func (u *ChangeOrderUpsertBulk) SetDescription(v string) *ChangeOrderUpsertBulk {
+// SetType sets the "type" field.
+func (u *ChangeOrderUpsertBulk) SetType(v changeorder.Type) *ChangeOrderUpsertBulk {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.SetDescription(v)
+		s.SetType(v)
 	})
 }
 
-// UpdateDescription sets the "description" field to the value that was provided on create.
-func (u *ChangeOrderUpsertBulk) UpdateDescription() *ChangeOrderUpsertBulk {
+// UpdateType sets the "type" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateType() *ChangeOrderUpsertBulk {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.UpdateDescription()
+		s.UpdateType()
 	})
 }
 
-// ClearDescription clears the value of the "description" field.
-func (u *ChangeOrderUpsertBulk) ClearDescription() *ChangeOrderUpsertBulk {
+// SetSource sets the "source" field.
+func (u *ChangeOrderUpsertBulk) SetSource(v changeorder.Source) *ChangeOrderUpsertBulk {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.ClearDescription()
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateSource() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateSource()
 	})
 }
 
@@ -932,17 +1335,94 @@ func (u *ChangeOrderUpsertBulk) UpdateStatus() *ChangeOrderUpsertBulk {
 	})
 }
 
-// SetPriority sets the "priority" field.
-func (u *ChangeOrderUpsertBulk) SetPriority(v changeorder.Priority) *ChangeOrderUpsertBulk {
+// SetTargetNodes sets the "target_nodes" field.
+func (u *ChangeOrderUpsertBulk) SetTargetNodes(v []int) *ChangeOrderUpsertBulk {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.SetPriority(v)
+		s.SetTargetNodes(v)
 	})
 }
 
-// UpdatePriority sets the "priority" field to the value that was provided on create.
-func (u *ChangeOrderUpsertBulk) UpdatePriority() *ChangeOrderUpsertBulk {
+// UpdateTargetNodes sets the "target_nodes" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateTargetNodes() *ChangeOrderUpsertBulk {
 	return u.Update(func(s *ChangeOrderUpsert) {
-		s.UpdatePriority()
+		s.UpdateTargetNodes()
+	})
+}
+
+// ClearTargetNodes clears the value of the "target_nodes" field.
+func (u *ChangeOrderUpsertBulk) ClearTargetNodes() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearTargetNodes()
+	})
+}
+
+// SetConfigRevisionIds sets the "config_revision_ids" field.
+func (u *ChangeOrderUpsertBulk) SetConfigRevisionIds(v []int) *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetConfigRevisionIds(v)
+	})
+}
+
+// UpdateConfigRevisionIds sets the "config_revision_ids" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateConfigRevisionIds() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateConfigRevisionIds()
+	})
+}
+
+// ClearConfigRevisionIds clears the value of the "config_revision_ids" field.
+func (u *ChangeOrderUpsertBulk) ClearConfigRevisionIds() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearConfigRevisionIds()
+	})
+}
+
+// SetStrategy sets the "strategy" field.
+func (u *ChangeOrderUpsertBulk) SetStrategy(v schema.DeployStrategy) *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetStrategy(v)
+	})
+}
+
+// UpdateStrategy sets the "strategy" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateStrategy() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateStrategy()
+	})
+}
+
+// ClearStrategy clears the value of the "strategy" field.
+func (u *ChangeOrderUpsertBulk) ClearStrategy() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearStrategy()
+	})
+}
+
+// SetSnapshotID sets the "snapshot_id" field.
+func (u *ChangeOrderUpsertBulk) SetSnapshotID(v int) *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetSnapshotID(v)
+	})
+}
+
+// AddSnapshotID adds v to the "snapshot_id" field.
+func (u *ChangeOrderUpsertBulk) AddSnapshotID(v int) *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.AddSnapshotID(v)
+	})
+}
+
+// UpdateSnapshotID sets the "snapshot_id" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateSnapshotID() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateSnapshotID()
+	})
+}
+
+// ClearSnapshotID clears the value of the "snapshot_id" field.
+func (u *ChangeOrderUpsertBulk) ClearSnapshotID() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearSnapshotID()
 	})
 }
 
@@ -985,6 +1465,69 @@ func (u *ChangeOrderUpsertBulk) UpdateApprovedBy() *ChangeOrderUpsertBulk {
 func (u *ChangeOrderUpsertBulk) ClearApprovedBy() *ChangeOrderUpsertBulk {
 	return u.Update(func(s *ChangeOrderUpsert) {
 		s.ClearApprovedBy()
+	})
+}
+
+// SetComment sets the "comment" field.
+func (u *ChangeOrderUpsertBulk) SetComment(v string) *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetComment(v)
+	})
+}
+
+// UpdateComment sets the "comment" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateComment() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateComment()
+	})
+}
+
+// ClearComment clears the value of the "comment" field.
+func (u *ChangeOrderUpsertBulk) ClearComment() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearComment()
+	})
+}
+
+// SetStartedAt sets the "started_at" field.
+func (u *ChangeOrderUpsertBulk) SetStartedAt(v time.Time) *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetStartedAt(v)
+	})
+}
+
+// UpdateStartedAt sets the "started_at" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateStartedAt() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateStartedAt()
+	})
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (u *ChangeOrderUpsertBulk) ClearStartedAt() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearStartedAt()
+	})
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (u *ChangeOrderUpsertBulk) SetFinishedAt(v time.Time) *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.SetFinishedAt(v)
+	})
+}
+
+// UpdateFinishedAt sets the "finished_at" field to the value that was provided on create.
+func (u *ChangeOrderUpsertBulk) UpdateFinishedAt() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.UpdateFinishedAt()
+	})
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (u *ChangeOrderUpsertBulk) ClearFinishedAt() *ChangeOrderUpsertBulk {
+	return u.Update(func(s *ChangeOrderUpsert) {
+		s.ClearFinishedAt()
 	})
 }
 
