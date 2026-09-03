@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -210,8 +211,8 @@ func (s *recordingStream) Recv() (*agentv1.HeartbeatResponse, error) {
 		return nil, io.EOF
 	}
 }
-func (s *recordingStream) CloseSend() error            { return nil }
-func (s *recordingStream) Context() context.Context    { return s.ctx }
+func (s *recordingStream) CloseSend() error             { return nil }
+func (s *recordingStream) Context() context.Context     { return s.ctx }
 func (s *recordingStream) Header() (metadata.MD, error) { return nil, nil }
 func (s *recordingStream) Trailer() metadata.MD         { return nil }
 func (s *recordingStream) SendMsg(m any) error          { return nil }
@@ -343,5 +344,121 @@ func TestHeartbeaterReportsConfigTreeAndLogTargets(t *testing.T) {
 	}
 	if !seen[agentv1.HeartbeatRequest_LOG_TARGETS] {
 		t.Error("未见 LOG_TARGETS 上报（日志目标未上行）")
+	}
+}
+
+// TestHeartbeater_TriggerConfigTreePush 验证 T029：文件监听器触发即时配置树上报（不依赖周期）。
+// 用极大周期（10s）隔离周期采集，证明第 2 次 CONFIG_TREE 是触发器驱动而非周期 ticker。
+func TestHeartbeater_TriggerConfigTreePush(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := &recordingStream{
+		ctx:  ctx,
+		sent: make(chan *agentv1.HeartbeatRequest, 64),
+		cmds: make(chan *agentv1.HeartbeatResponse, 8),
+	}
+	cli := &fakeAgentClient{stream: stream}
+	hb := agent.NewHeartbeater(cli,
+		agent.HeartbeatConfig{Interval: 10 * time.Second, FsProbeInterval: 10 * time.Second},
+		agent.HeartbeatCallbacks{
+			ReportConfigTree: func(ctx context.Context) (*agentv1.ConfigTreeReport, error) {
+				return &agentv1.ConfigTreeReport{
+					CapturedAt: time.Now().Unix(),
+					Files:      []*agentv1.ConfigFile{{Path: "/etc/nginx/nginx.conf", Sha256: "abc", Size: 100}},
+				}, nil
+			},
+		}, nil)
+	go func() { _ = hb.Run(ctx) }()
+
+	// 先收到首轮（会话建立时立即跑一次）配置树上报
+	waitForType(t, stream, agentv1.HeartbeatRequest_CONFIG_TREE, 3*time.Second)
+
+	// 触发即时上报
+	hb.TriggerConfigTreePush()
+
+	// 触发后应再收到一次（共 2 次），且远早于 10s 周期 → 证明由触发器驱动
+	deadline := time.After(3 * time.Second)
+	got := 1
+	for got < 2 {
+		select {
+		case r := <-stream.sent:
+			if r.GetType() == agentv1.HeartbeatRequest_CONFIG_TREE {
+				got++
+			}
+		case <-deadline:
+			t.Fatal("触发后未在超时内收到第 2 次配置树上报（期望即时上报）")
+		}
+	}
+}
+
+// TestHeartbeater_WatchConfigChanges 验证 T029：WatchConfigChanges 把 watcher 与触发器绑成一调用，
+// 目录内新建文件经防抖后触发一次即时配置树上报。
+func TestHeartbeater_WatchConfigChanges(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dir := t.TempDir()
+	stream := &recordingStream{
+		ctx:  ctx,
+		sent: make(chan *agentv1.HeartbeatRequest, 64),
+		cmds: make(chan *agentv1.HeartbeatResponse, 8),
+	}
+	cli := &fakeAgentClient{stream: stream}
+	hb := agent.NewHeartbeater(cli,
+		agent.HeartbeatConfig{Interval: 10 * time.Second, FsProbeInterval: 10 * time.Second},
+		agent.HeartbeatCallbacks{
+			ReportConfigTree: func(ctx context.Context) (*agentv1.ConfigTreeReport, error) {
+				return &agentv1.ConfigTreeReport{
+					CapturedAt: time.Now().Unix(),
+					Files:      []*agentv1.ConfigFile{{Path: "/etc/nginx/nginx.conf", Sha256: "abc", Size: 100}},
+				}, nil
+			},
+		}, nil)
+	go func() { _ = hb.Run(ctx) }()
+
+	if _, err := hb.WatchConfigChanges(ctx, []string{dir}); err != nil {
+		t.Fatalf("WatchConfigChanges: %v", err)
+	}
+
+	// 等到首轮配置树上报
+	waitForType(t, stream, agentv1.HeartbeatRequest_CONFIG_TREE, 3*time.Second)
+
+	// 在监听目录内新建配置文件，应经防抖触发即时上报
+	mustWriteTmp(t, dir+"/api.conf", "server { listen 80; }")
+
+	deadline := time.After(4 * time.Second)
+	got := 1
+	for got < 2 {
+		select {
+		case r := <-stream.sent:
+			if r.GetType() == agentv1.HeartbeatRequest_CONFIG_TREE {
+				got++
+			}
+		case <-deadline:
+			t.Fatal("文件变更后未在超时内触发配置树上报")
+		}
+	}
+}
+
+// waitForType 阻塞直到 sent 通道出现指定类型的请求（用于断言即时上报）。
+func waitForType(t *testing.T, stream *recordingStream, typ agentv1.HeartbeatRequest_Type, timeout time.Duration) {
+	t.Helper()
+	deadline := time.After(timeout)
+	for {
+		select {
+		case r := <-stream.sent:
+			if r.GetType() == typ {
+				return
+			}
+		case <-deadline:
+			t.Fatalf("超时未收到类型 %v", typ)
+		}
+	}
+}
+
+// mustWriteTmp 在临时目录写文件（T029 集成测试用）。
+func mustWriteTmp(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }

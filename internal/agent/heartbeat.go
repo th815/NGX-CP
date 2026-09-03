@@ -21,6 +21,7 @@ import (
 	"time"
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
+	"github.com/th/ngxcp/internal/agent/watcher"
 )
 
 // HeartbeatConfig 心跳客户端参数（由控制面 Register 响应下发，与 proto ServerConfig 对齐）。
@@ -56,6 +57,10 @@ type Heartbeater struct {
 	cfg HeartbeatConfig
 	cb  HeartbeatCallbacks
 	log *slog.Logger
+
+	// configTreeTrigger 由文件监听器（T029）在检测到配置变更时触发，立即经心跳流上报一次配置树，
+	// 控制面据此做漂移检测。非阻塞、可丢弃（缓冲 1，满则丢弃最旧）。
+	configTreeTrigger chan struct{}
 }
 
 // NewHeartbeater 构造心跳客户端。
@@ -75,7 +80,16 @@ func NewHeartbeater(cli agentv1.AgentServiceClient, cfg HeartbeatConfig, cb Hear
 	if cfg.FsProbeInterval <= 0 {
 		cfg.FsProbeInterval = 6 * cfg.Interval
 	}
-	return &Heartbeater{cli: cli, cfg: cfg, cb: cb, log: log}
+	return &Heartbeater{cli: cli, cfg: cfg, cb: cb, log: log, configTreeTrigger: make(chan struct{}, 1)}
+}
+
+// TriggerConfigTreePush 由文件监听器（T029）在检测到配置变更后调用，触发一次即时配置树上报。
+// 非阻塞：若上一次触发尚未被主循环消费，则丢弃本次（下一次周期/触发会再覆盖）。
+func (h *Heartbeater) TriggerConfigTreePush() {
+	select {
+	case h.configTreeTrigger <- struct{}{}:
+	default:
+	}
 }
 
 // Run 启动心跳循环，直到 ctx 取消。内部对每次连接失败做指数退避重连。
@@ -269,6 +283,18 @@ func (h *Heartbeater) session(ctx context.Context) error {
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CONFIG_TREE, rep); serr != nil {
 				return serr
 			}
+		case <-h.configTreeTrigger:
+			// T029：文件监听器触发，立即重新采集并上报配置树（控制面据此做漂移检测）。
+			if h.cb.ReportConfigTree != nil {
+				rep, rerr := h.cb.ReportConfigTree(ctx)
+				if rerr != nil {
+					h.log.Warn("config tree collect failed (triggered)", "err", rerr)
+					continue
+				}
+				if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CONFIG_TREE, rep); serr != nil {
+					return serr
+				}
+			}
 		case rep := <-logTargetsOut:
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_LOG_TARGETS, rep); serr != nil {
 				return serr
@@ -321,6 +347,25 @@ func (h *Heartbeater) handleCommand(ctx context.Context, resp *agentv1.Heartbeat
 	default:
 		// NONE 等：无需动作。
 	}
+}
+
+// WatchConfigChanges 启动配置文件监听器（T029）：节点上 nginx 配置被改动时，经心跳流立即触发一次
+// 配置树上报，控制面据此做漂移检测。监听在 ctx 取消时自动停止。返回监听器以便上层主动 Stop。
+func (h *Heartbeater) WatchConfigChanges(ctx context.Context, paths []string) (*watcher.Watcher, error) {
+	w, err := watcher.NewWatcher(paths, func(evt watcher.ConfigChangeEvent) {
+		h.log.Info("nginx config changed, triggering immediate config-tree push",
+			"path", evt.Path, "op", evt.Op)
+		h.TriggerConfigTreePush()
+	})
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		if werr := w.Start(ctx); werr != nil && ctx.Err() == nil {
+			h.log.Warn("config watcher exited with error", "err", werr)
+		}
+	}()
+	return w, nil
 }
 
 // sendPing 发送一次带本地时间戳的 PING（控制面据此计算时钟偏差）。
