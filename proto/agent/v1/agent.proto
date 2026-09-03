@@ -12,7 +12,7 @@ service AgentService {
   // 此时 Agent 尚无客户端证书，故该 RPC 通过 TLS + token 鉴权（拦截器跳过客户端证书校验）。
   rpc Register(RegisterRequest) returns (RegisterResponse);
 
-  // Heartbeat：双向流。Agent 周期上报；控制面可随时下发指令（刷新能力 / 跑合规）。
+  // Heartbeat：双向流。Agent 周期上报；控制面可随时下发指令（刷新能力 / 跑合规 / 校验 / 快照）。
   rpc Heartbeat(stream HeartbeatRequest) returns (stream HeartbeatResponse);
 
   // ReportCapability：Agent 主动上报完整能力基线（注册后首次 / 定时 / 配置变更）。
@@ -49,6 +49,7 @@ message HeartbeatRequest {
     CONFIG_TREE = 5;              // T018：nginx -T 配置树上报
     LOG_TARGETS = 6;              // T018：日志采集目标上报
     CONFIG_VALIDATE = 7;          // T024：nginx -t 校验结果上报
+    SNAPSHOT = 8;                  // T031：快照结果上报（create / restore）
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
@@ -59,6 +60,7 @@ message HeartbeatRequest {
   ConfigTreeReport config_tree = 7;   // T018：nginx -T 配置树
   LogTargetsReport log_targets = 8;   // T018：日志采集目标清单
   ValidateResult validate_result = 9; // T024：nginx -t 校验结果
+  SnapshotResult snapshot_result = 10;  // T031：快照（create / restore）结果
 }
 
 message HeartbeatResponse {
@@ -67,11 +69,17 @@ message HeartbeatResponse {
     REFRESH_CAPABILITY = 1; // 让 Agent 重新跑 nginx -V / -T 并上报
     RUN_COMPLIANCE = 2;     // 让 Agent 重新跑 DR 合规自检
     VALIDATE_CONFIG = 3;    // T024：让 Agent 在本地跑 nginx -t 校验（带待校验文件）
+    CREATE_SNAPSHOT = 4;    // T031：让 Agent 在本地抓配置快照（变更前回滚点）
+    RESTORE_SNAPSHOT = 5;   // T031：让 Agent 从快照恢复配置
   }
   Command command = 1;
   string task_id = 2;       // 幂等键，防止重放
   // T024：VALIDATE_CONFIG 命令携带的校验任务（待校验文件 + 运行参数）。
   ValidateTask validate_task = 3;
+  // T031：CREATE_SNAPSHOT 命令携带的快照任务（要抓取的路径 + 参数）。
+  SnapshotCreateTask snapshot_create = 4;
+  // T031：RESTORE_SNAPSHOT 命令携带的恢复任务（目标 tar.gz + 根）。
+  SnapshotRestoreTask snapshot_restore = 5;
 }
 
 message CapabilityReport {
@@ -229,4 +237,35 @@ message ValidateResult {
   bool ok = 2;                  // 语法是否通过
   repeated NginxError errors = 3; // 结构化错误（ok=false 时有内容）
   string raw = 4;              // nginx -t 原始输出
+}
+
+// ===== T031：发布前快照（Agent 侧） =====
+// 快照是"一次变更可回滚"的根基：变更前在节点抓配置 tar.gz（含权限/属主元数据），
+// 恢复时才能原样还原（只存内容会导致 nginx 读不了配置）。
+// 指令经 Heartbeat 命令通道下发（Agent 主动外连，无入站端口），与 T024 校验同构。
+
+// SnapshotCreateTask 是控制面下发给 Agent 的快照任务。
+message SnapshotCreateTask {
+  string task_id = 1;          // 幂等键，结果回传时原样带回
+  repeated string paths = 2;   // 要快照的目录/文件绝对路径，如 /etc/nginx、/etc/keepalived
+  bool include_ssl = 3;        // 是否含各根下的 ssl 子目录（默认 false，证书走独立生命周期）
+  string staging_dir = 4;      // tar 生成目录（建议与目标分区同盘），空则 Agent 取默认
+  int64 change_order_id = 5;   // 关联变更单（pre_deploy 时必填，便于回滚时定位）
+  string type = 6;             // pre_deploy | manual | scheduled
+}
+
+// SnapshotRestoreTask 是控制面下发给 Agent 的恢复任务。
+message SnapshotRestoreTask {
+  string task_id = 1;          // 幂等键
+  string tar_path = 2;         // 先前快照生成的 tar.gz 绝对路径（由 create 结果回传）
+  string root = 3;             // 恢复根目录，默认 /（落回原绝对路径）
+}
+
+// SnapshotResult 是 Agent 回传的快照结果。
+message SnapshotResult {
+  string task_id = 1;
+  bool ok = 2;                 // 是否成功
+  string path = 3;             // 生成的 tar.gz 绝对路径（create 成功时填充）
+  int64 size = 4;              // tar.gz 字节数（create 成功时填充）
+  string error = 5;            // 失败原因（ok=false 时）
 }

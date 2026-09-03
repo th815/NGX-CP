@@ -115,7 +115,7 @@ go test ./internal/domain/deploy/... -run TestTransition -race -v   # 竞态检�
 
 ---
 
-## T031 · 发布前快照
+## T031 · 发布前快照 ✅ 已完成（2026-09-04）
 
 **目标**：变更前保存可恢复的完整状态。
 
@@ -123,11 +123,20 @@ go test ./internal/domain/deploy/... -run TestTransition -race -v   # 竞态检�
 
 **涉及文件**：
 ```
-internal/domain/backup/snapshot.go
-internal/agent/executor/snapshot.go
-internal/agent/executor/snapshot_test.go
-proto/agent/v1/agent.proto        # 追加 CreateSnapshot / RestoreSnapshot
+internal/domain/backup/snapshot.go        # 领域模型 + 保留策略（纯函数，已单测）
+internal/agent/executor/snapshot.go        # Agent 侧 tar+gzip 执行器（含权限/属主还原）
+internal/agent/executor/snapshot_test.go   # 创建/恢复/SSL 开关三测
+internal/domain/backup/snapshot_test.go    # 保留策略单测
+proto/agent/v1/agent.proto                 # 追加 CREATE_SNAPSHOT / RESTORE_SNAPSHOT 命令 + 消息
 ```
+
+**架构决策 ⚠️（与原任务注释的差异）**：原任务注释写「追加 `CreateSnapshot`/`RestoreSnapshot` RPC」。
+但本项目 Agent 是**主动外连**、节点**不开放入站端口**，控制面无法主动调用 Agent 的 RPC；
+且现有 T024 校验已确立「命令经 Heartbeat 双向流下发」的同构模式。因此 T031 复用该模式：
+在 `HeartbeatResponse.Command` 增加 `CREATE_SNAPSHOT=4` / `RESTORE_SNAPSHOT=5`，
+分别携带 `SnapshotCreateTask` / `SnapshotRestoreTask`，结果经 `HeartbeatRequest.SnapshotResult` 回传。
+`gen/agent/v1` 代码因本机未装 `protoc` 尚未重新生成——proto 文本即契约事实来源，
+**控制面下发命令 / Agent 接线的端到端集成推到 T032（原子落盘）一并落地**。
 
 **契约**：
 
