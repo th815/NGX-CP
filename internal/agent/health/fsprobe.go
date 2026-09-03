@@ -6,6 +6,7 @@ package health
 import (
 	"context"
 	"fmt"
+	"github.com/th/ngxcp/internal/agent/hostexec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -57,7 +58,7 @@ type probeRule = probe.RuleDef
 
 // RunFsProbe 在主机上执行日志/文件系统健康探测，返回控制面约定的 FsProbeReport。
 // 规则目录复用 internal/domain/probe.Catalog。
-func RunFsProbe(ctx context.Context, exec CommandExecutor, opts FsProbeOpts) (*agentv1.FsProbeReport, error) {
+func RunFsProbe(ctx context.Context, exec hostexec.CommandExecutor, opts FsProbeOpts) (*agentv1.FsProbeReport, error) {
 	opts.defaults()
 	items := make([]*agentv1.ComplianceItem, 0, len(probe.Catalog))
 	for _, rule := range probe.Catalog {
@@ -91,7 +92,7 @@ func RunFsProbe(ctx context.Context, exec CommandExecutor, opts FsProbeOpts) (*a
 }
 
 // checkDiskUsage 检查 nginx 相关挂载点（prefix/conf/log）磁盘使用率 < 阈值。
-func checkDiskUsage(exec CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
+func checkDiskUsage(exec hostexec.CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
 	paths := []string{opts.NginxPrefix, filepath.Dir(opts.NginxConfPath)}
 	if opts.NginxErrorLog != "" {
 		paths = append(paths, filepath.Dir(opts.NginxErrorLog))
@@ -152,7 +153,7 @@ var reEnddate = regexp.MustCompile(`notAfter=\s*(.+)`)
 var reErrLevel = regexp.MustCompile(`(?i)\b(error|crit|emerg|alert)\b`)
 
 // checkCertExpiry 扫描证书目录，检查全部证书剩余有效期 > 阈值（与 PKI 续签联动）。
-func checkCertExpiry(exec CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
+func checkCertExpiry(exec hostexec.CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
 	if !exec.Exists(opts.SslDir) {
 		it.Passed = true
 		it.Actual = "未找到证书目录（节点暂不托管证书），跳过"
@@ -196,7 +197,7 @@ func checkCertExpiry(exec CommandExecutor, opts FsProbeOpts, it *agentv1.Complia
 }
 
 // listCertFiles 列出目录下的证书文件（.crt/.pem/.cert）。
-func listCertFiles(exec CommandExecutor, dir string) []string {
+func listCertFiles(exec hostexec.CommandExecutor, dir string) []string {
 	names, err := exec.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -212,7 +213,7 @@ func listCertFiles(exec CommandExecutor, dir string) []string {
 }
 
 // checkConfigWritable 检查 /etc/nginx 与 ssl 目录权限非全局可写（防越权篡改）。
-func checkConfigWritable(exec CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
+func checkConfigWritable(exec hostexec.CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
 	targets := []string{opts.NginxPrefix, opts.SslDir}
 	bad := make([]string, 0)
 	for _, t := range targets {
@@ -238,7 +239,7 @@ func checkConfigWritable(exec CommandExecutor, opts FsProbeOpts, it *agentv1.Com
 }
 
 // checkLogDirWritable 检查 nginx 日志目录可写（否则启动失败或丢日志）。
-func checkLogDirWritable(exec CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
+func checkLogDirWritable(exec hostexec.CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
 	dir := "/var/log/nginx"
 	if opts.NginxErrorLog != "" {
 		dir = filepath.Dir(opts.NginxErrorLog)
@@ -253,7 +254,7 @@ func checkLogDirWritable(exec CommandExecutor, opts FsProbeOpts, it *agentv1.Com
 }
 
 // checkErrorLogGrowth 检查 error.log 近窗口内错误级别行数是否雪崩（早期预警，warning 级不阻断）。
-func checkErrorLogGrowth(exec CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
+func checkErrorLogGrowth(exec hostexec.CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
 	if opts.NginxErrorLog == "" {
 		it.Passed = true
 		it.Actual = "未配置 error_log 路径，跳过"
@@ -287,7 +288,7 @@ func checkErrorLogGrowth(exec CommandExecutor, opts FsProbeOpts, it *agentv1.Com
 }
 
 // checkPidFile 检查 nginx pid 文件存在（运行态正常性参考，warning 级不阻断）。
-func checkPidFile(exec CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
+func checkPidFile(exec hostexec.CommandExecutor, opts FsProbeOpts, it *agentv1.ComplianceItem) {
 	if exec.Exists(opts.NginxPidPath) {
 		it.Passed = true
 		it.Actual = fmt.Sprintf("%s 存在", opts.NginxPidPath)

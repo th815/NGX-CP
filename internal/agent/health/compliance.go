@@ -6,6 +6,7 @@ package health
 import (
 	"context"
 	"fmt"
+	"github.com/th/ngxcp/internal/agent/hostexec"
 	"regexp"
 	"strings"
 	"time"
@@ -42,7 +43,7 @@ type complianceRule = compliance.RuleDef
 // RunCompliance 在主机上执行 DR 合规自检，返回控制面约定的 ComplianceReport。
 // 规则目录（name/severity/期望/修复命令）复用 internal/domain/compliance.Catalog，
 // 确保所有项的元信息与控制面判定侧完全一致。
-func RunCompliance(ctx context.Context, exec CommandExecutor, opts ComplianceOpts) (*agentv1.ComplianceReport, error) {
+func RunCompliance(ctx context.Context, exec hostexec.CommandExecutor, opts ComplianceOpts) (*agentv1.ComplianceReport, error) {
 	if opts.KeepalivedConfPath == "" {
 		opts.KeepalivedConfPath = "/etc/keepalived/keepalived.conf"
 	}
@@ -78,7 +79,7 @@ func RunCompliance(ctx context.Context, exec CommandExecutor, opts ComplianceOpt
 }
 
 // checkVIPOnLo 检查 VIP 是否绑定在 lo 接口且为 /32（LVS-DR 的 ARP 隔离前提）。
-func checkVIPOnLo(exec CommandExecutor, vips []string, it *agentv1.ComplianceItem) {
+func checkVIPOnLo(exec hostexec.CommandExecutor, vips []string, it *agentv1.ComplianceItem) {
 	if len(vips) == 0 {
 		it.Passed = true
 		it.Actual = "未配置 VIP（如非 LVS-DR RS 角色），跳过"
@@ -107,7 +108,7 @@ func checkVIPOnLo(exec CommandExecutor, vips []string, it *agentv1.ComplianceIte
 }
 
 // checkARPSuppress 检查 RS 内核 ARP 抑制：arp_ignore=1 且 arp_announce=2。
-func checkARPSuppress(exec CommandExecutor, it *agentv1.ComplianceItem) {
+func checkARPSuppress(exec hostexec.CommandExecutor, it *agentv1.ComplianceItem) {
 	ignore, _ := exec.Output(context.Background(), "sysctl", "-n", "net.ipv4.conf.all.arp_ignore")
 	announce, _ := exec.Output(context.Background(), "sysctl", "-n", "net.ipv4.conf.all.arp_announce")
 	ignore = strings.TrimSpace(ignore)
@@ -122,7 +123,7 @@ func checkARPSuppress(exec CommandExecutor, it *agentv1.ComplianceItem) {
 }
 
 // checkKeepalivedUnicast 检查 Keepalived VRRP 使用 unicast 且无 multicast 配置。
-func checkKeepalivedUnicast(exec CommandExecutor, opts ComplianceOpts, it *agentv1.ComplianceItem) {
+func checkKeepalivedUnicast(exec hostexec.CommandExecutor, opts ComplianceOpts, it *agentv1.ComplianceItem) {
 	if !exec.Exists(opts.KeepalivedConfPath) {
 		it.Passed = true
 		it.Actual = "未找到 keepalived.conf（节点未部署 keepalived），跳过"
@@ -146,7 +147,7 @@ func checkKeepalivedUnicast(exec CommandExecutor, opts ComplianceOpts, it *agent
 }
 
 // checkNoAHAuth 检查 Keepalived 未引用已移除的 AH 认证（Keepalived 2.x 已移除）。
-func checkNoAHAuth(exec CommandExecutor, opts ComplianceOpts, it *agentv1.ComplianceItem) {
+func checkNoAHAuth(exec hostexec.CommandExecutor, opts ComplianceOpts, it *agentv1.ComplianceItem) {
 	if !exec.Exists(opts.KeepalivedConfPath) {
 		it.Passed = true
 		it.Actual = "未找到 keepalived.conf，跳过"
@@ -170,7 +171,7 @@ func checkNoAHAuth(exec CommandExecutor, opts ComplianceOpts, it *agentv1.Compli
 
 // checkTimeSync 检查节点间时钟同步（偏差 ≤1s，与心跳时钟偏差联动）。
 // 优先 timedatectl（systemd）；不可用则回退 chronyd 服务态；均不可用则按 warning 不阻断。
-func checkTimeSync(exec CommandExecutor, it *agentv1.ComplianceItem) {
+func checkTimeSync(exec hostexec.CommandExecutor, it *agentv1.ComplianceItem) {
 	if out, err := exec.Output(context.Background(), "timedatectl", "show", "-p", "NTPSynchronized", "--value"); err == nil {
 		if strings.TrimSpace(out) == "yes" {
 			it.Passed = true

@@ -19,12 +19,12 @@ var ErrNginxNotFound = errors.New("nginx 未安装或不可执行")
 
 // NginxInfo 是 `nginx -V` 解析出的能力基线。
 type NginxInfo struct {
-	Version        string   `json:"version"`         // "1.30.0"
-	BinaryPath     string   `json:"binary_path"`     // /usr/sbin/nginx
-	ConfigureArgs  string   `json:"configure_args"`  // 原始 --prefix=... 整串
-	Prefix         string   `json:"prefix"`          // /etc/nginx
-	ConfPath       string   `json:"conf_path"`       // /etc/nginx/nginx.conf
-	SbinPath       string   `json:"sbin_path"`       // /usr/sbin/nginx
+	Version        string   `json:"version"`        // "1.30.0"
+	BinaryPath     string   `json:"binary_path"`    // /usr/sbin/nginx
+	ConfigureArgs  string   `json:"configure_args"` // 原始 --prefix=... 整串
+	Prefix         string   `json:"prefix"`         // /etc/nginx
+	ConfPath       string   `json:"conf_path"`      // /etc/nginx/nginx.conf
+	SbinPath       string   `json:"sbin_path"`      // /usr/sbin/nginx
 	PidPath        string   `json:"pid_path"`
 	LockPath       string   `json:"lock_path"`
 	ErrorLogPath   string   `json:"error_log_path"`

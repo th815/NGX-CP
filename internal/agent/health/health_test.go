@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright (c) 2026 tianhao
+// Copyright 2026 tianhao
 
 package health_test
 
@@ -12,14 +12,15 @@ import (
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/internal/agent/health"
+	"github.com/th/ngxcp/internal/agent/hostexec"
 )
 
-// fakeExecutor 实现 health.CommandExecutor，按命令/路径返回预置结果，便于纯逻辑测试。
+// fakeExecutor 实现 hostexec.CommandExecutor，按命令/路径返回预置结果，便于纯逻辑测试。
 type fakeExecutor struct {
 	outputs  map[string]string // key: "name arg1 arg2 ..."
 	cmdErr   map[string]bool   // 该命令返回错误（模拟命令不存在/失败）
 	exists   map[string]bool
-	stats    map[string]health.FileInfo
+	stats    map[string]hostexec.FileInfo
 	writable map[string]bool
 	dirs     map[string][]string
 	files    map[string]string // path -> content
@@ -30,7 +31,7 @@ func newFake() *fakeExecutor {
 		outputs:  map[string]string{},
 		cmdErr:   map[string]bool{},
 		exists:   map[string]bool{},
-		stats:    map[string]health.FileInfo{},
+		stats:    map[string]hostexec.FileInfo{},
 		writable: map[string]bool{},
 		dirs:     map[string][]string{},
 		files:    map[string]string{},
@@ -52,18 +53,18 @@ func (f *fakeExecutor) Output(_ context.Context, name string, args ...string) (s
 	return "", fmt.Errorf("unexpected command: %s", key)
 }
 
-func (f *fakeExecutor) Stat(path string) (health.FileInfo, error) {
+func (f *fakeExecutor) Stat(path string) (hostexec.FileInfo, error) {
 	if fi, ok := f.stats[path]; ok {
 		return fi, nil
 	}
 	if f.exists[path] {
-		return health.FileInfo{Exists: true}, nil
+		return hostexec.FileInfo{Exists: true}, nil
 	}
-	return health.FileInfo{Exists: false}, nil
+	return hostexec.FileInfo{Exists: false}, nil
 }
 
-func (f *fakeExecutor) Exists(path string) bool                       { return f.exists[path] }
-func (f *fakeExecutor) IsWritableDir(path string) bool                { return f.writable[path] }
+func (f *fakeExecutor) Exists(path string) bool        { return f.exists[path] }
+func (f *fakeExecutor) IsWritableDir(path string) bool { return f.writable[path] }
 func (f *fakeExecutor) ReadDir(dir string) ([]string, error) {
 	if d, ok := f.dirs[dir]; ok {
 		return d, nil
@@ -255,8 +256,8 @@ func TestRunFsProbe(t *testing.T) {
 		f := newFake()
 		f.exists["/etc/nginx"] = true
 		f.exists["/etc/nginx/ssl"] = true
-		f.stats["/etc/nginx"] = health.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o755), WorldWritable: false}
-		f.stats["/etc/nginx/ssl"] = health.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o755), WorldWritable: false}
+		f.stats["/etc/nginx"] = hostexec.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o755), WorldWritable: false}
+		f.stats["/etc/nginx/ssl"] = hostexec.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o755), WorldWritable: false}
 		rep, _ := health.RunFsProbe(ctx, f, health.FsProbeOpts{})
 		if !findItem(t, "config_world_writable", rep.GetItems()) {
 			t.Error("权限非全局可写应通过")
@@ -264,9 +265,9 @@ func TestRunFsProbe(t *testing.T) {
 
 		f2 := newFake()
 		f2.exists["/etc/nginx"] = true
-		f2.stats["/etc/nginx"] = health.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o777), WorldWritable: true}
+		f2.stats["/etc/nginx"] = hostexec.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o777), WorldWritable: true}
 		f2.exists["/etc/nginx/ssl"] = true
-		f2.stats["/etc/nginx/ssl"] = health.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o755), WorldWritable: false}
+		f2.stats["/etc/nginx/ssl"] = hostexec.FileInfo{Exists: true, IsDir: true, Mode: os.FileMode(0o755), WorldWritable: false}
 		rep2, _ := health.RunFsProbe(ctx, f2, health.FsProbeOpts{})
 		if findItem(t, "config_world_writable", rep2.GetItems()) {
 			t.Error("全局可写应判定不通过")
