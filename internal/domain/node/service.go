@@ -34,6 +34,9 @@ type Service struct {
 	// T018-A 元数据快照，不写入版本链；早期单测与 gRPC 单测据此跳过版本化路径）。
 	cfgStore *config.ConfigStore
 
+	// drift 是 T026 配置漂移检测器（可空：未注入时 SaveConfigTree 仅同步版本链，不做漂移检测）。
+	drift *config.DriftDetector
+
 	mu     sync.RWMutex
 	tokens map[string]*enrollToken
 
@@ -56,6 +59,11 @@ func New(client *ent.Client, cfgStore *config.ConfigStore) *Service {
 		compReports: make(map[int]*agentv1.ComplianceReport),
 		fsReports:   make(map[int]*agentv1.FsProbeReport),
 	}
+}
+
+// SetDriftDetector 注入 T026 漂移检测器（可空：未注入时 SaveConfigTree 不做漂移检测）。
+func (s *Service) SetDriftDetector(d *config.DriftDetector) {
+	s.drift = d
 }
 
 // Client 暴露底层 ent 客户端，供审计中间件等复用同一连接（避免重复持有）。
@@ -699,6 +707,25 @@ func (s *Service) SaveConfigTree(ctx context.Context, id int, files []*agentv1.C
 	if s.cfgStore != nil {
 		if _, err := s.cfgStore.SyncFromAgent(ctx, id, files); err != nil {
 			return apperr.Wrap(apperr.CodeInternal, "同步配置版本化存储失败", err)
+		}
+	}
+	// T026：配置树上报即触发漂移检测（契合"在心跳/上报时检测，不每次跑 nginx -T"）。
+	// 以 Agent 上报的实际内容为 actual，与平台期望版本做 SHA 级比对。
+	// 检测失败降级为告警而非阻断同步（配置树已落库，漂移下次巡检仍可捕获）。
+	if s.drift != nil {
+		reported := make([]config.ReportedConfigFile, 0, len(files))
+		for _, f := range files {
+			if f == nil {
+				continue
+			}
+			reported = append(reported, config.ReportedConfigFile{
+				Path:    f.GetPath(),
+				SHA:     f.GetSha256(),
+				Content: f.GetContent(),
+			})
+		}
+		if _, derr := s.drift.RecordActual(ctx, id, reported); derr != nil {
+			slog.Default().Warn("drift detection skipped after config sync", "node_id", id, "err", derr)
 		}
 	}
 	return nil

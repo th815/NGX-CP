@@ -89,9 +89,34 @@ func Run(cfg *config.Config) error {
 	rulesCfg, _ := rules.LoadConfig("configs/rules.yaml")
 	semantic := configstore.NewSemanticChecker(client, cfgStore, rulesCfg)
 
+	// T026 漂移检测器：复用 cfgStore + ent 客户端；在 SaveConfigTree 配置树上报时即时检测，
+	// 并由 worker 定时巡检（默认 5 分钟）。severity 规则由 App 配置映射而来。
+	severityRules := make([]configstore.SeverityRule, 0, len(cfg.DriftSeverityRules))
+	for _, r := range cfg.DriftSeverityRules {
+		severityRules = append(severityRules, configstore.SeverityRule{
+			PathPattern: r.PathPattern,
+			Severity:    r.Severity,
+		})
+	}
+	driftCfg := configstore.DriftConfig{
+		CheckInterval: cfg.DriftCheckInterval,
+		AutoAlert:     cfg.DriftAutoAlert,
+		AutoRemediate: cfg.DriftAutoRemediate,
+		SeverityRules: severityRules,
+	}
+	driftDetector := configstore.NewDriftDetector(client, cfgStore, driftCfg)
+	nodeSvc.SetDriftDetector(driftDetector)
+
+	// T026 漂移定时巡检：ctx 取消即退出（与进程同生命周期）。
+	go func() {
+		if err := driftDetector.RunWorker(ctx, driftCfg.CheckInterval); err != nil && ctx.Err() == nil {
+			logging.Ctx(nil).Error().Err(err).Msg("drift worker exited unexpectedly")
+		}
+	}()
+
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv, semantic)
+	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector)
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
 }

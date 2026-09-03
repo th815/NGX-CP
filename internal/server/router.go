@@ -19,7 +19,8 @@ import (
 // cfgStore 为 T021 配置版本化存储（与 nodeSvc 共用同一 ent 客户端）。
 // validator 为 T024 校验触发入口（*transport.Server 经心跳命令流驱动 Agent 跑 nginx -t）。
 // semantic 为 T025 语义校验器（复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎）。
-func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker) *gin.Engine {
+// drift 为 T026 漂移检测器（复用 cfgStore + ent 客户端，在配置树上报时即时检测 + 定时巡检）。
+func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -71,6 +72,11 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			cs.POST("/validate", auth, vh.Validate)
 			// T025 语义校验：对节点当前配置跑规则引擎（读类分析，需鉴权）。
 			cs.POST("/semantic-check", auth, vh.SemanticCheck)
+
+			// T026 漂移检测：读报告免鉴权；手动提交 actual 触发检测需鉴权。
+			dh := handler.NewDriftHandler(drift)
+			cs.GET("/drift", dh.ListDrift)                  // ?node_id=1 或全量
+			cs.POST("/drift", auth, dh.CheckDrift)         // 手动提交 actual 触发检测
 		}
 	}
 	return r

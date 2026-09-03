@@ -35,3 +35,13 @@ security_session_secret: "change-me-in-prod"
 auth_admin_token: "dev-admin-token"
 # 开发态自动建表；生产置 false 并改用 make migrate-dev。
 db_auto_migrate: true
+
+# T026 配置漂移检测
+drift_check_interval: "5m"   # 定时巡检间隔（控制面内存比对，不每次跑 nginx -T）
+drift_auto_alert: true       # 检出漂移时告警（Warn 日志；告警中心随 M5 接入）
+drift_auto_remediate: false  # ★ 默认绝不自动修复：手工改动可能是紧急修复，自动覆盖会毁掉它
+drift_severity_rules:
+  - path_pattern: "conf.d/*.conf"
+    severity: "critical"
+  - path_pattern: "nginx.conf"
+    severity: "critical"

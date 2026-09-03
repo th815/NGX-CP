@@ -396,6 +396,47 @@ func (s *ConfigStore) currentRevision(ctx context.Context, cf *ent.ConfigFile) (
 	return rev, nil
 }
 
+// ExpectedRevision 返回平台「期望」版本：漂移检测的对比基准。
+//
+// 设计要点：SyncFromAgent 每次都会把 current_revision_id 覆盖为最新一次 sync（节点实际上报），
+// 若直接拿 current_revision 当「期望」，平台会悄悄"采纳"手工改动、漂移永远检不出。
+// 因此基准优先取**最近一次平台主动产生的版本**（manual_edit / cert_renew / security_block /
+// rollback）；节点从未被平台主动改过时才回退到**最早一次 sync**（首次纳管基线）。
+// 这样手工在节点上 vi 改配置 → 新的 sync 版本与基线/平台版本 SHA 不符 → 持久化漂移告警。
+func (s *ConfigStore) ExpectedRevision(ctx context.Context, nodeID int, path string) (*ent.ConfigRevision, error) {
+	managed, err := s.client.ConfigRevision.Query().
+		Where(
+			configrevision.NodeID(nodeID),
+			configrevision.Path(path),
+			configrevision.SourceIn(
+				configrevision.SourceManualEdit,
+				configrevision.SourceCertRenew,
+				configrevision.SourceSecurityBlock,
+				configrevision.SourceRollback,
+			),
+		).
+		Order(ent.Desc("created_at")).
+		First(ctx)
+	if err == nil {
+		return managed, nil
+	}
+	if !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("query managed revision %s: %w", path, err)
+	}
+	// 无平台主动版本 → 回退到最早一次 sync 基线。
+	baseline, berr := s.client.ConfigRevision.Query().
+		Where(configrevision.NodeID(nodeID), configrevision.Path(path), configrevision.SourceEQ(configrevision.SourceSync)).
+		Order(ent.Asc("created_at")).
+		First(ctx)
+	if berr != nil {
+		if ent.IsNotFound(berr) {
+			return nil, nil // 该路径没有任何版本
+		}
+		return nil, fmt.Errorf("query baseline revision %s: %w", path, berr)
+	}
+	return baseline, nil
+}
+
 // fileToView 填充单个配置文件的完整视图（含当前版本内容与摘要）。
 func (s *ConfigStore) fileToView(ctx context.Context, f *ent.ConfigFile) (*FileView, error) {
 	v := &FileView{

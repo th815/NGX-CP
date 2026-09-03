@@ -56,6 +56,18 @@ type Config struct {
 	AgentReconnectBase     time.Duration `mapstructure:"agent_reconnect_base"`     // 重连指数退避基数，默认 1s
 	AgentReconnectMax      time.Duration `mapstructure:"agent_reconnect_max"`      // 重连退避上限，默认 60s
 	AgentClockSkewWarn     time.Duration `mapstructure:"agent_clock_skew_warn"`    // 时钟偏差告警阈值，默认 1s
+
+	// 漂移检测（T026）。默认 5 分钟巡检、告警开启、绝不自动修复（手工改动可能是紧急修复）。
+	DriftCheckInterval time.Duration        `mapstructure:"drift_check_interval"` // 定时巡检间隔，默认 5m
+	DriftAutoAlert     bool                 `mapstructure:"drift_auto_alert"`     // 检出漂移时告警（Warn 日志），默认 true
+	DriftAutoRemediate bool                 `mapstructure:"drift_auto_remediate"` // ★ 默认 false：绝不自动覆盖节点配置
+	DriftSeverityRules []DriftSeverityRule `mapstructure:"drift_severity_rules"` // 路径模式 → 严重级别
+}
+
+// DriftSeverityRule 是「路径模式 → 严重级别」映射（配置项，供 T026 漂移检测使用）。
+type DriftSeverityRule struct {
+	PathPattern string `mapstructure:"path_pattern" yaml:"path_pattern" json:"path_pattern"`
+	Severity    string `mapstructure:"severity" yaml:"severity" json:"severity"` // critical | warning
 }
 
 // Load 读取配置文件（可选）并叠加环境变量覆盖。环境变量前缀 NGXCP_，. 替换为 _。
@@ -89,6 +101,15 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("agent_reconnect_base", 1*time.Second)
 	v.SetDefault("agent_reconnect_max", 60*time.Second)
 	v.SetDefault("agent_clock_skew_warn", 1*time.Second)
+
+	// T026 漂移检测默认值：5 分钟巡检、告警开启、不自动修复、conf.d/*.conf 与 nginx.conf 为 critical。
+	v.SetDefault("drift_check_interval", 5*time.Minute)
+	v.SetDefault("drift_auto_alert", true)
+	v.SetDefault("drift_auto_remediate", false)
+	v.SetDefault("drift_severity_rules", []DriftSeverityRule{
+		{PathPattern: "nginx.conf", Severity: "critical"},
+		{PathPattern: "conf.d/*.conf", Severity: "critical"},
+	})
 
 	if path != "" {
 		v.SetConfigFile(path)
