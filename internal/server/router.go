@@ -2,7 +2,6 @@ package server
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/th/ngxcp/ent"
 	"github.com/th/ngxcp/internal/config"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/server/handler"
@@ -13,12 +12,13 @@ import (
 
 // buildRouter 构建 gin 引擎：中间件 + 路由（M1 节点域）。
 // 鉴权策略（M1 最小可用）：只读接口放开，写接口与接入令牌需 Bearer 令牌。
-func buildRouter(cfg *config.Config, client *ent.Client) *gin.Engine {
+// nodeSvc 必须与 Agent gRPC 服务共用同一实例——接入令牌的内存表在两处共享（HTTP 签发 / gRPC 校验）。
+func buildRouter(cfg *config.Config, nodeSvc *node.Service) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
 	r.Use(middleware.RequestLogger())
-	r.Use(middleware.Audit(client))
+	r.Use(middleware.Audit(nodeSvc.Client()))
 
 	r.GET("/health", func(c *gin.Context) {
 		response.OK(c, gin.H{"status": "ok"})
@@ -30,7 +30,7 @@ func buildRouter(cfg *config.Config, client *ent.Client) *gin.Engine {
 			response.OK(c, gin.H{"version": version.String()})
 		})
 
-		nh := handler.NewNodeHandler(node.New(client))
+		nh := handler.NewNodeHandler(nodeSvc)
 		ns := v1.Group("/nodes")
 		{
 			// 只读

@@ -115,6 +115,9 @@ func newCAFromPEM(certPEM, keyPEM, serverCertPEM, serverKeyPEM []byte) (*CA, err
 // CACertPEM 返回 CA 证书 PEM（供 Agent 侧信任池使用）。
 func (ca *CA) CACertPEM() []byte { return ca.certPEM }
 
+// ServerCommonName 返回服务端证书的 CommonName（客户端 mTLS 的 ServerName 必须与之匹配）。
+func ServerCommonName() string { return serverCommonName }
+
 func generateCA() (certPEM, keyPEM, serverCertPEM, serverKeyPEM []byte, err error) {
 	caKey, e := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if e != nil {

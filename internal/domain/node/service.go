@@ -29,6 +29,9 @@ func New(client *ent.Client) *Service {
 	return &Service{client: client, tokens: make(map[string]*enrollToken)}
 }
 
+// Client 暴露底层 ent 客户端，供审计中间件等复用同一连接（避免重复持有）。
+func (s *Service) Client() *ent.Client { return s.client }
+
 // enrollToken 一次性接入令牌记录（只存哈希，原文仅生成时返回一次）。
 // nodeID 用于在 T014 Agent 注册时把令牌回绑到具体节点。
 type enrollToken struct {
@@ -240,7 +243,8 @@ func (s *Service) IssueEnrollToken(ctx context.Context, id int, ttl time.Duratio
 
 // VerifyEnrollToken 校验接入令牌：存在 + 未使用 + 未过期，校验成功后标记已用（一次性）。
 // 返回令牌绑定的 nodeID，供 T014 Agent 注册流程把请求回绑到具体节点。
-func (s *Service) VerifyEnrollToken(raw string) (int, error) {
+// 接受 ctx 以便后续令牌持久化（落库）时传递超时/取消。
+func (s *Service) VerifyEnrollToken(ctx context.Context, raw string) (int, error) {
 	sum := hashToken(raw)
 	s.mu.RLock()
 	t, ok := s.tokens[sum]
@@ -258,6 +262,22 @@ func (s *Service) VerifyEnrollToken(raw string) (int, error) {
 	t.used = true
 	s.mu.Unlock()
 	return t.nodeID, nil
+}
+
+// MarkEnrolled 将节点从 enrolling 标记为 online（T014 Agent 注册成功回写）。
+// 仅当节点当前处于 enrolling 才允许跳转，避免把已上线节点误置为 online。
+func (s *Service) MarkEnrolled(ctx context.Context, id int) error {
+	_, err := s.client.Node.UpdateOneID(id).
+		Where(entnode.StatusEQ(entnode.StatusEnrolling)).
+		SetStatus(entnode.StatusOnline).
+		Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return apperr.Wrap(apperr.CodeInternal, "标记节点已注册失败", err)
+	}
+	return nil
 }
 
 // GetCapability 返回节点能力基线（真实解析器已在 internal/agent/capability 落地：

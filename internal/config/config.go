@@ -8,7 +8,6 @@ package config
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/spf13/viper"
 )
@@ -24,9 +23,9 @@ type Config struct {
 	DBMaxOpen  int    `mapstructure:"db_max_open_conns"`
 	DBMaxIdle  int    `mapstructure:"db_max_idle_conns"`
 
-	PKICACert  string        `mapstructure:"pki_ca_cert"`
-	PKICAKey   string        `mapstructure:"pki_ca_key"`
-	PKIAgentTTL time.Duration `mapstructure:"pki_agent_cert_ttl"`
+	// PKIDir 是控制面 CA 目录（ca.crt/ca.key/server.crt/server.key），
+	// 由 `ngxcp-pki init --out DIR` 生成；缺失时控制面启动会尝试自动创建（仅限开发）。
+	PKIDir string `mapstructure:"pki_dir"`
 
 	SnapDir     string `mapstructure:"storage_snapshots_dir"`
 	ArtifactDir string `mapstructure:"storage_artifacts_dir"`
@@ -68,7 +67,7 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("db_dsn", "file:./dev.db?cache=shared&_fk=1")
 	v.SetDefault("db_max_open_conns", 20)
 	v.SetDefault("db_max_idle_conns", 10)
-	v.SetDefault("pki_agent_cert_ttl", "8760h")
+	v.SetDefault("pki_dir", "./pki")
 	v.SetDefault("clickhouse_max_memory_usage", "6G")
 	v.SetDefault("clickhouse_ttl_days", 7)
 	v.SetDefault("storage_snapshots_dir", "/var/lib/ngxcp/snapshots")

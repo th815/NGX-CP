@@ -11,9 +11,8 @@ db_dsn: "file:./dev.db?cache=shared&_fk=1"
 db_max_open_conns: 20
 db_max_idle_conns: 10
 
-pki_ca_cert: "/etc/ngxcp/pki/ca.crt"
-pki_ca_key: "/etc/ngxcp/pki/ca.key"
-pki_agent_cert_ttl: "8760h"                             # Agent 证书有效期，默认 1 年
+pki_dir: "./pki"                                              # 控制面 CA 目录（ca.crt/ca.key/server.crt/server.key）
+                                                            # 由 `ngxcp-pki init --out DIR` 生成；缺失时控制面启动会自动创建（仅开发态）
 
 storage_snapshots_dir: "/var/lib/ngxcp/snapshots"
 storage_artifacts_dir: "/var/lib/ngxcp/artifacts"
