@@ -417,18 +417,27 @@ curl -s -X POST http://localhost:8080/api/v1/probe/external -d '{"vip":"10.0.1.1
 
 ---
 
-## T034 · 回滚执行器
+## T034 · 回滚执行器 ✅ 已完成（2026-09-04）
 
 **目标**：失败时快速恢复到变更前的状态。
 
-**依赖**：T032, T031
+**依赖**：T032, T031, T033
 
 **涉及文件**：
 ```
-internal/domain/deploy/rollback.go
-internal/agent/executor/rollback.go
-internal/domain/deploy/rollback_test.go
+internal/domain/deploy/rollback.go          # 领域层：RollbackNode/RollbackChangeOrder + 状态机编排 + CRITICAL 告警接口
+internal/domain/deploy/rollback_test.go     # 逆序/全成功/单败→rollback_failed+告警/不可回滚/缺快照/单节点
+internal/agent/executor/rollback.go          # Agent 侧 8 步回滚执行器（复用 T031 Restore + T032 validate/reload/Prober）
+internal/agent/executor/rollback_test.go     # 成功恢复/快照坏零变化/探活失败/无探活跳过/缺快照路径
+proto/agent/v1/agent.proto                   # ROLLBACK_CONFIG=7 + RollbackTask（Heartbeat 通道，gen 待 protoc）
 ```
+
+**实现说明（与原任务注释的偏差）**：
+- 原注释列 `internal/domain/deploy/rollback.go` + `internal/agent/executor/rollback.go`（仅两份），实际补了 `rollback_test.go`（双包）与 proto 契约，领域层 `deploy.Service` 通过 `SetRollbackClient`/`SetAlertSink` 注入两个接口（`NodeRollbackClient`/`AlertSink`），不耦合传输细节——控制面经 proto `ROLLBACK_CONFIG` 命令接线，单测用 fake。
+- Agent 侧回滚严格复用既有能力，未重复造轮子：`SnapshotExecutor.Restore`（T031，含权限/属主还原）、`validate.Executor`（T024/`Executor`）、`reload`、`Prober`（T033 复合探活经 `probeAdapter` 接入）。
+- **回滚走完整流程且「校验在恢复之前」**：① 解压快照到 staging → ② `nginx -t` 校验快照配置（★ 快照也可能坏；此时真实 prefix 未动，直接报 `rollback_failed`）→ ③ 校验通过才 `Restore` 到真实路径 → ④ reload → ⑤ 等待 → ⑥ 探活 → ⑦ 上报。恢复后 reload/探活失败同样返回含 `Error` 的 `RollbackResult`（最危险状态）。
+- `RollbackChangeOrder` 逆序回滚（最后变更的节点先回滚）；任一节点失败 → 变更单 `rollback_failed` + `AlertSink.Critical`（**节点处于未知状态，必须立即人工介入冻结变更**）；全部成功 → `rolled_back`。
+- proto：`ROLLBACK_CONFIG=7` 命令 + `RollbackTask` 消息（与 T031/T032 同构走 Heartbeat 双向流），`DeployProgress.step` 已含 `rollback` 故进度复用既有通道；gen 代码待 `protoc` 安装后生成，端到端接线随 M3 集成验收。
 
 **契约**：
 

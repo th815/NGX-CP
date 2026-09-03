@@ -74,6 +74,7 @@ message HeartbeatResponse {
     CREATE_SNAPSHOT = 4;    // T031：让 Agent 在本地抓配置快照（变更前回滚点）
     RESTORE_SNAPSHOT = 5;   // T031：让 Agent 从快照恢复配置
     DEPLOY_CONFIG = 6;      // T032：让 Agent 跑 9 步原子落盘（含校验/快照/reload/探活）
+    ROLLBACK_CONFIG = 7;    // T034：让 Agent 跑回滚流水线（解压校验→恢复→reload→探活）
   }
   Command command = 1;
   string task_id = 2;       // 幂等键，防止重放
@@ -85,6 +86,8 @@ message HeartbeatResponse {
   SnapshotRestoreTask snapshot_restore = 5;
   // T032：DEPLOY_CONFIG 命令携带的原子落盘任务（待下发文件集合 + 运行参数）。
   SyncConfigTask sync_config = 6;
+  // T034：ROLLBACK_CONFIG 命令携带的回滚任务（快照路径 + 运行参数）。
+  RollbackTask rollback_task = 7;
 }
 
 message CapabilityReport {
@@ -299,6 +302,20 @@ message SyncConfigTask {
   string conf_path = 7;        // 主配置相对 prefix，默认 nginx.conf
   int64 observe_window_sec = 8;// 步骤⑦ 观测窗口，默认 5
   string probe_url = 9;        // 步骤⑧ 探活 URL，空则跳过
+  int64 probe_timeout_sec = 10;// 探活超时，默认 5
+}
+
+// RollbackTask 是 T034 ROLLBACK_CONFIG 命令携带的回滚任务（Agent 端 RollbackExecutor 执行）。
+message RollbackTask {
+  string task_id = 1;          // 幂等键，结果回传时原样带回
+  int64 change_order_id = 2;   // 关联变更单
+  int64 node_id = 3;
+  string snapshot_path = 4;    // 预变更快照 tar.gz 绝对路径
+  string prefix = 5;           // nginx prefix，默认 /etc/nginx
+  string nginx_path = 6;       // 默认 /usr/sbin/nginx
+  string conf_path = 7;        // 主配置相对 prefix，默认 nginx.conf
+  int64 observe_window_sec = 8;// 步骤⑤ 观测窗口，默认 5
+  string probe_url = 9;        // 步骤⑥ 探活 URL，空则跳过
   int64 probe_timeout_sec = 10;// 探活超时，默认 5
 }
 
