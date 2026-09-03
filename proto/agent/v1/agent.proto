@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+// Package agent.v1 是控制面 ↔ Agent 的通信契约（唯一事实来源）。
+// 任何一端改 proto 都需重新生成代码（make proto）并同步对端。
+package agent.v1;
+
+option go_package = "github.com/th/ngxcp/gen/agent/v1;agentv1";
+
+// AgentService 控制面暴露给 Agent 的 gRPC 服务。
+service AgentService {
+  // Register：用一次性 enroll token 换取 mTLS 客户端证书。
+  // 此时 Agent 尚无客户端证书，故该 RPC 通过 TLS + token 鉴权（拦截器跳过客户端证书校验）。
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Heartbeat：双向流。Agent 周期上报；控制面可随时下发指令（刷新能力 / 跑合规）。
+  rpc Heartbeat(stream HeartbeatRequest) returns (stream HeartbeatResponse);
+
+  // ReportCapability：Agent 主动上报完整能力基线（注册后首次 / 定时 / 配置变更）。
+  rpc ReportCapability(CapabilityReport) returns (Ack);
+}
+
+message RegisterRequest {
+  string enroll_token = 1; // 控制面下发的一次性令牌（仅原文返回一次，库内仅存 SHA256）
+  string hostname = 2;
+  bytes csr = 3;          // Agent 本地生成的私钥签名请求；私钥永不出节点
+}
+
+message RegisterResponse {
+  int64 node_id = 1;      // 控制面节点 ID（也写入证书 Serial，用于反查身份）
+  bytes client_cert = 2;  // CA 签发的客户端证书（PEM）
+  bytes ca_cert = 3;      // 控制面 CA 证书（PEM）
+  int64 cert_expires_at = 4; // 证书过期时间，unix 秒
+  ServerConfig config = 5;   // 心跳间隔、采集配置等
+}
+
+message ServerConfig {
+  int64 heartbeat_interval_sec = 1; // 默认 10
+  int64 heartbeat_timeout_sec = 2;  // 默认 30（超过未心跳 → 标记 offline）
+  int64 clock_skew_warn_sec = 3;    // 默认 1（时钟偏差超过告警）
+}
+
+message HeartbeatRequest {
+  enum Type {
+    PING = 0;
+    CAPABILITY = 1;
+    COMPLIANCE = 2;
+    METRICS = 3;
+  }
+  Type type = 1;
+  int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
+  Capability capability = 3;
+  ComplianceReport compliance = 4;
+  bytes metrics_payload = 5;      // Prometheus 文本格式
+}
+
+message HeartbeatResponse {
+  enum Command {
+    NONE = 0;
+    REFRESH_CAPABILITY = 1; // 让 Agent 重新跑 nginx -V / -T 并上报
+    RUN_COMPLIANCE = 2;     // 让 Agent 重新跑 DR 合规自检
+  }
+  Command command = 1;
+  string task_id = 2;       // 幂等键，防止重放
+}
+
+message CapabilityReport {
+  int64 node_id = 1;
+  Capability capability = 2;
+}
+
+message Ack {
+  bool ok = 1;
+  string message = 2;
+}
+
+message Capability {
+  string hostname = 1;
+  string os = 2;
+  string kernel = 3;
+  NginxInfo nginx = 4;            // null 表示非 nginx 节点（如纯 Director）
+  bool has_keepalived = 5;
+  bool has_ipvsadm = 6;
+  ComplianceReport compliance = 7;
+  double clock_skew_seconds = 8;  // 与控制面的时间偏差（由控制面计算填入）
+}
+
+message NginxInfo {
+  string version = 1;
+  string binary_path = 2;
+  string configure_args = 3;
+  string prefix = 4;
+  string conf_path = 5;
+  string sbin_path = 6;
+  string pid_path = 7;
+  string lock_path = 8;
+  string error_log_path = 9;
+  string http_log_path = 10;
+  string run_user = 11;
+  string run_group = 12;
+  string compiler = 13;
+  string openssl_version = 14;
+  bool tls_sni = 15;
+  repeated string static_modules = 16;
+  repeated string dynamic_modules = 17;
+  repeated ConfigFile config_files = 18; // 来自 nginx -T
+  repeated string log_files = 19;        // 从配置提取
+  string config_hash = 20;
+}
+
+message ConfigFile {
+  string path = 1;
+  string content = 2;
+  string sha256 = 3;
+  int64 size = 4;
+}
+
+message ComplianceReport {
+  int64 checked_at = 1;                 // unix 秒
+  string role = 2;                     // real_server | director | director_and_rs | unknown
+  repeated ComplianceItem items = 3;
+  bool passed = 4;
+}
+
+message ComplianceItem {
+  string name = 1;        // vip_on_lo
+  string title = 2;       // VIP 绑定在 lo 且掩码 /32
+  bool passed = 3;
+  string expected = 4;
+  string actual = 5;
+  string severity = 6;    // critical | warning
+  string fix_cmd = 7;     // 修复命令建议
+}

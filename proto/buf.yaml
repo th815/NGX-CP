@@ -1,0 +1,16 @@
+version: v1
+lint:
+  use:
+    - STANDARD
+  # 放行与任务契约（docs/tasks/M1-skeleton.md T011）冲突的风格规则：
+  # 契约显式采用 PING/NONE 等短枚举值，以及 CapabilityReport / Ack 这类共享消息类型，
+  # 因此关闭对应的默认 lint 规则，避免为迎合工具改名而偏离契约。
+  except:
+    - ENUM_VALUE_PREFIX
+    - ENUM_ZERO_VALUE_SUFFIX
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+breaking:
+  use:
+    - FILE
