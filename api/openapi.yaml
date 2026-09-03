@@ -4,20 +4,27 @@ info:
   description: |
     Nginx 集群管理平台（NGX-CP）控制面 API。
 
-    当前处于 **M0 骨架**阶段，仅暴露健康检查、版本、节点列表（占位）三个接口；
-    后续 M1+ 会逐步补齐节点管理、配置中心、发布流水线、证书、LVS、日志、预警等。
+    当前处于 **M1 骨架**阶段，已实现：
+    - 节点域 CRUD（node）与一次性接入令牌（enroll token）
+    - Bearer Token 鉴权（写接口需带 `Authorization: Bearer <token>`，未配置 token 时所有写接口返回 401）
+    - 审计中间件（仅记录成功的写操作到 audit_logs，best-effort）
+    - 能力基线占位（真实 `nginx -V` / `-T` 解析在 T016/T017 落地）
+
+    后续 M2+ 会逐步补齐配置中心、发布流水线、证书、LVS、日志、预警等。
 
     本文档的作用：
     - 在 **Apifox** 中「项目 → 导入 → OpenAPI / Swagger」选择本文件，即可生成可调试的 API 文档与 Mock；
     - 作为前后端（Vue3 前端 / Go 控制面）的接口契约，随代码版本一起演进。
       新增/变更接口时更新本文件，并在 Apifox 用「覆盖导入」刷新。
-  version: 0.1.0
+  version: 0.2.0
   contact:
     name: th815
     url: https://github.com/th815/NGX-CP
 servers:
   - url: http://localhost:8080
     description: 本地开发（go run ./cmd/ngxcp-server，默认监听 :8080）
+security:
+  - bearerAuth: []
 tags:
   - name: System
     description: 健康检查 / 版本等系统接口
@@ -29,6 +36,7 @@ paths:
       tags: [System]
       summary: 健康检查
       operationId: healthCheck
+      security: []
       responses:
         '200':
           description: 服务存活
@@ -46,6 +54,7 @@ paths:
       tags: [System]
       summary: 控制面版本信息
       operationId: getVersion
+      security: []
       responses:
         '200':
           description: 版本字符串（含 commit / build time，由 ldflags 注入）
@@ -61,21 +70,230 @@ paths:
   /api/v1/nodes:
     get:
       tags: [Cluster]
-      summary: 节点列表（M1 起填充真实数据，当前为占位空列表）
+      summary: 节点列表（支持 role / status 过滤与分页）
       operationId: listNodes
+      security: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [real_server, director, director_and_rs, unknown]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [online, offline, degraded, enrolling, decommissioned]
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
       responses:
         '200':
-          description: 节点列表（当前为空，M1 起为节点对象数组）
+          description: 节点列表
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListEnvelope'
+                $ref: '#/components/schemas/NodeList'
+    post:
+      tags: [Cluster]
+      summary: 新建节点（写接口，需鉴权）
+      operationId: createNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeCreate'
+      responses:
+        '200':
+          description: 已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeNode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/nodes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Cluster]
+      summary: 获取单个节点
+      operationId: getNode
+      security: []
+      responses:
+        '200':
+          description: 节点详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeNode'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Cluster]
+      summary: 局部更新节点（写接口，需鉴权）
+      operationId: updateNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeUpdate'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeNode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Cluster]
+      summary: 删除节点（写接口，需鉴权）
+      operationId: deleteNode
+      responses:
+        '200':
+          description: 已删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/nodes/{id}/enroll-token:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Cluster]
+      summary: 为指定节点生成一次性接入令牌（写接口，需鉴权）
+      operationId: issueEnrollToken
+      parameters:
+        - name: ttl
+          in: query
+          description: 令牌有效期，Go duration 格式（如 1h / 30m），默认 1h
+          schema: { type: string }
+      responses:
+        '200':
+          description: 令牌原文仅此返回一次；库内只存哈希与 nodeID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
               example:
                 code: 0
                 message: ok
-                data: []
-                total: 0
+                data:
+                  token: "ngxcp_i7X4ekEcblxKrYorkRWIR9oHEbyfwZjh"
+                  node_id: 1
+                  expires_at: "2026-09-03T13:23:08+08:00"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/nodes/{id}/capability:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Cluster]
+      summary: 节点能力基线（占位，T016/T017 落地真实上报）
+      operationId: getNodeCapability
+      security: []
+      responses:
+        '200':
+          description: 能力占位信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+              example:
+                code: 0
+                message: ok
+                data:
+                  node_id: 1
+                  role: real_server
+                  status: enrolling
+                  note: "能力上报（nginx -V / -T 解析）将在 T016/T017 落地"
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/nodes/{id}/refresh:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Cluster]
+      summary: 触发一次能力刷新（写接口，需鉴权；T015 会话管理落地后下发指令）
+      operationId: refreshNodeCapability
+      responses:
+        '200':
+          description: 已触发
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >
+        Bearer Token（由配置 `auth_admin_token` / 环境变量 `NGXCP_AUTH_ADMIN_TOKEN` 设定）。
+        留空时所有写接口返回 401（fail-closed）。本地开发可用 `NGXCP_AUTH_ADMIN_TOKEN=dev-admin-token go run ./cmd/ngxcp-server`。
+  responses:
+    BadRequest:
+      description: 入参非法（如未知 role / 缺字段）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+          example:
+            code: 4001
+            message: 非法 role
+    Unauthorized:
+      description: 缺少 / 错误的鉴权令牌
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+          example:
+            code: 4001
+            message: 未授权
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+          example:
+            code: 4004
+            message: 节点不存在
   schemas:
     Envelope:
       type: object
@@ -95,7 +313,86 @@ components:
           type: object
           nullable: true
           description: 业务负载；结构随接口而异
-    ListEnvelope:
+    Node:
+      type: object
+      required: [id, name, address, role, status, lvs_weight, lvs_enabled]
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: nx-rs-01
+        address:
+          type: string
+          example: 10.0.0.11:9443
+        role:
+          type: string
+          enum: [real_server, director, director_and_rs, unknown]
+          example: real_server
+        status:
+          type: string
+          enum: [online, offline, degraded, enrolling, decommissioned]
+          example: enrolling
+        lvs_weight:
+          type: integer
+          example: 100
+        lvs_enabled:
+          type: boolean
+          example: false
+        last_heartbeat_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    NodeCreate:
+      type: object
+      required: [name, address]
+      properties:
+        name:
+          type: string
+          example: nx-rs-01
+        address:
+          type: string
+          example: 10.0.0.11:9443
+        role:
+          type: string
+          enum: [real_server, director, director_and_rs, unknown]
+          description: 留空则入库为 unknown，待能力上报后由 T019 识别
+        lvs_weight:
+          type: integer
+          example: 100
+    NodeUpdate:
+      type: object
+      description: 全部可选，仅更新非空字段
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        role:
+          type: string
+          enum: [real_server, director, director_and_rs, unknown]
+        status:
+          type: string
+          enum: [online, offline, degraded, enrolling, decommissioned]
+        lvs_weight:
+          type: integer
+        lvs_enabled:
+          type: boolean
+    EnvelopeNode:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Node'
+    NodeList:
       type: object
       required: [code, message, data, total]
       properties:
@@ -107,8 +404,8 @@ components:
           example: ok
         data:
           type: array
-          items: {}
-          description: 当前为空，M1 起为节点对象数组
+          items:
+            $ref: '#/components/schemas/Node'
         total:
           type: integer
-          example: 0
+          example: 1
