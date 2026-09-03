@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	entgo.io/ent v0.14.6
 	github.com/gin-gonic/gin v1.12.0
+	github.com/hexops/gotextdiff v1.0.3
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/viper v1.21.0
