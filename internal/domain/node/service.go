@@ -260,7 +260,8 @@ func (s *Service) VerifyEnrollToken(raw string) (int, error) {
 	return t.nodeID, nil
 }
 
-// GetCapability 返回节点能力基线（T016/T017 接入真实上报前先返回占位）。
+// GetCapability 返回节点能力基线（真实解析器已在 internal/agent/capability 落地：
+// ParseNginxV / ParseConfigTree；待 T015 心跳上报后由 Agent 采集并入库，此处仍返回占位）。
 func (s *Service) GetCapability(ctx context.Context, id int) (map[string]any, error) {
 	n, err := s.Get(ctx, id)
 	if err != nil {
@@ -270,7 +271,7 @@ func (s *Service) GetCapability(ctx context.Context, id int) (map[string]any, er
 		"node_id": n.ID,
 		"role":    n.Role,
 		"status":  n.Status,
-		"note":    "能力上报（nginx -V / -T 解析）将在 T016/T017 落地",
+		"note":    "能力上报（nginx -V / -T 解析）已由 internal/agent/capability 实现，待 T015 接入上报",
 	}, nil
 }
 

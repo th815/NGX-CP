@@ -1,0 +1,48 @@
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+# configuration file /etc/nginx/nginx.conf:
+
+user nginx;
+worker_processes auto;
+pid /run/nginx.pid;
+events {
+    worker_connections 1024;
+}
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    include /etc/nginx/conf.d/*.conf;
+}
+
+# configuration file /etc/nginx/mime.types:
+
+types {
+    text/html                             html htm shtml;
+    text/css                              css;
+    image/png                             png;
+    application/json                      json;
+}
+
+# configuration file /etc/nginx/conf.d/default.conf:
+
+server {
+    listen 80 default_server;
+    server_name _;
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html;
+    }
+}
+
+# configuration file /etc/nginx/conf.d/api.conf:
+
+server {
+    listen 443 ssl;
+    server_name api.example.com;
+    ssl_certificate     /etc/nginx/ssl/api.example.com.fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/api.example.com.key;
+    location / {
+        proxy_pass http://backend;
+    }
+}
