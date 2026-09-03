@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/th/ngxcp/internal/domain/compliance"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/server/response"
@@ -55,6 +56,15 @@ func (h *NodeHandler) Get(c *gin.Context) {
 	if h.skew != nil {
 		if s, ok := h.skew(id); ok {
 			out.ClockSkewSeconds = &s
+		}
+	}
+	// 注入最近一次 DR 合规自检结果（T019）。
+	if rep, err := h.svc.GetCompliance(c.Request.Context(), id); err == nil && rep != nil {
+		r := compliance.Evaluate(rep)
+		out.Compliance = &node.NodeComplianceView{
+			Passed:         r.Passed,
+			CheckedAt:      rep.GetCheckedAt(),
+			CriticalFailed: r.CriticalFailed,
 		}
 	}
 	response.OK(c, out)

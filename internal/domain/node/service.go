@@ -9,12 +9,15 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
+	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/ent"
 	entnode "github.com/th/ngxcp/ent/node"
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/internal/domain/compliance"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 )
 
@@ -24,11 +27,20 @@ type Service struct {
 
 	mu     sync.RWMutex
 	tokens map[string]*enrollToken
+
+	// compMu / compReports 缓存各节点最近一次合规自检报告（M1 内存态，无独立表；
+	// 与 clock_skew 同理，真实持久化随 T018/T019 后续里程碑）。
+	compMu       sync.RWMutex
+	compReports  map[int]*agentv1.ComplianceReport
 }
 
 // New 构造节点服务。
 func New(client *ent.Client) *Service {
-	return &Service{client: client, tokens: make(map[string]*enrollToken)}
+	return &Service{
+		client:      client,
+		tokens:      make(map[string]*enrollToken),
+		compReports: make(map[int]*agentv1.ComplianceReport),
+	}
 }
 
 // Client 暴露底层 ent 客户端，供审计中间件等复用同一连接（避免重复持有）。
@@ -53,8 +65,16 @@ type NodeOut struct {
 	LvsEnabled       bool       `json:"lvs_enabled"`
 	LastHeartbeatAt  *time.Time `json:"last_heartbeat_at,omitempty"`
 	ClockSkewSeconds *float64   `json:"clock_skew_seconds,omitempty"` // T015：仅在线且上报过时间戳时存在
+	Compliance       *NodeComplianceView `json:"compliance,omitempty"` // T019：最近一次 DR 合规自检
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+// NodeComplianceView 是节点最近一次合规自检的对外视图（来自 Agent 上报 + 控制面判定）。
+type NodeComplianceView struct {
+	Passed         bool     `json:"passed"`
+	CheckedAt      int64    `json:"checked_at"`
+	CriticalFailed []string `json:"critical_failed,omitempty"` // 未通过的关键项名（驱动 degraded 的依据）
 }
 
 func toOut(n *ent.Node) *NodeOut {
@@ -416,6 +436,60 @@ func capabilityChecksum(in CapabilityIn) string {
 	_, _ = h.Write([]byte(in.NginxRawArgs + "\x00"))
 	_, _ = h.Write([]byte(in.ConfigHash + "\x00"))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// ---- T019：DR 合规自检（控制面侧判定 + 状态机流转）----
+
+// SetCompliance 处理 Agent 上报的 DR 合规自检报告：缓存最新报告，并按 FSM 驱动节点状态。
+//   - online 且存在未通过的 critical 项 → degraded（合规不通过）
+//   - degraded 且报告整体通过 → 恢复 online
+//
+// report 为 nil 时直接忽略（不驱动任何流转）。
+func (s *Service) SetCompliance(ctx context.Context, id int, report *agentv1.ComplianceReport) error {
+	if report == nil {
+		return nil
+	}
+	s.compMu.Lock()
+	s.compReports[id] = report
+	s.compMu.Unlock()
+
+	passed := compliance.Evaluate(report).Passed
+	cur, err := s.client.Node.Query().Where(entnode.ID(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return apperr.Wrap(apperr.CodeInternal, "查询节点失败", err)
+	}
+	switch cur.Status {
+	case entnode.StatusOnline:
+		if !passed {
+			if _, err := s.client.Node.UpdateOneID(id).SetStatus(entnode.StatusDegraded).Save(ctx); err != nil {
+				return apperr.Wrap(apperr.CodeInternal, "标记 degraded 失败", err)
+			}
+			slog.Default().Warn("node compliance degraded", "node_id", id)
+		}
+	case entnode.StatusDegraded:
+		if passed {
+			if _, err := s.client.Node.UpdateOneID(id).SetStatus(entnode.StatusOnline).Save(ctx); err != nil {
+				return apperr.Wrap(apperr.CodeInternal, "恢复 online 失败", err)
+			}
+		}
+	}
+	return nil
+}
+
+// GetCompliance 返回节点最近一次合规自检报告（内存态；无则 nil）。
+func (s *Service) GetCompliance(ctx context.Context, id int) (*agentv1.ComplianceReport, error) {
+	if _, err := s.Get(ctx, id); err != nil {
+		return nil, err
+	}
+	s.compMu.RLock()
+	defer s.compMu.RUnlock()
+	if r, ok := s.compReports[id]; ok {
+		return r, nil
+	}
+	return nil, nil
 }
 
 // GetCapability 返回节点能力基线（真实解析器已在 internal/agent/capability 落地：

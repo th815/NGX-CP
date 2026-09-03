@@ -223,6 +223,13 @@ func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
 			}
 		}
 
+		// 合规自检上报（T019）：收到即缓存并判定，按 FSM 驱动 degraded / online。
+		if c := req.GetCompliance(); c != nil && s.nodeSvc != nil {
+			if err := s.nodeSvc.SetCompliance(stream.Context(), nodeID, c); err != nil {
+				s.log.Warn("set compliance failed", "node_id", nodeID, "err", err)
+			}
+		}
+
 		if s.nodeSvc != nil {
 			_ = s.nodeSvc.TouchHeartbeat(stream.Context(), nodeID)
 		}

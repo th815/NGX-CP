@@ -398,3 +398,79 @@ func waitUntil(t *testing.T, timeout time.Duration, cond func() bool) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+// TestHeartbeatComplianceDegrades 验证 T019：Agent 经心跳上报 DR 合规自检结果后，
+// 控制面按 FSM 驱动节点状态：online + 关键项不通过 → degraded；报告恢复通过 → 回到 online。
+func TestHeartbeatComplianceDegrades(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	client, nodeID := newTestNode(t)
+	defer client.Close()
+	// 置为 online，作为合规判定的起点（enrolling 不在 online/degraded 流转分支内）。
+	if _, err := client.Node.UpdateOneID(nodeID).SetStatus(entnode.StatusOnline).Save(context.Background()); err != nil {
+		t.Fatalf("置 online: %v", err)
+	}
+	nodeSvc := node.New(client)
+	sessions := session.NewSessionManager(slog.Default())
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+	hc, err := cli.Heartbeat(context.Background())
+	if err != nil {
+		t.Fatalf("打开心跳流: %v", err)
+	}
+
+	statusOf := func() string {
+		n, e := client.Node.Get(context.Background(), nodeID)
+		if e != nil {
+			t.Fatalf("查询节点: %v", e)
+		}
+		return string(n.Status)
+	}
+
+	// 上报不合规（vip_on_lo 未通过，critical）。
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type: agentv1.HeartbeatRequest_COMPLIANCE,
+		Compliance: &agentv1.ComplianceReport{
+			CheckedAt: 1,
+			Items: []*agentv1.ComplianceItem{
+				{Name: "vip_on_lo", Severity: "critical", Passed: false, Actual: "lo 无 VIP/32"},
+				{Name: "arp_suppress", Severity: "critical", Passed: true},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("发送合规报告(失败): %v", err)
+	}
+	waitUntil(t, 2*time.Second, func() bool { return statusOf() == string(entnode.StatusDegraded) })
+	if statusOf() != string(entnode.StatusDegraded) {
+		t.Fatalf("关键项不合规后应为 degraded, 实际 %s", statusOf())
+	}
+
+	// 上报恢复合规 → 回到 online。
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type: agentv1.HeartbeatRequest_COMPLIANCE,
+		Compliance: &agentv1.ComplianceReport{
+			CheckedAt: 2,
+			Items: []*agentv1.ComplianceItem{
+				{Name: "vip_on_lo", Severity: "critical", Passed: true},
+				{Name: "arp_suppress", Severity: "critical", Passed: true},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("发送合规报告(恢复): %v", err)
+	}
+	waitUntil(t, 2*time.Second, func() bool { return statusOf() == string(entnode.StatusOnline) })
+	if statusOf() != string(entnode.StatusOnline) {
+		t.Fatalf("合规恢复后应为 online, 实际 %s", statusOf())
+	}
+}
