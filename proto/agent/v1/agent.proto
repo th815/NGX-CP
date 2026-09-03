@@ -50,6 +50,7 @@ message HeartbeatRequest {
     LOG_TARGETS = 6;              // T018：日志采集目标上报
     CONFIG_VALIDATE = 7;          // T024：nginx -t 校验结果上报
     SNAPSHOT = 8;                  // T031：快照结果上报（create / restore）
+    DEPLOY = 9;                   // T032：原子落盘进度上报
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
@@ -61,6 +62,7 @@ message HeartbeatRequest {
   LogTargetsReport log_targets = 8;   // T018：日志采集目标清单
   ValidateResult validate_result = 9; // T024：nginx -t 校验结果
   SnapshotResult snapshot_result = 10;  // T031：快照（create / restore）结果
+  DeployProgress deploy_progress = 11;  // T032：原子落盘进度（9 步逐步上报）
 }
 
 message HeartbeatResponse {
@@ -71,6 +73,7 @@ message HeartbeatResponse {
     VALIDATE_CONFIG = 3;    // T024：让 Agent 在本地跑 nginx -t 校验（带待校验文件）
     CREATE_SNAPSHOT = 4;    // T031：让 Agent 在本地抓配置快照（变更前回滚点）
     RESTORE_SNAPSHOT = 5;   // T031：让 Agent 从快照恢复配置
+    DEPLOY_CONFIG = 6;      // T032：让 Agent 跑 9 步原子落盘（含校验/快照/reload/探活）
   }
   Command command = 1;
   string task_id = 2;       // 幂等键，防止重放
@@ -80,6 +83,8 @@ message HeartbeatResponse {
   SnapshotCreateTask snapshot_create = 4;
   // T031：RESTORE_SNAPSHOT 命令携带的恢复任务（目标 tar.gz + 根）。
   SnapshotRestoreTask snapshot_restore = 5;
+  // T032：DEPLOY_CONFIG 命令携带的原子落盘任务（待下发文件集合 + 运行参数）。
+  SyncConfigTask sync_config = 6;
 }
 
 message CapabilityReport {
@@ -268,4 +273,39 @@ message SnapshotResult {
   string path = 3;             // 生成的 tar.gz 绝对路径（create 成功时填充）
   int64 size = 4;              // tar.gz 字节数（create 成功时填充）
   string error = 5;            // 失败原因（ok=false 时）
+}
+
+// ===== T032：原子落盘（Agent 侧，9 步） =====
+// 把"下发配置"做成可校验、可灰度、可回滚的流水线（核心算法见 internal/agent/executor/deploy.go）。
+// 指令经 Heartbeat 命令通道下发（Agent 主动外连，无入站端口），与 T024/T031 同构。
+// 关键保证：校验在切换之前（步骤③在⑤前）→ 语法错误零污染线上；
+// 探活失败（步骤⑧）自动从步骤④的预变更快照恢复。
+
+// FileToWrite 是待下发的一个配置文件（路径相对 nginx prefix）。
+message FileToWrite {
+  string path = 1;             // 相对 prefix，如 "conf.d/api.conf"
+  string content = 2;          // 文件原文
+  string sha256 = 3;           // 可选：传输后摘要校验，空则跳过
+}
+
+// SyncConfigTask 是控制面下发给 Agent 的原子落盘任务。
+message SyncConfigTask {
+  string task_id = 1;          // 幂等键，结果回传时原样带回
+  int64 change_order_id = 2;   // 关联变更单
+  int64 node_id = 3;
+  repeated FileToWrite files = 4;
+  string prefix = 5;           // nginx prefix，默认 /etc/nginx
+  string nginx_path = 6;       // 默认 /usr/sbin/nginx
+  string conf_path = 7;        // 主配置相对 prefix，默认 nginx.conf
+  int64 observe_window_sec = 8;// 步骤⑦ 观测窗口，默认 5
+  string probe_url = 9;        // 步骤⑧ 探活 URL，空则跳过
+  int64 probe_timeout_sec = 10;// 探活超时，默认 5
+}
+
+// DeployProgress 是 Agent 回传的 9 步进度。
+message DeployProgress {
+  string task_id = 1;
+  string step = 2;             // transfer|verify_hash|validate|snapshot|switch|reload|wait|probe|report|rollback
+  string status = 3;           // running|success|failed
+  string message = 4;
 }

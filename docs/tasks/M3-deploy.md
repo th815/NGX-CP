@@ -204,7 +204,7 @@ ssh rs-nginx-01 "chmod 600 /etc/nginx/nginx.conf"
 
 ---
 
-## T032 · Agent 原子落盘执行器 ★
+## T032 · Agent 原子落盘执行器 ★ ✅ 已完成（2026-09-04）
 
 **目标**：实现"要么完全生效，要么完全不变"的配置写入。
 
@@ -212,12 +212,25 @@ ssh rs-nginx-01 "chmod 600 /etc/nginx/nginx.conf"
 
 **涉及文件**：
 ```
-internal/agent/executor/deploy.go
-internal/agent/executor/deploy_test.go
-internal/pkg/atomicfile/atomic.go
-internal/pkg/shellx/exec.go
-proto/agent/v1/agent.proto        # 追加 SyncConfig
+internal/agent/executor/deploy.go          # 9 步流水线编排（Deploy + atomicSwitch + restoreAndReload）
+internal/agent/executor/deploy_test.go      # happy/语法错误零污染/探活失败回滚/摘要不符/无探活/观测窗口
+internal/pkg/atomicfile/atomic.go           # 原子移动（同盘 rename / 跨盘 copy 降级）
+internal/pkg/atomicfile/atomic_test.go
+proto/agent/v1/agent.proto                  # 追加 DEPLOY_CONFIG 命令 + SyncConfigTask/DeployProgress（Heartbeat 通道）
 ```
+
+**实现说明（与原任务注释的偏差）**：
+- 原注释列 `internal/pkg/shellx/exec.go` 为新建包。但 reload 命令经既有 `hostexec.CommandExecutor.Output` 同一抽象执行（T024 已用），**不再单独建 shellx 包**以免重复——`DeployExecutor` 直接持有 `CommandRunner`（与 `validate.Executor` 同接口）。
+- ctrl 面触发方式：原注释写「`rpc SyncConfig`」。与 T031 同源，Agent 主动外连无入站端口，`SyncConfig` 复用 **Heartbeat `DEPLOY_CONFIG=6` 命令**下发 `SyncConfigTask`，进度经 `HeartbeatRequest.DeployProgress` 回传（gen 代码待 protoc，端到端接线随 M3 集成验收）。
+- 步骤④ 直接复用 T031 的 `SnapshotExecutor`；步骤⑧ 探活走可注入的 `Prober` 接口（默认 `HTTPProber`，T033 将替换为复合探活）。
+
+**验收命令**：
+```bash
+go test ./internal/agent/executor/... -run TestDeploy -v
+go test ./internal/pkg/atomicfile/... -v
+go test ./internal/agent/executor/... -race -v   # 流水线无竞态（progress 非阻塞发送）
+```
+★ 最关键的端到端验证（docker 起真实 nginx）推到 M3 集成验收（`make e2e`）。
 
 **契约 —— 9 步原子执行序列**（这是整个项目的核心算法）：
 
