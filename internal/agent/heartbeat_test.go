@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 tianhao
+
 package agent_test
 
 import (
@@ -10,6 +13,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"testing"
@@ -22,6 +26,7 @@ import (
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 // fakeEnroll 仅用于起测试 gRPC 服务（心跳测试不触碰注册逻辑）。
@@ -80,7 +85,7 @@ func waitUntil(t *testing.T, timeout time.Duration, cond func() bool) {
 
 // TestHeartbeaterConnectsAndRefreshes 验证 Agent 侧心跳客户端：
 //  1. 启动后控制面会话管理看到该节点在线，并记录时钟偏差；
-//  2. 控制面下发 REFRESH_CAPABILITY 指令，客户端 reportCap 回调被触发。
+//  2. 控制面下发 REFRESH_CAPABILITY 指令，客户端 ReportCapability 回调被触发。
 func TestHeartbeaterConnectsAndRefreshes(t *testing.T) {
 	ca, _ := pki.LoadOrCreateCA(t.TempDir())
 	sessions := session.NewSessionManager(nil)
@@ -106,11 +111,13 @@ func TestHeartbeaterConnectsAndRefreshes(t *testing.T) {
 	refreshed := false
 	hb := agent.NewHeartbeater(cli,
 		agent.HeartbeatConfig{Interval: 150 * time.Millisecond, ReconnectBase: time.Second, ReconnectMax: 5 * time.Second},
-		func(ctx context.Context) error {
-			mu.Lock()
-			refreshed = true
-			mu.Unlock()
-			return nil
+		agent.HeartbeatCallbacks{
+			ReportCapability: func(ctx context.Context) error {
+				mu.Lock()
+				refreshed = true
+				mu.Unlock()
+				return nil
+			},
 		}, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -157,7 +164,7 @@ func TestHeartbeaterReconnect(t *testing.T) {
 
 	hb := agent.NewHeartbeater(cli,
 		agent.HeartbeatConfig{Interval: 100 * time.Millisecond, ReconnectBase: 200 * time.Millisecond, ReconnectMax: time.Second},
-		nil, nil)
+		agent.HeartbeatCallbacks{}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = hb.Run(ctx) }()
@@ -180,4 +187,108 @@ func TestHeartbeaterReconnect(t *testing.T) {
 	go func() { _ = g2.Serve(lis2) }()
 	defer g2.Stop()
 	waitUntil(t, 5*time.Second, func() bool { return sessions.IsOnline(nodeID) })
+}
+
+// ---- 以下为 Agent 侧健康探测上报链路测试（fake gRPC client 捕获流上发送的请求）----
+
+// recordingStream 是一个内存化的心跳流实现，记录 Send 出去的请求并回放预置指令。
+type recordingStream struct {
+	ctx  context.Context
+	sent chan *agentv1.HeartbeatRequest
+	cmds chan *agentv1.HeartbeatResponse
+}
+
+func (s *recordingStream) Send(r *agentv1.HeartbeatRequest) error { s.sent <- r; return nil }
+func (s *recordingStream) Recv() (*agentv1.HeartbeatResponse, error) {
+	select {
+	case c, ok := <-s.cmds:
+		if !ok {
+			return nil, io.EOF
+		}
+		return c, nil
+	case <-s.ctx.Done():
+		return nil, io.EOF
+	}
+}
+func (s *recordingStream) CloseSend() error            { return nil }
+func (s *recordingStream) Context() context.Context    { return s.ctx }
+func (s *recordingStream) Header() (metadata.MD, error) { return nil, nil }
+func (s *recordingStream) Trailer() metadata.MD         { return nil }
+func (s *recordingStream) SendMsg(m any) error          { return nil }
+func (s *recordingStream) RecvMsg(m any) error          { return nil }
+
+// fakeAgentClient 实现 agentv1.AgentServiceClient，心跳流复用同一个 recordingStream。
+type fakeAgentClient struct {
+	stream *recordingStream
+}
+
+func (c *fakeAgentClient) Register(_ context.Context, _ *agentv1.RegisterRequest, _ ...grpc.CallOption) (*agentv1.RegisterResponse, error) {
+	return &agentv1.RegisterResponse{}, nil
+}
+func (c *fakeAgentClient) Heartbeat(_ context.Context, _ ...grpc.CallOption) (agentv1.AgentService_HeartbeatClient, error) {
+	return c.stream, nil
+}
+func (c *fakeAgentClient) ReportCapability(_ context.Context, _ *agentv1.CapabilityReport, _ ...grpc.CallOption) (*agentv1.Ack, error) {
+	return &agentv1.Ack{Ok: true}, nil
+}
+
+// TestHeartbeaterReportsComplianceAndFsProbe 验证 Agent 侧探测执行器结果经心跳流上行：
+//   - 首发 PING；
+//   - 周期运行 FS 健康探测并上报 FS_PROBE；
+//   - 收到 RUN_COMPLIANCE 指令后运行 DR 合规自检并上报 COMPLIANCE。
+func TestHeartbeaterReportsComplianceAndFsProbe(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stream := &recordingStream{
+		ctx:  ctx,
+		sent: make(chan *agentv1.HeartbeatRequest, 64),
+		cmds: make(chan *agentv1.HeartbeatResponse, 8),
+	}
+	cli := &fakeAgentClient{stream: stream}
+
+	// 200ms 后下发一次 RUN_COMPLIANCE 指令，触发合规上报。
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		stream.cmds <- &agentv1.HeartbeatResponse{Command: agentv1.HeartbeatResponse_RUN_COMPLIANCE}
+	}()
+
+	hb := agent.NewHeartbeater(cli,
+		agent.HeartbeatConfig{Interval: 100 * time.Millisecond, FsProbeInterval: 150 * time.Millisecond},
+		agent.HeartbeatCallbacks{
+			ReportCompliance: func(ctx context.Context) (*agentv1.ComplianceReport, error) {
+				return &agentv1.ComplianceReport{
+					CheckedAt: time.Now().Unix(),
+					Items:     []*agentv1.ComplianceItem{{Name: "vip_on_lo", Passed: true}},
+				}, nil
+			},
+			ReportFsProbe: func(ctx context.Context) (*agentv1.FsProbeReport, error) {
+				return &agentv1.FsProbeReport{
+					CheckedAt: time.Now().Unix(),
+					Items:     []*agentv1.ComplianceItem{{Name: "disk_usage_nginx_paths", Passed: true}},
+				}, nil
+			},
+		}, nil)
+
+	go func() { _ = hb.Run(ctx) }()
+
+	seen := map[agentv1.HeartbeatRequest_Type]bool{}
+	timeout := time.After(3 * time.Second)
+	for len(seen) < 3 { // 期望观察 PING + COMPLIANCE + FS_PROBE
+		select {
+		case r := <-stream.sent:
+			seen[r.GetType()] = true
+		case <-timeout:
+			t.Fatalf("未在超时内观察到全部上报类型，已见: %v", seen)
+		}
+	}
+	if !seen[agentv1.HeartbeatRequest_PING] {
+		t.Error("未见 PING 上报")
+	}
+	if !seen[agentv1.HeartbeatRequest_COMPLIANCE] {
+		t.Error("未见 COMPLIANCE 上报（DR 合规自检未上行）")
+	}
+	if !seen[agentv1.HeartbeatRequest_FS_PROBE] {
+		t.Error("未见 FS_PROBE 上报（日志/FS 健康探测未上行）")
+	}
 }
