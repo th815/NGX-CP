@@ -474,3 +474,79 @@ func TestHeartbeatComplianceDegrades(t *testing.T) {
 		t.Fatalf("合规恢复后应为 online, 实际 %s", statusOf())
 	}
 }
+
+// TestHeartbeatFsProbeDegrades 验证 T018：Agent 经心跳上报日志/FS 健康探测结果后，
+// 控制面按 FSM 驱动节点状态：online + 关键项不通过（如磁盘使用率超阈值）→ degraded；
+// 报告恢复通过 → 回到 online。
+func TestHeartbeatFsProbeDegrades(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	client, nodeID := newTestNode(t)
+	defer client.Close()
+	if _, err := client.Node.UpdateOneID(nodeID).SetStatus(entnode.StatusOnline).Save(context.Background()); err != nil {
+		t.Fatalf("置 online: %v", err)
+	}
+	nodeSvc := node.New(client)
+	sessions := session.NewSessionManager(slog.Default())
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+	hc, err := cli.Heartbeat(context.Background())
+	if err != nil {
+		t.Fatalf("打开心跳流: %v", err)
+	}
+
+	statusOf := func() string {
+		n, e := client.Node.Get(context.Background(), nodeID)
+		if e != nil {
+			t.Fatalf("查询节点: %v", e)
+		}
+		return string(n.Status)
+	}
+
+	// 上报不健康（磁盘使用率 92%，critical 未通过）。
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type: agentv1.HeartbeatRequest_FS_PROBE,
+		FsProbe: &agentv1.FsProbeReport{
+			CheckedAt: 1,
+			Items: []*agentv1.ComplianceItem{
+				{Name: "disk_usage_nginx_paths", Severity: "critical", Passed: false, Actual: "92%"},
+				{Name: "log_dir_writable", Severity: "warning", Passed: true},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("发送 FS 探测(失败): %v", err)
+	}
+	waitUntil(t, 2*time.Second, func() bool { return statusOf() == string(entnode.StatusDegraded) })
+	if statusOf() != string(entnode.StatusDegraded) {
+		t.Fatalf("关键项不健康后应为 degraded, 实际 %s", statusOf())
+	}
+
+	// 上报恢复健康 → 回到 online。
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type: agentv1.HeartbeatRequest_FS_PROBE,
+		FsProbe: &agentv1.FsProbeReport{
+			CheckedAt: 2,
+			Items: []*agentv1.ComplianceItem{
+				{Name: "disk_usage_nginx_paths", Severity: "critical", Passed: true},
+				{Name: "log_dir_writable", Severity: "warning", Passed: true},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("发送 FS 探测(恢复): %v", err)
+	}
+	waitUntil(t, 2*time.Second, func() bool { return statusOf() == string(entnode.StatusOnline) })
+	if statusOf() != string(entnode.StatusOnline) {
+		t.Fatalf("健康恢复后应为 online, 实际 %s", statusOf())
+	}
+}

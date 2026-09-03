@@ -18,6 +18,7 @@ import (
 	entnode "github.com/th/ngxcp/ent/node"
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
 	"github.com/th/ngxcp/internal/domain/compliance"
+	"github.com/th/ngxcp/internal/domain/probe"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 )
 
@@ -30,8 +31,12 @@ type Service struct {
 
 	// compMu / compReports 缓存各节点最近一次合规自检报告（M1 内存态，无独立表；
 	// 与 clock_skew 同理，真实持久化随 T018/T019 后续里程碑）。
-	compMu       sync.RWMutex
-	compReports  map[int]*agentv1.ComplianceReport
+	compMu      sync.RWMutex
+	compReports map[int]*agentv1.ComplianceReport
+
+	// fsMu / fsReports 缓存各节点最近一次日志/FS 健康探测报告（T018，内存态，同源）。
+	fsMu      sync.RWMutex
+	fsReports map[int]*agentv1.FsProbeReport
 }
 
 // New 构造节点服务。
@@ -40,6 +45,7 @@ func New(client *ent.Client) *Service {
 		client:      client,
 		tokens:      make(map[string]*enrollToken),
 		compReports: make(map[int]*agentv1.ComplianceReport),
+		fsReports:   make(map[int]*agentv1.FsProbeReport),
 	}
 }
 
@@ -64,14 +70,22 @@ type NodeOut struct {
 	LvsWeight        int        `json:"lvs_weight"`
 	LvsEnabled       bool       `json:"lvs_enabled"`
 	LastHeartbeatAt  *time.Time `json:"last_heartbeat_at,omitempty"`
-	ClockSkewSeconds *float64   `json:"clock_skew_seconds,omitempty"` // T015：仅在线且上报过时间戳时存在
-	Compliance       *NodeComplianceView `json:"compliance,omitempty"` // T019：最近一次 DR 合规自检
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ClockSkewSeconds *float64            `json:"clock_skew_seconds,omitempty"` // T015：仅在线且上报过时间戳时存在
+	Compliance       *NodeComplianceView `json:"compliance,omitempty"`        // T019：最近一次 DR 合规自检
+	FsProbe          *NodeFsProbeView    `json:"fs_probe,omitempty"`          // T018：最近一次日志/FS 健康探测
+	CreatedAt        time.Time           `json:"created_at"`
+	UpdatedAt        time.Time           `json:"updated_at"`
 }
 
 // NodeComplianceView 是节点最近一次合规自检的对外视图（来自 Agent 上报 + 控制面判定）。
 type NodeComplianceView struct {
+	Passed         bool     `json:"passed"`
+	CheckedAt      int64    `json:"checked_at"`
+	CriticalFailed []string `json:"critical_failed,omitempty"` // 未通过的关键项名（驱动 degraded 的依据）
+}
+
+// NodeFsProbeView 是节点最近一次日志/FS 健康探测的对外视图（来自 Agent 上报 + 控制面判定）。
+type NodeFsProbeView struct {
 	Passed         bool     `json:"passed"`
 	CheckedAt      int64    `json:"checked_at"`
 	CriticalFailed []string `json:"critical_failed,omitempty"` // 未通过的关键项名（驱动 degraded 的依据）
@@ -438,12 +452,10 @@ func capabilityChecksum(in CapabilityIn) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// ---- T019：DR 合规自检（控制面侧判定 + 状态机流转）----
+// ---- T019/T018：健康维度聚合判定（合规 + 日志/FS）----
 
-// SetCompliance 处理 Agent 上报的 DR 合规自检报告：缓存最新报告，并按 FSM 驱动节点状态。
-//   - online 且存在未通过的 critical 项 → degraded（合规不通过）
-//   - degraded 且报告整体通过 → 恢复 online
-//
+// SetCompliance 处理 Agent 上报的 DR 合规自检报告：缓存最新报告，并聚合两个健康维度
+// （合规 + 日志/FS）重新计算节点 degraded/online 态（见 recomputeHealth）。
 // report 为 nil 时直接忽略（不驱动任何流转）。
 func (s *Service) SetCompliance(ctx context.Context, id int, report *agentv1.ComplianceReport) error {
 	if report == nil {
@@ -452,31 +464,7 @@ func (s *Service) SetCompliance(ctx context.Context, id int, report *agentv1.Com
 	s.compMu.Lock()
 	s.compReports[id] = report
 	s.compMu.Unlock()
-
-	passed := compliance.Evaluate(report).Passed
-	cur, err := s.client.Node.Query().Where(entnode.ID(id)).Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return apperr.New(apperr.CodeNotFound, "节点不存在")
-		}
-		return apperr.Wrap(apperr.CodeInternal, "查询节点失败", err)
-	}
-	switch cur.Status {
-	case entnode.StatusOnline:
-		if !passed {
-			if _, err := s.client.Node.UpdateOneID(id).SetStatus(entnode.StatusDegraded).Save(ctx); err != nil {
-				return apperr.Wrap(apperr.CodeInternal, "标记 degraded 失败", err)
-			}
-			slog.Default().Warn("node compliance degraded", "node_id", id)
-		}
-	case entnode.StatusDegraded:
-		if passed {
-			if _, err := s.client.Node.UpdateOneID(id).SetStatus(entnode.StatusOnline).Save(ctx); err != nil {
-				return apperr.Wrap(apperr.CodeInternal, "恢复 online 失败", err)
-			}
-		}
-	}
-	return nil
+	return s.recomputeHealth(ctx, id)
 }
 
 // GetCompliance 返回节点最近一次合规自检报告（内存态；无则 nil）。
@@ -490,6 +478,82 @@ func (s *Service) GetCompliance(ctx context.Context, id int) (*agentv1.Complianc
 		return r, nil
 	}
 	return nil, nil
+}
+
+// SetFsProbe 处理 Agent 上报的日志/FS 健康探测报告（T018）：缓存最新报告，并聚合两个健康维度
+// （合规 + 日志/FS）重新计算节点 degraded/online 态（见 recomputeHealth）。
+// report 为 nil 时直接忽略（不驱动任何流转）。
+func (s *Service) SetFsProbe(ctx context.Context, id int, report *agentv1.FsProbeReport) error {
+	if report == nil {
+		return nil
+	}
+	s.fsMu.Lock()
+	s.fsReports[id] = report
+	s.fsMu.Unlock()
+	return s.recomputeHealth(ctx, id)
+}
+
+// GetFsProbe 返回节点最近一次日志/FS 健康探测报告（内存态；无则 nil）。
+func (s *Service) GetFsProbe(ctx context.Context, id int) (*agentv1.FsProbeReport, error) {
+	if _, err := s.Get(ctx, id); err != nil {
+		return nil, err
+	}
+	s.fsMu.RLock()
+	defer s.fsMu.RUnlock()
+	if r, ok := s.fsReports[id]; ok {
+		return r, nil
+	}
+	return nil, nil
+}
+
+// recomputeHealth 聚合合规与日志/FS 两个健康维度，重新计算节点 degraded/online 态。
+//
+// 规则：
+//   - 任一维度存在未通过的 critical 项 → 节点 degraded（两个维度的失败都会把 online 拉到 degraded）。
+//   - 两个维度都无未通过 critical 项（其余维度未上报视为不阻断）→ 节点 online。
+//
+// 仅对 online/degraded 做翻转，不触碰 enrolling/offline；仅在状态实际变化时才写库 + 打 WARN，
+// 避免重复 UPDATE 与日志刷屏。某维度从未上报（nil）按"不阻断"处理（未知 ≠ 失败），
+// 因此单维度先行上报即可驱动对应翻转，且另一维度恢复不会误把仍存在问题的维度翻转回 online。
+func (s *Service) recomputeHealth(ctx context.Context, id int) error {
+	if _, err := s.Get(ctx, id); err != nil {
+		return err
+	}
+	s.compMu.RLock()
+	comp := s.compReports[id]
+	s.compMu.RUnlock()
+	s.fsMu.RLock()
+	fs := s.fsReports[id]
+	s.fsMu.RUnlock()
+
+	compFails := comp != nil && !compliance.Evaluate(comp).Passed
+	fsFails := fs != nil && !probe.Evaluate(fs.GetItems()).Passed
+	degraded := compFails || fsFails
+
+	cur, err := s.client.Node.Query().Where(entnode.ID(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return apperr.Wrap(apperr.CodeInternal, "查询节点失败", err)
+	}
+	switch cur.Status {
+	case entnode.StatusOnline:
+		if degraded && cur.Status != entnode.StatusDegraded {
+			if _, err := s.client.Node.UpdateOneID(id).SetStatus(entnode.StatusDegraded).Save(ctx); err != nil {
+				return apperr.Wrap(apperr.CodeInternal, "标记 degraded 失败", err)
+			}
+			slog.Default().Warn("node health degraded by probe/compliance", "node_id", id,
+				"compliance_failed", compFails, "fs_failed", fsFails)
+		}
+	case entnode.StatusDegraded:
+		if !degraded && cur.Status != entnode.StatusOnline {
+			if _, err := s.client.Node.UpdateOneID(id).SetStatus(entnode.StatusOnline).Save(ctx); err != nil {
+				return apperr.Wrap(apperr.CodeInternal, "恢复 online 失败", err)
+			}
+		}
+	}
+	return nil
 }
 
 // GetCapability 返回节点能力基线（真实解析器已在 internal/agent/capability 落地：

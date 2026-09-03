@@ -45,12 +45,14 @@ message HeartbeatRequest {
     CAPABILITY = 1;
     COMPLIANCE = 2;
     METRICS = 3;
+    FS_PROBE = 4;                 // T018：日志/FS 健康探测上报
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
   Capability capability = 3;
   ComplianceReport compliance = 4;
   bytes metrics_payload = 5;      // Prometheus 文本格式
+  FsProbeReport fs_probe = 6;     // T018：日志/FS 健康探测结果
 }
 
 message HeartbeatResponse {
@@ -129,4 +131,13 @@ message ComplianceItem {
   string actual = 5;
   string severity = 6;    // critical | warning
   string fix_cmd = 7;     // 修复命令建议
+}
+
+// FsProbeReport 是 Agent 在主机上探测日志/文件系统健康的结果（T018）。
+// 复用 ComplianceItem 结构表达各项检查通过与否；控制面据此判定节点是否 degraded。
+// 典型检查项：nginx 路径磁盘使用率、证书剩余有效期、配置/证书文件权限、日志目录可写、
+// error.log 错误速率、pid 文件存在性等（见 internal/domain/probe 规则目录）。
+message FsProbeReport {
+  int64 checked_at = 1;                 // unix 秒
+  repeated ComplianceItem items = 2;    // 各项检查结果（severity=critical 不通过 → 节点 degraded）
 }

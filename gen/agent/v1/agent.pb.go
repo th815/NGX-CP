@@ -31,6 +31,7 @@ const (
 	HeartbeatRequest_CAPABILITY HeartbeatRequest_Type = 1
 	HeartbeatRequest_COMPLIANCE HeartbeatRequest_Type = 2
 	HeartbeatRequest_METRICS    HeartbeatRequest_Type = 3
+	HeartbeatRequest_FS_PROBE   HeartbeatRequest_Type = 4 // T018：日志/FS 健康探测上报
 )
 
 // Enum value maps for HeartbeatRequest_Type.
@@ -40,12 +41,14 @@ var (
 		1: "CAPABILITY",
 		2: "COMPLIANCE",
 		3: "METRICS",
+		4: "FS_PROBE",
 	}
 	HeartbeatRequest_Type_value = map[string]int32{
 		"PING":       0,
 		"CAPABILITY": 1,
 		"COMPLIANCE": 2,
 		"METRICS":    3,
+		"FS_PROBE":   4,
 	}
 )
 
@@ -328,6 +331,7 @@ type HeartbeatRequest struct {
 	Capability     *Capability            `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
 	Compliance     *ComplianceReport      `protobuf:"bytes,4,opt,name=compliance,proto3" json:"compliance,omitempty"`
 	MetricsPayload []byte                 `protobuf:"bytes,5,opt,name=metrics_payload,json=metricsPayload,proto3" json:"metrics_payload,omitempty"` // Prometheus 文本格式
+	FsProbe        *FsProbeReport         `protobuf:"bytes,6,opt,name=fs_probe,json=fsProbe,proto3" json:"fs_probe,omitempty"`                      // T018：日志/FS 健康探测结果
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -393,6 +397,13 @@ func (x *HeartbeatRequest) GetCompliance() *ComplianceReport {
 func (x *HeartbeatRequest) GetMetricsPayload() []byte {
 	if x != nil {
 		return x.MetricsPayload
+	}
+	return nil
+}
+
+func (x *HeartbeatRequest) GetFsProbe() *FsProbeReport {
+	if x != nil {
+		return x.FsProbe
 	}
 	return nil
 }
@@ -1077,6 +1088,62 @@ func (x *ComplianceItem) GetFixCmd() string {
 	return ""
 }
 
+// FsProbeReport 是 Agent 在主机上探测日志/文件系统健康的结果（T018）。
+// 复用 ComplianceItem 结构表达各项检查通过与否；控制面据此判定节点是否 degraded。
+// 典型检查项：nginx 路径磁盘使用率、证书剩余有效期、配置/证书文件权限、日志目录可写、
+// error.log 错误速率、pid 文件存在性等（见 internal/domain/probe 规则目录）。
+type FsProbeReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CheckedAt     int64                  `protobuf:"varint,1,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"` // unix 秒
+	Items         []*ComplianceItem      `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`                           // 各项检查结果（severity=critical 不通过 → 节点 degraded）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FsProbeReport) Reset() {
+	*x = FsProbeReport{}
+	mi := &file_agent_v1_agent_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FsProbeReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FsProbeReport) ProtoMessage() {}
+
+func (x *FsProbeReport) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FsProbeReport.ProtoReflect.Descriptor instead.
+func (*FsProbeReport) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *FsProbeReport) GetCheckedAt() int64 {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return 0
+}
+
+func (x *FsProbeReport) GetItems() []*ComplianceItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
@@ -1096,7 +1163,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\fServerConfig\x124\n" +
 	"\x16heartbeat_interval_sec\x18\x01 \x01(\x03R\x14heartbeatIntervalSec\x122\n" +
 	"\x15heartbeat_timeout_sec\x18\x02 \x01(\x03R\x13heartbeatTimeoutSec\x12-\n" +
-	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\xbf\x02\n" +
+	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\x81\x03\n" +
 	"\x10HeartbeatRequest\x123\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1f.agent.v1.HeartbeatRequest.TypeR\x04type\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x124\n" +
@@ -1106,14 +1173,16 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"compliance\x18\x04 \x01(\v2\x1a.agent.v1.ComplianceReportR\n" +
 	"compliance\x12'\n" +
-	"\x0fmetrics_payload\x18\x05 \x01(\fR\x0emetricsPayload\"=\n" +
+	"\x0fmetrics_payload\x18\x05 \x01(\fR\x0emetricsPayload\x122\n" +
+	"\bfs_probe\x18\x06 \x01(\v2\x17.agent.v1.FsProbeReportR\afsProbe\"K\n" +
 	"\x04Type\x12\b\n" +
 	"\x04PING\x10\x00\x12\x0e\n" +
 	"\n" +
 	"CAPABILITY\x10\x01\x12\x0e\n" +
 	"\n" +
 	"COMPLIANCE\x10\x02\x12\v\n" +
-	"\aMETRICS\x10\x03\"\xac\x01\n" +
+	"\aMETRICS\x10\x03\x12\f\n" +
+	"\bFS_PROBE\x10\x04\"\xac\x01\n" +
 	"\x11HeartbeatResponse\x12=\n" +
 	"\acommand\x18\x01 \x01(\x0e2#.agent.v1.HeartbeatResponse.CommandR\acommand\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\"?\n" +
@@ -1185,7 +1254,11 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\bexpected\x18\x04 \x01(\tR\bexpected\x12\x16\n" +
 	"\x06actual\x18\x05 \x01(\tR\x06actual\x12\x1a\n" +
 	"\bseverity\x18\x06 \x01(\tR\bseverity\x12\x17\n" +
-	"\afix_cmd\x18\a \x01(\tR\x06fixCmd2\xda\x01\n" +
+	"\afix_cmd\x18\a \x01(\tR\x06fixCmd\"^\n" +
+	"\rFsProbeReport\x12\x1d\n" +
+	"\n" +
+	"checked_at\x18\x01 \x01(\x03R\tcheckedAt\x12.\n" +
+	"\x05items\x18\x02 \x03(\v2\x18.agent.v1.ComplianceItemR\x05items2\xda\x01\n" +
 	"\fAgentService\x12A\n" +
 	"\bRegister\x12\x19.agent.v1.RegisterRequest\x1a\x1a.agent.v1.RegisterResponse\x12H\n" +
 	"\tHeartbeat\x12\x1a.agent.v1.HeartbeatRequest\x1a\x1b.agent.v1.HeartbeatResponse(\x010\x01\x12=\n" +
@@ -1204,7 +1277,7 @@ func file_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_agent_v1_agent_proto_goTypes = []any{
 	(HeartbeatRequest_Type)(0),     // 0: agent.v1.HeartbeatRequest.Type
 	(HeartbeatResponse_Command)(0), // 1: agent.v1.HeartbeatResponse.Command
@@ -1220,29 +1293,32 @@ var file_agent_v1_agent_proto_goTypes = []any{
 	(*ConfigFile)(nil),             // 11: agent.v1.ConfigFile
 	(*ComplianceReport)(nil),       // 12: agent.v1.ComplianceReport
 	(*ComplianceItem)(nil),         // 13: agent.v1.ComplianceItem
+	(*FsProbeReport)(nil),          // 14: agent.v1.FsProbeReport
 }
 var file_agent_v1_agent_proto_depIdxs = []int32{
 	4,  // 0: agent.v1.RegisterResponse.config:type_name -> agent.v1.ServerConfig
 	0,  // 1: agent.v1.HeartbeatRequest.type:type_name -> agent.v1.HeartbeatRequest.Type
 	9,  // 2: agent.v1.HeartbeatRequest.capability:type_name -> agent.v1.Capability
 	12, // 3: agent.v1.HeartbeatRequest.compliance:type_name -> agent.v1.ComplianceReport
-	1,  // 4: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
-	9,  // 5: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
-	10, // 6: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
-	12, // 7: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
-	11, // 8: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
-	13, // 9: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
-	2,  // 10: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
-	5,  // 11: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
-	7,  // 12: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
-	3,  // 13: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
-	6,  // 14: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
-	8,  // 15: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
-	13, // [13:16] is the sub-list for method output_type
-	10, // [10:13] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	14, // 4: agent.v1.HeartbeatRequest.fs_probe:type_name -> agent.v1.FsProbeReport
+	1,  // 5: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
+	9,  // 6: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
+	10, // 7: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
+	12, // 8: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
+	11, // 9: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
+	13, // 10: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
+	13, // 11: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
+	2,  // 12: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
+	5,  // 13: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
+	7,  // 14: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
+	3,  // 15: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
+	6,  // 16: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
+	8,  // 17: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
+	15, // [15:18] is the sub-list for method output_type
+	12, // [12:15] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_agent_v1_agent_proto_init() }
@@ -1256,7 +1332,7 @@ func file_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_v1_agent_proto_rawDesc), len(file_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -230,6 +230,13 @@ func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
 			}
 		}
 
+		// 日志/FS 健康探测上报（T018）：收到即缓存并判定，与合规维度聚合驱动 degraded / online。
+		if f := req.GetFsProbe(); f != nil && s.nodeSvc != nil {
+			if err := s.nodeSvc.SetFsProbe(stream.Context(), nodeID, f); err != nil {
+				s.log.Warn("set fs probe failed", "node_id", nodeID, "err", err)
+			}
+		}
+
 		if s.nodeSvc != nil {
 			_ = s.nodeSvc.TouchHeartbeat(stream.Context(), nodeID)
 		}

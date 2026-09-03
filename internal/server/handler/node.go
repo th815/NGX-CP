@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/th/ngxcp/internal/domain/compliance"
 	"github.com/th/ngxcp/internal/domain/node"
+	"github.com/th/ngxcp/internal/domain/probe"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/server/response"
 )
@@ -62,6 +63,15 @@ func (h *NodeHandler) Get(c *gin.Context) {
 	if rep, err := h.svc.GetCompliance(c.Request.Context(), id); err == nil && rep != nil {
 		r := compliance.Evaluate(rep)
 		out.Compliance = &node.NodeComplianceView{
+			Passed:         r.Passed,
+			CheckedAt:      rep.GetCheckedAt(),
+			CriticalFailed: r.CriticalFailed,
+		}
+	}
+	// 注入最近一次日志/FS 健康探测结果（T018）。
+	if rep, err := h.svc.GetFsProbe(c.Request.Context(), id); err == nil && rep != nil {
+		r := probe.Evaluate(rep.GetItems())
+		out.FsProbe = &node.NodeFsProbeView{
 			Passed:         r.Passed,
 			CheckedAt:      rep.GetCheckedAt(),
 			CriticalFailed: r.CriticalFailed,

@@ -12,5 +12,5 @@ for b in buf protoc-gen-go protoc-gen-go-grpc; do
   command -v "$b" >/dev/null 2>&1 || { echo "ERROR: $b 未安装，见脚本顶部说明"; exit 1; }
 done
 
-buf generate proto
+buf generate proto --template buf.gen.yaml
 echo "✔ 生成完成 -> gen/agent/v1"
