@@ -27,11 +27,13 @@ const (
 type HeartbeatRequest_Type int32
 
 const (
-	HeartbeatRequest_PING       HeartbeatRequest_Type = 0
-	HeartbeatRequest_CAPABILITY HeartbeatRequest_Type = 1
-	HeartbeatRequest_COMPLIANCE HeartbeatRequest_Type = 2
-	HeartbeatRequest_METRICS    HeartbeatRequest_Type = 3
-	HeartbeatRequest_FS_PROBE   HeartbeatRequest_Type = 4 // T018：日志/FS 健康探测上报
+	HeartbeatRequest_PING        HeartbeatRequest_Type = 0
+	HeartbeatRequest_CAPABILITY  HeartbeatRequest_Type = 1
+	HeartbeatRequest_COMPLIANCE  HeartbeatRequest_Type = 2
+	HeartbeatRequest_METRICS     HeartbeatRequest_Type = 3
+	HeartbeatRequest_FS_PROBE    HeartbeatRequest_Type = 4 // T018：日志/FS 健康探测上报
+	HeartbeatRequest_CONFIG_TREE HeartbeatRequest_Type = 5 // T018：nginx -T 配置树上报
+	HeartbeatRequest_LOG_TARGETS HeartbeatRequest_Type = 6 // T018：日志采集目标上报
 )
 
 // Enum value maps for HeartbeatRequest_Type.
@@ -42,13 +44,17 @@ var (
 		2: "COMPLIANCE",
 		3: "METRICS",
 		4: "FS_PROBE",
+		5: "CONFIG_TREE",
+		6: "LOG_TARGETS",
 	}
 	HeartbeatRequest_Type_value = map[string]int32{
-		"PING":       0,
-		"CAPABILITY": 1,
-		"COMPLIANCE": 2,
-		"METRICS":    3,
-		"FS_PROBE":   4,
+		"PING":        0,
+		"CAPABILITY":  1,
+		"COMPLIANCE":  2,
+		"METRICS":     3,
+		"FS_PROBE":    4,
+		"CONFIG_TREE": 5,
+		"LOG_TARGETS": 6,
 	}
 )
 
@@ -332,6 +338,8 @@ type HeartbeatRequest struct {
 	Compliance     *ComplianceReport      `protobuf:"bytes,4,opt,name=compliance,proto3" json:"compliance,omitempty"`
 	MetricsPayload []byte                 `protobuf:"bytes,5,opt,name=metrics_payload,json=metricsPayload,proto3" json:"metrics_payload,omitempty"` // Prometheus 文本格式
 	FsProbe        *FsProbeReport         `protobuf:"bytes,6,opt,name=fs_probe,json=fsProbe,proto3" json:"fs_probe,omitempty"`                      // T018：日志/FS 健康探测结果
+	ConfigTree     *ConfigTreeReport      `protobuf:"bytes,7,opt,name=config_tree,json=configTree,proto3" json:"config_tree,omitempty"`             // T018：nginx -T 配置树
+	LogTargets     *LogTargetsReport      `protobuf:"bytes,8,opt,name=log_targets,json=logTargets,proto3" json:"log_targets,omitempty"`             // T018：日志采集目标清单
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -404,6 +412,20 @@ func (x *HeartbeatRequest) GetMetricsPayload() []byte {
 func (x *HeartbeatRequest) GetFsProbe() *FsProbeReport {
 	if x != nil {
 		return x.FsProbe
+	}
+	return nil
+}
+
+func (x *HeartbeatRequest) GetConfigTree() *ConfigTreeReport {
+	if x != nil {
+		return x.ConfigTree
+	}
+	return nil
+}
+
+func (x *HeartbeatRequest) GetLogTargets() *LogTargetsReport {
+	if x != nil {
+		return x.LogTargets
 	}
 	return nil
 }
@@ -574,6 +596,7 @@ type Capability struct {
 	HasIpvsadm       bool                   `protobuf:"varint,6,opt,name=has_ipvsadm,json=hasIpvsadm,proto3" json:"has_ipvsadm,omitempty"`
 	Compliance       *ComplianceReport      `protobuf:"bytes,7,opt,name=compliance,proto3" json:"compliance,omitempty"`
 	ClockSkewSeconds float64                `protobuf:"fixed64,8,opt,name=clock_skew_seconds,json=clockSkewSeconds,proto3" json:"clock_skew_seconds,omitempty"` // 与控制面的时间偏差（由控制面计算填入）
+	System           *SystemInfo            `protobuf:"bytes,9,opt,name=system,proto3" json:"system,omitempty"`                                                 // T018：主机运行底座画像（OS 细节/SELinux/ulimit/磁盘等）
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -662,6 +685,13 @@ func (x *Capability) GetClockSkewSeconds() float64 {
 		return x.ClockSkewSeconds
 	}
 	return 0
+}
+
+func (x *Capability) GetSystem() *SystemInfo {
+	if x != nil {
+		return x.System
+	}
+	return nil
 }
 
 type NginxInfo struct {
@@ -1144,6 +1174,357 @@ func (x *FsProbeReport) GetItems() []*ComplianceItem {
 	return nil
 }
 
+// SystemInfo 是主机的运行底座画像（T018）。
+// 采集为尽力而为：单项取不到时留零值，不阻断整体能力上报。
+type SystemInfo struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Os             string                 `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"` // "rocky 9.4"
+	Kernel         string                 `protobuf:"bytes,2,opt,name=kernel,proto3" json:"kernel,omitempty"`
+	NginxManagedBy string                 `protobuf:"bytes,3,opt,name=nginx_managed_by,json=nginxManagedBy,proto3" json:"nginx_managed_by,omitempty"` // systemd | manual
+	SelinuxStatus  string                 `protobuf:"bytes,4,opt,name=selinux_status,json=selinuxStatus,proto3" json:"selinux_status,omitempty"`      // enforcing | permissive | disabled | unknown
+	UlimitNofile   int64                  `protobuf:"varint,5,opt,name=ulimit_nofile,json=ulimitNofile,proto3" json:"ulimit_nofile,omitempty"`
+	Timezone       string                 `protobuf:"bytes,6,opt,name=timezone,proto3" json:"timezone,omitempty"` // Asia/Shanghai
+	NtpSynced      bool                   `protobuf:"varint,7,opt,name=ntp_synced,json=ntpSynced,proto3" json:"ntp_synced,omitempty"`
+	LogrotateConf  string                 `protobuf:"bytes,8,opt,name=logrotate_conf,json=logrotateConf,proto3" json:"logrotate_conf,omitempty"`                                                             // /etc/logrotate.d/nginx，空表示不存在
+	DiskFree       map[string]int64       `protobuf:"bytes,9,rep,name=disk_free,json=diskFree,proto3" json:"disk_free,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // 挂载点 -> 可用字节
+	Warnings       []string               `protobuf:"bytes,10,rep,name=warnings,proto3" json:"warnings,omitempty"`                                                                                           // 采集失败的项（selinux / ntp / disk ...）
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SystemInfo) Reset() {
+	*x = SystemInfo{}
+	mi := &file_agent_v1_agent_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemInfo) ProtoMessage() {}
+
+func (x *SystemInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemInfo.ProtoReflect.Descriptor instead.
+func (*SystemInfo) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SystemInfo) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetKernel() string {
+	if x != nil {
+		return x.Kernel
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetNginxManagedBy() string {
+	if x != nil {
+		return x.NginxManagedBy
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetSelinuxStatus() string {
+	if x != nil {
+		return x.SelinuxStatus
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetUlimitNofile() int64 {
+	if x != nil {
+		return x.UlimitNofile
+	}
+	return 0
+}
+
+func (x *SystemInfo) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetNtpSynced() bool {
+	if x != nil {
+		return x.NtpSynced
+	}
+	return false
+}
+
+func (x *SystemInfo) GetLogrotateConf() string {
+	if x != nil {
+		return x.LogrotateConf
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetDiskFree() map[string]int64 {
+	if x != nil {
+		return x.DiskFree
+	}
+	return nil
+}
+
+func (x *SystemInfo) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+// ConfigTreeReport 是 `nginx -T` 解析出的配置树（T018）。
+// 控制面只持久化元数据（路径/大小/哈希），内容按需由 Agent 重新采集——
+// 完整配置可能数 MB，常驻落库既浪费也会把私钥路径等敏感信息扩散到数据库。
+type ConfigTreeReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CapturedAt    int64                  `protobuf:"varint,1,opt,name=captured_at,json=capturedAt,proto3" json:"captured_at,omitempty"` // unix 秒
+	Files         []*ConfigFile          `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigTreeReport) Reset() {
+	*x = ConfigTreeReport{}
+	mi := &file_agent_v1_agent_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigTreeReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigTreeReport) ProtoMessage() {}
+
+func (x *ConfigTreeReport) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigTreeReport.ProtoReflect.Descriptor instead.
+func (*ConfigTreeReport) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ConfigTreeReport) GetCapturedAt() int64 {
+	if x != nil {
+		return x.CapturedAt
+	}
+	return 0
+}
+
+func (x *ConfigTreeReport) GetFiles() []*ConfigFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+// LogTargetsReport 是从配置里提取的日志采集目标清单（T018）。
+// 决定「Agent 该 tail 哪些文件」：off / syslog 目标跳过，变量路径只标记不展开。
+type LogTargetsReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CapturedAt    int64                  `protobuf:"varint,1,opt,name=captured_at,json=capturedAt,proto3" json:"captured_at,omitempty"` // unix 秒
+	Items         []*LogTarget           `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogTargetsReport) Reset() {
+	*x = LogTargetsReport{}
+	mi := &file_agent_v1_agent_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogTargetsReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogTargetsReport) ProtoMessage() {}
+
+func (x *LogTargetsReport) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogTargetsReport.ProtoReflect.Descriptor instead.
+func (*LogTargetsReport) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *LogTargetsReport) GetCapturedAt() int64 {
+	if x != nil {
+		return x.CapturedAt
+	}
+	return 0
+}
+
+func (x *LogTargetsReport) GetItems() []*LogTarget {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type LogTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                   // /var/log/nginx/access.log
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`                                   // access | error
+	Format        string                 `protobuf:"bytes,3,opt,name=format,proto3" json:"format,omitempty"`                               // main | json（未指定为空，即 nginx 默认 combined）
+	Level         string                 `protobuf:"bytes,4,opt,name=level,proto3" json:"level,omitempty"`                                 // warn | error（仅 error_log）
+	IsSyslog      bool                   `protobuf:"varint,5,opt,name=is_syslog,json=isSyslog,proto3" json:"is_syslog,omitempty"`          // syslog:server=... → 跳过采集
+	IsOff         bool                   `protobuf:"varint,6,opt,name=is_off,json=isOff,proto3" json:"is_off,omitempty"`                   // off / stderr / memory → 跳过采集
+	HasVariable   bool                   `protobuf:"varint,7,opt,name=has_variable,json=hasVariable,proto3" json:"has_variable,omitempty"` // 路径含 $host 等变量 → 不展开，告警
+	SkipReason    string                 `protobuf:"bytes,8,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`     // off | syslog | stderr | memory
+	Size          int64                  `protobuf:"varint,9,opt,name=size,proto3" json:"size,omitempty"`                                  // 字节；stat 失败为 -1
+	Inode         uint64                 `protobuf:"varint,10,opt,name=inode,proto3" json:"inode,omitempty"`                               // logrotate 轮转检测
+	StatErr       string                 `protobuf:"bytes,11,opt,name=stat_err,json=statErr,proto3" json:"stat_err,omitempty"`             // stat 失败原因
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogTarget) Reset() {
+	*x = LogTarget{}
+	mi := &file_agent_v1_agent_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogTarget) ProtoMessage() {}
+
+func (x *LogTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogTarget.ProtoReflect.Descriptor instead.
+func (*LogTarget) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *LogTarget) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *LogTarget) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *LogTarget) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *LogTarget) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *LogTarget) GetIsSyslog() bool {
+	if x != nil {
+		return x.IsSyslog
+	}
+	return false
+}
+
+func (x *LogTarget) GetIsOff() bool {
+	if x != nil {
+		return x.IsOff
+	}
+	return false
+}
+
+func (x *LogTarget) GetHasVariable() bool {
+	if x != nil {
+		return x.HasVariable
+	}
+	return false
+}
+
+func (x *LogTarget) GetSkipReason() string {
+	if x != nil {
+		return x.SkipReason
+	}
+	return ""
+}
+
+func (x *LogTarget) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *LogTarget) GetInode() uint64 {
+	if x != nil {
+		return x.Inode
+	}
+	return 0
+}
+
+func (x *LogTarget) GetStatErr() string {
+	if x != nil {
+		return x.StatErr
+	}
+	return ""
+}
+
 var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
@@ -1163,7 +1544,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\fServerConfig\x124\n" +
 	"\x16heartbeat_interval_sec\x18\x01 \x01(\x03R\x14heartbeatIntervalSec\x122\n" +
 	"\x15heartbeat_timeout_sec\x18\x02 \x01(\x03R\x13heartbeatTimeoutSec\x12-\n" +
-	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\x81\x03\n" +
+	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\x9d\x04\n" +
 	"\x10HeartbeatRequest\x123\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1f.agent.v1.HeartbeatRequest.TypeR\x04type\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x124\n" +
@@ -1174,7 +1555,11 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"compliance\x18\x04 \x01(\v2\x1a.agent.v1.ComplianceReportR\n" +
 	"compliance\x12'\n" +
 	"\x0fmetrics_payload\x18\x05 \x01(\fR\x0emetricsPayload\x122\n" +
-	"\bfs_probe\x18\x06 \x01(\v2\x17.agent.v1.FsProbeReportR\afsProbe\"K\n" +
+	"\bfs_probe\x18\x06 \x01(\v2\x17.agent.v1.FsProbeReportR\afsProbe\x12;\n" +
+	"\vconfig_tree\x18\a \x01(\v2\x1a.agent.v1.ConfigTreeReportR\n" +
+	"configTree\x12;\n" +
+	"\vlog_targets\x18\b \x01(\v2\x1a.agent.v1.LogTargetsReportR\n" +
+	"logTargets\"m\n" +
 	"\x04Type\x12\b\n" +
 	"\x04PING\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -1182,7 +1567,9 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"COMPLIANCE\x10\x02\x12\v\n" +
 	"\aMETRICS\x10\x03\x12\f\n" +
-	"\bFS_PROBE\x10\x04\"\xac\x01\n" +
+	"\bFS_PROBE\x10\x04\x12\x0f\n" +
+	"\vCONFIG_TREE\x10\x05\x12\x0f\n" +
+	"\vLOG_TARGETS\x10\x06\"\xac\x01\n" +
 	"\x11HeartbeatResponse\x12=\n" +
 	"\acommand\x18\x01 \x01(\x0e2#.agent.v1.HeartbeatResponse.CommandR\acommand\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\"?\n" +
@@ -1197,7 +1584,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"capability\"/\n" +
 	"\x03Ack\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xad\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xdb\x02\n" +
 	"\n" +
 	"Capability\x12\x1a\n" +
 	"\bhostname\x18\x01 \x01(\tR\bhostname\x12\x0e\n" +
@@ -1210,7 +1597,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"compliance\x18\a \x01(\v2\x1a.agent.v1.ComplianceReportR\n" +
 	"compliance\x12,\n" +
-	"\x12clock_skew_seconds\x18\b \x01(\x01R\x10clockSkewSeconds\"\x9e\x05\n" +
+	"\x12clock_skew_seconds\x18\b \x01(\x01R\x10clockSkewSeconds\x12,\n" +
+	"\x06system\x18\t \x01(\v2\x14.agent.v1.SystemInfoR\x06system\"\x9e\x05\n" +
 	"\tNginxInfo\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x1f\n" +
 	"\vbinary_path\x18\x02 \x01(\tR\n" +
@@ -1258,7 +1646,46 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\rFsProbeReport\x12\x1d\n" +
 	"\n" +
 	"checked_at\x18\x01 \x01(\x03R\tcheckedAt\x12.\n" +
-	"\x05items\x18\x02 \x03(\v2\x18.agent.v1.ComplianceItemR\x05items2\xda\x01\n" +
+	"\x05items\x18\x02 \x03(\v2\x18.agent.v1.ComplianceItemR\x05items\"\xa6\x03\n" +
+	"\n" +
+	"SystemInfo\x12\x0e\n" +
+	"\x02os\x18\x01 \x01(\tR\x02os\x12\x16\n" +
+	"\x06kernel\x18\x02 \x01(\tR\x06kernel\x12(\n" +
+	"\x10nginx_managed_by\x18\x03 \x01(\tR\x0enginxManagedBy\x12%\n" +
+	"\x0eselinux_status\x18\x04 \x01(\tR\rselinuxStatus\x12#\n" +
+	"\rulimit_nofile\x18\x05 \x01(\x03R\fulimitNofile\x12\x1a\n" +
+	"\btimezone\x18\x06 \x01(\tR\btimezone\x12\x1d\n" +
+	"\n" +
+	"ntp_synced\x18\a \x01(\bR\tntpSynced\x12%\n" +
+	"\x0elogrotate_conf\x18\b \x01(\tR\rlogrotateConf\x12?\n" +
+	"\tdisk_free\x18\t \x03(\v2\".agent.v1.SystemInfo.DiskFreeEntryR\bdiskFree\x12\x1a\n" +
+	"\bwarnings\x18\n" +
+	" \x03(\tR\bwarnings\x1a;\n" +
+	"\rDiskFreeEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"_\n" +
+	"\x10ConfigTreeReport\x12\x1f\n" +
+	"\vcaptured_at\x18\x01 \x01(\x03R\n" +
+	"capturedAt\x12*\n" +
+	"\x05files\x18\x02 \x03(\v2\x14.agent.v1.ConfigFileR\x05files\"^\n" +
+	"\x10LogTargetsReport\x12\x1f\n" +
+	"\vcaptured_at\x18\x01 \x01(\x03R\n" +
+	"capturedAt\x12)\n" +
+	"\x05items\x18\x02 \x03(\v2\x13.agent.v1.LogTargetR\x05items\"\x9e\x02\n" +
+	"\tLogTarget\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x16\n" +
+	"\x06format\x18\x03 \x01(\tR\x06format\x12\x14\n" +
+	"\x05level\x18\x04 \x01(\tR\x05level\x12\x1b\n" +
+	"\tis_syslog\x18\x05 \x01(\bR\bisSyslog\x12\x15\n" +
+	"\x06is_off\x18\x06 \x01(\bR\x05isOff\x12!\n" +
+	"\fhas_variable\x18\a \x01(\bR\vhasVariable\x12\x1f\n" +
+	"\vskip_reason\x18\b \x01(\tR\n" +
+	"skipReason\x12\x12\n" +
+	"\x04size\x18\t \x01(\x03R\x04size\x12\x14\n" +
+	"\x05inode\x18\n" +
+	" \x01(\x04R\x05inode\x12\x19\n" +
+	"\bstat_err\x18\v \x01(\tR\astatErr2\xda\x01\n" +
 	"\fAgentService\x12A\n" +
 	"\bRegister\x12\x19.agent.v1.RegisterRequest\x1a\x1a.agent.v1.RegisterResponse\x12H\n" +
 	"\tHeartbeat\x12\x1a.agent.v1.HeartbeatRequest\x1a\x1b.agent.v1.HeartbeatResponse(\x010\x01\x12=\n" +
@@ -1277,7 +1704,7 @@ func file_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_agent_v1_agent_proto_goTypes = []any{
 	(HeartbeatRequest_Type)(0),     // 0: agent.v1.HeartbeatRequest.Type
 	(HeartbeatResponse_Command)(0), // 1: agent.v1.HeartbeatResponse.Command
@@ -1294,6 +1721,11 @@ var file_agent_v1_agent_proto_goTypes = []any{
 	(*ComplianceReport)(nil),       // 12: agent.v1.ComplianceReport
 	(*ComplianceItem)(nil),         // 13: agent.v1.ComplianceItem
 	(*FsProbeReport)(nil),          // 14: agent.v1.FsProbeReport
+	(*SystemInfo)(nil),             // 15: agent.v1.SystemInfo
+	(*ConfigTreeReport)(nil),       // 16: agent.v1.ConfigTreeReport
+	(*LogTargetsReport)(nil),       // 17: agent.v1.LogTargetsReport
+	(*LogTarget)(nil),              // 18: agent.v1.LogTarget
+	nil,                            // 19: agent.v1.SystemInfo.DiskFreeEntry
 }
 var file_agent_v1_agent_proto_depIdxs = []int32{
 	4,  // 0: agent.v1.RegisterResponse.config:type_name -> agent.v1.ServerConfig
@@ -1301,24 +1733,30 @@ var file_agent_v1_agent_proto_depIdxs = []int32{
 	9,  // 2: agent.v1.HeartbeatRequest.capability:type_name -> agent.v1.Capability
 	12, // 3: agent.v1.HeartbeatRequest.compliance:type_name -> agent.v1.ComplianceReport
 	14, // 4: agent.v1.HeartbeatRequest.fs_probe:type_name -> agent.v1.FsProbeReport
-	1,  // 5: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
-	9,  // 6: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
-	10, // 7: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
-	12, // 8: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
-	11, // 9: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
-	13, // 10: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
-	13, // 11: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
-	2,  // 12: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
-	5,  // 13: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
-	7,  // 14: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
-	3,  // 15: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
-	6,  // 16: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
-	8,  // 17: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
-	15, // [15:18] is the sub-list for method output_type
-	12, // [12:15] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	16, // 5: agent.v1.HeartbeatRequest.config_tree:type_name -> agent.v1.ConfigTreeReport
+	17, // 6: agent.v1.HeartbeatRequest.log_targets:type_name -> agent.v1.LogTargetsReport
+	1,  // 7: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
+	9,  // 8: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
+	10, // 9: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
+	12, // 10: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
+	15, // 11: agent.v1.Capability.system:type_name -> agent.v1.SystemInfo
+	11, // 12: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
+	13, // 13: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
+	13, // 14: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
+	19, // 15: agent.v1.SystemInfo.disk_free:type_name -> agent.v1.SystemInfo.DiskFreeEntry
+	11, // 16: agent.v1.ConfigTreeReport.files:type_name -> agent.v1.ConfigFile
+	18, // 17: agent.v1.LogTargetsReport.items:type_name -> agent.v1.LogTarget
+	2,  // 18: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
+	5,  // 19: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
+	7,  // 20: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
+	3,  // 21: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
+	6,  // 22: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
+	8,  // 23: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
+	21, // [21:24] is the sub-list for method output_type
+	18, // [18:21] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_agent_v1_agent_proto_init() }
@@ -1332,7 +1770,7 @@ func file_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_v1_agent_proto_rawDesc), len(file_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

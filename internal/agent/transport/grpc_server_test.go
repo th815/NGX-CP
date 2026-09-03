@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"log/slog"
@@ -19,6 +20,8 @@ import (
 	"github.com/th/ngxcp/ent"
 	entnode "github.com/th/ngxcp/ent/node"
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
+	entncf "github.com/th/ngxcp/ent/nodeconfigfile"
+	entnlt "github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/pki"
@@ -548,5 +551,153 @@ func TestHeartbeatFsProbeDegrades(t *testing.T) {
 	waitUntil(t, 2*time.Second, func() bool { return statusOf() == string(entnode.StatusOnline) })
 	if statusOf() != string(entnode.StatusOnline) {
 		t.Fatalf("健康恢复后应为 online, 实际 %s", statusOf())
+	}
+}
+
+// TestHeartbeatConfigTreeAndLogTargets 验证 T018-C：Agent 经心跳上报配置树与日志目标后，
+// 控制面整体替换落库到 node_config_file / node_log_target（含 off 这类无路径的目标）。
+func TestHeartbeatConfigTreeAndLogTargets(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	client, nodeID := newTestNode(t)
+	defer client.Close()
+	nodeSvc := node.New(client)
+	sessions := session.NewSessionManager(slog.Default())
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+	hc, err := cli.Heartbeat(context.Background())
+	if err != nil {
+		t.Fatalf("打开心跳流: %v", err)
+	}
+
+	// 上报配置树（2 个文件）。
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type: agentv1.HeartbeatRequest_CONFIG_TREE,
+		ConfigTree: &agentv1.ConfigTreeReport{
+			CapturedAt: 1,
+			Files: []*agentv1.ConfigFile{
+				{Path: "/etc/nginx/nginx.conf", Sha256: "abc", Size: 1234},
+				{Path: "/etc/nginx/conf.d/default.conf", Sha256: "def", Size: 567},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("发送配置树: %v", err)
+	}
+
+	// 上报日志目标（含一条 off，路径为空）。
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type: agentv1.HeartbeatRequest_LOG_TARGETS,
+		LogTargets: &agentv1.LogTargetsReport{
+			CapturedAt: 2,
+			Items: []*agentv1.LogTarget{
+				{Path: "/var/log/nginx/access.log", Type: "access", Format: "main", Size: 1024, Inode: 99},
+				{Path: "", Type: "error", IsOff: true, SkipReason: "off"},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("发送日志目标: %v", err)
+	}
+
+	// 配置树持久化。
+	waitUntil(t, 2*time.Second, func() bool {
+		n, _ := client.NodeConfigFile.Query().Where(entncf.HasNodeWith(entnode.ID(nodeID))).Count(context.Background())
+		return n == 2
+	})
+	files, err := client.NodeConfigFile.Query().Where(entncf.HasNodeWith(entnode.ID(nodeID))).All(context.Background())
+	if err != nil {
+		t.Fatalf("查询配置树: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("配置树文件数 = %d, want 2", len(files))
+	}
+
+	// 日志目标持久化（含 off 条目）。
+	waitUntil(t, 2*time.Second, func() bool {
+		n, _ := client.NodeLogTarget.Query().Where(entnlt.HasNodeWith(entnode.ID(nodeID))).Count(context.Background())
+		return n == 2
+	})
+	targets, err := client.NodeLogTarget.Query().Where(entnlt.HasNodeWith(entnode.ID(nodeID))).All(context.Background())
+	if err != nil {
+		t.Fatalf("查询日志目标: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("日志目标数 = %d, want 2", len(targets))
+	}
+	if !targets[1].IsOff || targets[1].SkipReason != "off" {
+		t.Errorf("第二条应为 off 目标: %+v", targets[1])
+	}
+}
+
+// TestReportCapabilitySystemInfo 验证 T018-C：能力上报携带主机系统信息（capability.system），
+// 控制面正确序列化落库到 node_capabilities.system_info。
+func TestReportCapabilitySystemInfo(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	client, nodeID := newTestNode(t)
+	defer client.Close()
+	nodeSvc := node.New(client)
+	sessions := session.NewSessionManager(slog.Default())
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+
+	_, err = cli.ReportCapability(context.Background(), &agentv1.CapabilityReport{
+		Capability: &agentv1.Capability{
+			Hostname: "rs-09",
+			System: &agentv1.SystemInfo{
+				Os:             "rocky 9.4",
+				Kernel:         "5.14.0",
+				NginxManagedBy: "systemd",
+				SelinuxStatus:  "enforcing",
+				UlimitNofile:   1024,
+				Timezone:       "Asia/Shanghai",
+				NtpSynced:      true,
+				LogrotateConf:  "/etc/logrotate.d/nginx",
+				DiskFree:       map[string]int64{"/": 12345},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ReportCapability: %v", err)
+	}
+
+	got, err := client.NodeCapability.Query().
+		Where(entnodecap.HasNodeWith(entnode.ID(nodeID))).Only(context.Background())
+	if err != nil {
+		t.Fatalf("查询能力基线: %v", err)
+	}
+	if got.SystemInfo == "" {
+		t.Fatal("system_info 未落库")
+	}
+	var si map[string]any
+	if err := json.Unmarshal([]byte(got.SystemInfo), &si); err != nil {
+		t.Fatalf("system_info 非法 JSON: %v", err)
+	}
+	if si["os"] != "rocky 9.4" {
+		t.Errorf("system_info.os = %v, want rocky 9.4", si["os"])
+	}
+	if si["nginx_managed_by"] != "systemd" {
+		t.Errorf("system_info.nginx_managed_by = %v, want systemd", si["nginx_managed_by"])
 	}
 }

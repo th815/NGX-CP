@@ -22,6 +22,8 @@ import (
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/ent/nodeconfigfile"
+	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
 )
 
@@ -93,6 +95,8 @@ func checkColumn(t, c string) error {
 			deploytask.Table:     deploytask.ValidColumn,
 			node.Table:           node.ValidColumn,
 			nodecapability.Table: nodecapability.ValidColumn,
+			nodeconfigfile.Table: nodeconfigfile.ValidColumn,
+			nodelogtarget.Table:  nodelogtarget.ValidColumn,
 			realserver.Table:     realserver.ValidColumn,
 		})
 	})

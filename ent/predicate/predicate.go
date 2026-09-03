@@ -36,5 +36,11 @@ type Node func(*sql.Selector)
 // NodeCapability is the predicate function for nodecapability builders.
 type NodeCapability func(*sql.Selector)
 
+// NodeConfigFile is the predicate function for nodeconfigfile builders.
+type NodeConfigFile func(*sql.Selector)
+
+// NodeLogTarget is the predicate function for nodelogtarget builders.
+type NodeLogTarget func(*sql.Selector)
+
 // RealServer is the predicate function for realserver builders.
 type RealServer func(*sql.Selector)

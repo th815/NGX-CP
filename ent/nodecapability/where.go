@@ -55,6 +55,31 @@ func IDLTE(id int) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldLTE(FieldID, id))
 }
 
+// Hostname applies equality check predicate on the "hostname" field. It's identical to HostnameEQ.
+func Hostname(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldHostname, v))
+}
+
+// Os applies equality check predicate on the "os" field. It's identical to OsEQ.
+func Os(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldOs, v))
+}
+
+// Kernel applies equality check predicate on the "kernel" field. It's identical to KernelEQ.
+func Kernel(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldKernel, v))
+}
+
+// HasKeepalived applies equality check predicate on the "has_keepalived" field. It's identical to HasKeepalivedEQ.
+func HasKeepalived(v bool) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldHasKeepalived, v))
+}
+
+// HasIpvsadm applies equality check predicate on the "has_ipvsadm" field. It's identical to HasIpvsadmEQ.
+func HasIpvsadm(v bool) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldHasIpvsadm, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEQ(FieldVersion, v))
@@ -80,9 +105,19 @@ func RawArgs(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEQ(FieldRawArgs, v))
 }
 
+// ConfigHash applies equality check predicate on the "config_hash" field. It's identical to ConfigHashEQ.
+func ConfigHash(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldConfigHash, v))
+}
+
 // Checksum applies equality check predicate on the "checksum" field. It's identical to ChecksumEQ.
 func Checksum(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEQ(FieldChecksum, v))
+}
+
+// SystemInfo applies equality check predicate on the "system_info" field. It's identical to SystemInfoEQ.
+func SystemInfo(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldSystemInfo, v))
 }
 
 // CapturedAt applies equality check predicate on the "captured_at" field. It's identical to CapturedAtEQ.
@@ -98,6 +133,251 @@ func CreatedAt(v time.Time) predicate.NodeCapability {
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// HostnameEQ applies the EQ predicate on the "hostname" field.
+func HostnameEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldHostname, v))
+}
+
+// HostnameNEQ applies the NEQ predicate on the "hostname" field.
+func HostnameNEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNEQ(FieldHostname, v))
+}
+
+// HostnameIn applies the In predicate on the "hostname" field.
+func HostnameIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIn(FieldHostname, vs...))
+}
+
+// HostnameNotIn applies the NotIn predicate on the "hostname" field.
+func HostnameNotIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotIn(FieldHostname, vs...))
+}
+
+// HostnameGT applies the GT predicate on the "hostname" field.
+func HostnameGT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGT(FieldHostname, v))
+}
+
+// HostnameGTE applies the GTE predicate on the "hostname" field.
+func HostnameGTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGTE(FieldHostname, v))
+}
+
+// HostnameLT applies the LT predicate on the "hostname" field.
+func HostnameLT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLT(FieldHostname, v))
+}
+
+// HostnameLTE applies the LTE predicate on the "hostname" field.
+func HostnameLTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLTE(FieldHostname, v))
+}
+
+// HostnameContains applies the Contains predicate on the "hostname" field.
+func HostnameContains(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContains(FieldHostname, v))
+}
+
+// HostnameHasPrefix applies the HasPrefix predicate on the "hostname" field.
+func HostnameHasPrefix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasPrefix(FieldHostname, v))
+}
+
+// HostnameHasSuffix applies the HasSuffix predicate on the "hostname" field.
+func HostnameHasSuffix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasSuffix(FieldHostname, v))
+}
+
+// HostnameIsNil applies the IsNil predicate on the "hostname" field.
+func HostnameIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldHostname))
+}
+
+// HostnameNotNil applies the NotNil predicate on the "hostname" field.
+func HostnameNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldHostname))
+}
+
+// HostnameEqualFold applies the EqualFold predicate on the "hostname" field.
+func HostnameEqualFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEqualFold(FieldHostname, v))
+}
+
+// HostnameContainsFold applies the ContainsFold predicate on the "hostname" field.
+func HostnameContainsFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContainsFold(FieldHostname, v))
+}
+
+// OsEQ applies the EQ predicate on the "os" field.
+func OsEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldOs, v))
+}
+
+// OsNEQ applies the NEQ predicate on the "os" field.
+func OsNEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNEQ(FieldOs, v))
+}
+
+// OsIn applies the In predicate on the "os" field.
+func OsIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIn(FieldOs, vs...))
+}
+
+// OsNotIn applies the NotIn predicate on the "os" field.
+func OsNotIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotIn(FieldOs, vs...))
+}
+
+// OsGT applies the GT predicate on the "os" field.
+func OsGT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGT(FieldOs, v))
+}
+
+// OsGTE applies the GTE predicate on the "os" field.
+func OsGTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGTE(FieldOs, v))
+}
+
+// OsLT applies the LT predicate on the "os" field.
+func OsLT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLT(FieldOs, v))
+}
+
+// OsLTE applies the LTE predicate on the "os" field.
+func OsLTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLTE(FieldOs, v))
+}
+
+// OsContains applies the Contains predicate on the "os" field.
+func OsContains(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContains(FieldOs, v))
+}
+
+// OsHasPrefix applies the HasPrefix predicate on the "os" field.
+func OsHasPrefix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasPrefix(FieldOs, v))
+}
+
+// OsHasSuffix applies the HasSuffix predicate on the "os" field.
+func OsHasSuffix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasSuffix(FieldOs, v))
+}
+
+// OsIsNil applies the IsNil predicate on the "os" field.
+func OsIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldOs))
+}
+
+// OsNotNil applies the NotNil predicate on the "os" field.
+func OsNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldOs))
+}
+
+// OsEqualFold applies the EqualFold predicate on the "os" field.
+func OsEqualFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEqualFold(FieldOs, v))
+}
+
+// OsContainsFold applies the ContainsFold predicate on the "os" field.
+func OsContainsFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContainsFold(FieldOs, v))
+}
+
+// KernelEQ applies the EQ predicate on the "kernel" field.
+func KernelEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldKernel, v))
+}
+
+// KernelNEQ applies the NEQ predicate on the "kernel" field.
+func KernelNEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNEQ(FieldKernel, v))
+}
+
+// KernelIn applies the In predicate on the "kernel" field.
+func KernelIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIn(FieldKernel, vs...))
+}
+
+// KernelNotIn applies the NotIn predicate on the "kernel" field.
+func KernelNotIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotIn(FieldKernel, vs...))
+}
+
+// KernelGT applies the GT predicate on the "kernel" field.
+func KernelGT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGT(FieldKernel, v))
+}
+
+// KernelGTE applies the GTE predicate on the "kernel" field.
+func KernelGTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGTE(FieldKernel, v))
+}
+
+// KernelLT applies the LT predicate on the "kernel" field.
+func KernelLT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLT(FieldKernel, v))
+}
+
+// KernelLTE applies the LTE predicate on the "kernel" field.
+func KernelLTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLTE(FieldKernel, v))
+}
+
+// KernelContains applies the Contains predicate on the "kernel" field.
+func KernelContains(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContains(FieldKernel, v))
+}
+
+// KernelHasPrefix applies the HasPrefix predicate on the "kernel" field.
+func KernelHasPrefix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasPrefix(FieldKernel, v))
+}
+
+// KernelHasSuffix applies the HasSuffix predicate on the "kernel" field.
+func KernelHasSuffix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasSuffix(FieldKernel, v))
+}
+
+// KernelIsNil applies the IsNil predicate on the "kernel" field.
+func KernelIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldKernel))
+}
+
+// KernelNotNil applies the NotNil predicate on the "kernel" field.
+func KernelNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldKernel))
+}
+
+// KernelEqualFold applies the EqualFold predicate on the "kernel" field.
+func KernelEqualFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEqualFold(FieldKernel, v))
+}
+
+// KernelContainsFold applies the ContainsFold predicate on the "kernel" field.
+func KernelContainsFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContainsFold(FieldKernel, v))
+}
+
+// HasKeepalivedEQ applies the EQ predicate on the "has_keepalived" field.
+func HasKeepalivedEQ(v bool) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldHasKeepalived, v))
+}
+
+// HasKeepalivedNEQ applies the NEQ predicate on the "has_keepalived" field.
+func HasKeepalivedNEQ(v bool) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNEQ(FieldHasKeepalived, v))
+}
+
+// HasIpvsadmEQ applies the EQ predicate on the "has_ipvsadm" field.
+func HasIpvsadmEQ(v bool) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldHasIpvsadm, v))
+}
+
+// HasIpvsadmNEQ applies the NEQ predicate on the "has_ipvsadm" field.
+func HasIpvsadmNEQ(v bool) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNEQ(FieldHasIpvsadm, v))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.
@@ -153,6 +433,16 @@ func VersionHasPrefix(v string) predicate.NodeCapability {
 // VersionHasSuffix applies the HasSuffix predicate on the "version" field.
 func VersionHasSuffix(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldHasSuffix(FieldVersion, v))
+}
+
+// VersionIsNil applies the IsNil predicate on the "version" field.
+func VersionIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldVersion))
+}
+
+// VersionNotNil applies the NotNil predicate on the "version" field.
+func VersionNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldVersion))
 }
 
 // VersionEqualFold applies the EqualFold predicate on the "version" field.
@@ -220,6 +510,16 @@ func PrefixHasSuffix(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldHasSuffix(FieldPrefix, v))
 }
 
+// PrefixIsNil applies the IsNil predicate on the "prefix" field.
+func PrefixIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldPrefix))
+}
+
+// PrefixNotNil applies the NotNil predicate on the "prefix" field.
+func PrefixNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldPrefix))
+}
+
 // PrefixEqualFold applies the EqualFold predicate on the "prefix" field.
 func PrefixEqualFold(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEqualFold(FieldPrefix, v))
@@ -283,6 +583,16 @@ func ConfPathHasPrefix(v string) predicate.NodeCapability {
 // ConfPathHasSuffix applies the HasSuffix predicate on the "conf_path" field.
 func ConfPathHasSuffix(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldHasSuffix(FieldConfPath, v))
+}
+
+// ConfPathIsNil applies the IsNil predicate on the "conf_path" field.
+func ConfPathIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldConfPath))
+}
+
+// ConfPathNotNil applies the NotNil predicate on the "conf_path" field.
+func ConfPathNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldConfPath))
 }
 
 // ConfPathEqualFold applies the EqualFold predicate on the "conf_path" field.
@@ -350,6 +660,16 @@ func SbinPathHasSuffix(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldHasSuffix(FieldSbinPath, v))
 }
 
+// SbinPathIsNil applies the IsNil predicate on the "sbin_path" field.
+func SbinPathIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldSbinPath))
+}
+
+// SbinPathNotNil applies the NotNil predicate on the "sbin_path" field.
+func SbinPathNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldSbinPath))
+}
+
 // SbinPathEqualFold applies the EqualFold predicate on the "sbin_path" field.
 func SbinPathEqualFold(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEqualFold(FieldSbinPath, v))
@@ -358,6 +678,16 @@ func SbinPathEqualFold(v string) predicate.NodeCapability {
 // SbinPathContainsFold applies the ContainsFold predicate on the "sbin_path" field.
 func SbinPathContainsFold(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldContainsFold(FieldSbinPath, v))
+}
+
+// ModulesIsNil applies the IsNil predicate on the "modules" field.
+func ModulesIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldModules))
+}
+
+// ModulesNotNil applies the NotNil predicate on the "modules" field.
+func ModulesNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldModules))
 }
 
 // RawArgsEQ applies the EQ predicate on the "raw_args" field.
@@ -415,6 +745,16 @@ func RawArgsHasSuffix(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldHasSuffix(FieldRawArgs, v))
 }
 
+// RawArgsIsNil applies the IsNil predicate on the "raw_args" field.
+func RawArgsIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldRawArgs))
+}
+
+// RawArgsNotNil applies the NotNil predicate on the "raw_args" field.
+func RawArgsNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldRawArgs))
+}
+
 // RawArgsEqualFold applies the EqualFold predicate on the "raw_args" field.
 func RawArgsEqualFold(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEqualFold(FieldRawArgs, v))
@@ -423,6 +763,81 @@ func RawArgsEqualFold(v string) predicate.NodeCapability {
 // RawArgsContainsFold applies the ContainsFold predicate on the "raw_args" field.
 func RawArgsContainsFold(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldContainsFold(FieldRawArgs, v))
+}
+
+// ConfigHashEQ applies the EQ predicate on the "config_hash" field.
+func ConfigHashEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldConfigHash, v))
+}
+
+// ConfigHashNEQ applies the NEQ predicate on the "config_hash" field.
+func ConfigHashNEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNEQ(FieldConfigHash, v))
+}
+
+// ConfigHashIn applies the In predicate on the "config_hash" field.
+func ConfigHashIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIn(FieldConfigHash, vs...))
+}
+
+// ConfigHashNotIn applies the NotIn predicate on the "config_hash" field.
+func ConfigHashNotIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotIn(FieldConfigHash, vs...))
+}
+
+// ConfigHashGT applies the GT predicate on the "config_hash" field.
+func ConfigHashGT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGT(FieldConfigHash, v))
+}
+
+// ConfigHashGTE applies the GTE predicate on the "config_hash" field.
+func ConfigHashGTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGTE(FieldConfigHash, v))
+}
+
+// ConfigHashLT applies the LT predicate on the "config_hash" field.
+func ConfigHashLT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLT(FieldConfigHash, v))
+}
+
+// ConfigHashLTE applies the LTE predicate on the "config_hash" field.
+func ConfigHashLTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLTE(FieldConfigHash, v))
+}
+
+// ConfigHashContains applies the Contains predicate on the "config_hash" field.
+func ConfigHashContains(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContains(FieldConfigHash, v))
+}
+
+// ConfigHashHasPrefix applies the HasPrefix predicate on the "config_hash" field.
+func ConfigHashHasPrefix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasPrefix(FieldConfigHash, v))
+}
+
+// ConfigHashHasSuffix applies the HasSuffix predicate on the "config_hash" field.
+func ConfigHashHasSuffix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasSuffix(FieldConfigHash, v))
+}
+
+// ConfigHashIsNil applies the IsNil predicate on the "config_hash" field.
+func ConfigHashIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldConfigHash))
+}
+
+// ConfigHashNotNil applies the NotNil predicate on the "config_hash" field.
+func ConfigHashNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldConfigHash))
+}
+
+// ConfigHashEqualFold applies the EqualFold predicate on the "config_hash" field.
+func ConfigHashEqualFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEqualFold(FieldConfigHash, v))
+}
+
+// ConfigHashContainsFold applies the ContainsFold predicate on the "config_hash" field.
+func ConfigHashContainsFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContainsFold(FieldConfigHash, v))
 }
 
 // ChecksumEQ applies the EQ predicate on the "checksum" field.
@@ -480,6 +895,16 @@ func ChecksumHasSuffix(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldHasSuffix(FieldChecksum, v))
 }
 
+// ChecksumIsNil applies the IsNil predicate on the "checksum" field.
+func ChecksumIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldChecksum))
+}
+
+// ChecksumNotNil applies the NotNil predicate on the "checksum" field.
+func ChecksumNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldChecksum))
+}
+
 // ChecksumEqualFold applies the EqualFold predicate on the "checksum" field.
 func ChecksumEqualFold(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldEqualFold(FieldChecksum, v))
@@ -488,6 +913,81 @@ func ChecksumEqualFold(v string) predicate.NodeCapability {
 // ChecksumContainsFold applies the ContainsFold predicate on the "checksum" field.
 func ChecksumContainsFold(v string) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldContainsFold(FieldChecksum, v))
+}
+
+// SystemInfoEQ applies the EQ predicate on the "system_info" field.
+func SystemInfoEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEQ(FieldSystemInfo, v))
+}
+
+// SystemInfoNEQ applies the NEQ predicate on the "system_info" field.
+func SystemInfoNEQ(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNEQ(FieldSystemInfo, v))
+}
+
+// SystemInfoIn applies the In predicate on the "system_info" field.
+func SystemInfoIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIn(FieldSystemInfo, vs...))
+}
+
+// SystemInfoNotIn applies the NotIn predicate on the "system_info" field.
+func SystemInfoNotIn(vs ...string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotIn(FieldSystemInfo, vs...))
+}
+
+// SystemInfoGT applies the GT predicate on the "system_info" field.
+func SystemInfoGT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGT(FieldSystemInfo, v))
+}
+
+// SystemInfoGTE applies the GTE predicate on the "system_info" field.
+func SystemInfoGTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldGTE(FieldSystemInfo, v))
+}
+
+// SystemInfoLT applies the LT predicate on the "system_info" field.
+func SystemInfoLT(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLT(FieldSystemInfo, v))
+}
+
+// SystemInfoLTE applies the LTE predicate on the "system_info" field.
+func SystemInfoLTE(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldLTE(FieldSystemInfo, v))
+}
+
+// SystemInfoContains applies the Contains predicate on the "system_info" field.
+func SystemInfoContains(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContains(FieldSystemInfo, v))
+}
+
+// SystemInfoHasPrefix applies the HasPrefix predicate on the "system_info" field.
+func SystemInfoHasPrefix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasPrefix(FieldSystemInfo, v))
+}
+
+// SystemInfoHasSuffix applies the HasSuffix predicate on the "system_info" field.
+func SystemInfoHasSuffix(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldHasSuffix(FieldSystemInfo, v))
+}
+
+// SystemInfoIsNil applies the IsNil predicate on the "system_info" field.
+func SystemInfoIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldSystemInfo))
+}
+
+// SystemInfoNotNil applies the NotNil predicate on the "system_info" field.
+func SystemInfoNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldSystemInfo))
+}
+
+// SystemInfoEqualFold applies the EqualFold predicate on the "system_info" field.
+func SystemInfoEqualFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldEqualFold(FieldSystemInfo, v))
+}
+
+// SystemInfoContainsFold applies the ContainsFold predicate on the "system_info" field.
+func SystemInfoContainsFold(v string) predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldContainsFold(FieldSystemInfo, v))
 }
 
 // CapturedAtEQ applies the EQ predicate on the "captured_at" field.
@@ -528,6 +1028,16 @@ func CapturedAtLT(v time.Time) predicate.NodeCapability {
 // CapturedAtLTE applies the LTE predicate on the "captured_at" field.
 func CapturedAtLTE(v time.Time) predicate.NodeCapability {
 	return predicate.NodeCapability(sql.FieldLTE(FieldCapturedAt, v))
+}
+
+// CapturedAtIsNil applies the IsNil predicate on the "captured_at" field.
+func CapturedAtIsNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldIsNull(FieldCapturedAt))
+}
+
+// CapturedAtNotNil applies the NotNil predicate on the "captured_at" field.
+func CapturedAtNotNil() predicate.NodeCapability {
+	return predicate.NodeCapability(sql.FieldNotNull(FieldCapturedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

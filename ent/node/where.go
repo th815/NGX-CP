@@ -518,6 +518,52 @@ func HasCapabilitiesWith(preds ...predicate.NodeCapability) predicate.Node {
 	})
 }
 
+// HasConfigFiles applies the HasEdge predicate on the "config_files" edge.
+func HasConfigFiles() predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ConfigFilesTable, ConfigFilesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasConfigFilesWith applies the HasEdge predicate on the "config_files" edge with a given conditions (other predicates).
+func HasConfigFilesWith(preds ...predicate.NodeConfigFile) predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := newConfigFilesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasLogTargets applies the HasEdge predicate on the "log_targets" edge.
+func HasLogTargets() predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LogTargetsTable, LogTargetsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLogTargetsWith applies the HasEdge predicate on the "log_targets" edge with a given conditions (other predicates).
+func HasLogTargetsWith(preds ...predicate.NodeLogTarget) predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := newLogTargetsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasSnapshots applies the HasEdge predicate on the "snapshots" edge.
 func HasSnapshots() predicate.Node {
 	return predicate.Node(func(s *sql.Selector) {

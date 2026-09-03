@@ -17,6 +17,8 @@ import (
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/ent/nodeconfigfile"
+	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/predicate"
 	"github.com/th/ngxcp/ent/realserver"
 )
@@ -29,6 +31,8 @@ type NodeQuery struct {
 	inters           []Interceptor
 	predicates       []predicate.Node
 	withCapabilities *NodeCapabilityQuery
+	withConfigFiles  *NodeConfigFileQuery
+	withLogTargets   *NodeLogTargetQuery
 	withSnapshots    *ConfigSnapshotQuery
 	withDeployTasks  *DeployTaskQuery
 	withRealServers  *RealServerQuery
@@ -85,6 +89,50 @@ func (_q *NodeQuery) QueryCapabilities() *NodeCapabilityQuery {
 			sqlgraph.From(node.Table, node.FieldID, selector),
 			sqlgraph.To(nodecapability.Table, nodecapability.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, node.CapabilitiesTable, node.CapabilitiesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryConfigFiles chains the current query on the "config_files" edge.
+func (_q *NodeQuery) QueryConfigFiles() *NodeConfigFileQuery {
+	query := (&NodeConfigFileClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, selector),
+			sqlgraph.To(nodeconfigfile.Table, nodeconfigfile.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.ConfigFilesTable, node.ConfigFilesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLogTargets chains the current query on the "log_targets" edge.
+func (_q *NodeQuery) QueryLogTargets() *NodeLogTargetQuery {
+	query := (&NodeLogTargetClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, selector),
+			sqlgraph.To(nodelogtarget.Table, nodelogtarget.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.LogTargetsTable, node.LogTargetsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -373,6 +421,8 @@ func (_q *NodeQuery) Clone() *NodeQuery {
 		inters:           append([]Interceptor{}, _q.inters...),
 		predicates:       append([]predicate.Node{}, _q.predicates...),
 		withCapabilities: _q.withCapabilities.Clone(),
+		withConfigFiles:  _q.withConfigFiles.Clone(),
+		withLogTargets:   _q.withLogTargets.Clone(),
 		withSnapshots:    _q.withSnapshots.Clone(),
 		withDeployTasks:  _q.withDeployTasks.Clone(),
 		withRealServers:  _q.withRealServers.Clone(),
@@ -391,6 +441,28 @@ func (_q *NodeQuery) WithCapabilities(opts ...func(*NodeCapabilityQuery)) *NodeQ
 		opt(query)
 	}
 	_q.withCapabilities = query
+	return _q
+}
+
+// WithConfigFiles tells the query-builder to eager-load the nodes that are connected to
+// the "config_files" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NodeQuery) WithConfigFiles(opts ...func(*NodeConfigFileQuery)) *NodeQuery {
+	query := (&NodeConfigFileClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withConfigFiles = query
+	return _q
+}
+
+// WithLogTargets tells the query-builder to eager-load the nodes that are connected to
+// the "log_targets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NodeQuery) WithLogTargets(opts ...func(*NodeLogTargetQuery)) *NodeQuery {
+	query := (&NodeLogTargetClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLogTargets = query
 	return _q
 }
 
@@ -517,8 +589,10 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		nodes       = []*Node{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [7]bool{
 			_q.withCapabilities != nil,
+			_q.withConfigFiles != nil,
+			_q.withLogTargets != nil,
 			_q.withSnapshots != nil,
 			_q.withDeployTasks != nil,
 			_q.withRealServers != nil,
@@ -553,6 +627,20 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		if err := _q.loadCapabilities(ctx, query, nodes,
 			func(n *Node) { n.Edges.Capabilities = []*NodeCapability{} },
 			func(n *Node, e *NodeCapability) { n.Edges.Capabilities = append(n.Edges.Capabilities, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withConfigFiles; query != nil {
+		if err := _q.loadConfigFiles(ctx, query, nodes,
+			func(n *Node) { n.Edges.ConfigFiles = []*NodeConfigFile{} },
+			func(n *Node, e *NodeConfigFile) { n.Edges.ConfigFiles = append(n.Edges.ConfigFiles, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withLogTargets; query != nil {
+		if err := _q.loadLogTargets(ctx, query, nodes,
+			func(n *Node) { n.Edges.LogTargets = []*NodeLogTarget{} },
+			func(n *Node, e *NodeLogTarget) { n.Edges.LogTargets = append(n.Edges.LogTargets, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -612,6 +700,68 @@ func (_q *NodeQuery) loadCapabilities(ctx context.Context, query *NodeCapability
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "node_capabilities" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *NodeQuery) loadConfigFiles(ctx context.Context, query *NodeConfigFileQuery, nodes []*Node, init func(*Node), assign func(*Node, *NodeConfigFile)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Node)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.NodeConfigFile(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(node.ConfigFilesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.node_config_files
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "node_config_files" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "node_config_files" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *NodeQuery) loadLogTargets(ctx context.Context, query *NodeLogTargetQuery, nodes []*Node, init func(*Node), assign func(*Node, *NodeLogTarget)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Node)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.NodeLogTarget(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(node.LogTargetsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.node_log_targets
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "node_log_targets" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "node_log_targets" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

@@ -299,12 +299,12 @@ func (_q *NodeCapabilityQuery) WithNode(opts ...func(*NodeQuery)) *NodeCapabilit
 // Example:
 //
 //	var v []struct {
-//		Version string `json:"version,omitempty"`
+//		Hostname string `json:"hostname,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.NodeCapability.Query().
-//		GroupBy(nodecapability.FieldVersion).
+//		GroupBy(nodecapability.FieldHostname).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *NodeCapabilityQuery) GroupBy(field string, fields ...string) *NodeCapabilityGroupBy {
@@ -322,11 +322,11 @@ func (_q *NodeCapabilityQuery) GroupBy(field string, fields ...string) *NodeCapa
 // Example:
 //
 //	var v []struct {
-//		Version string `json:"version,omitempty"`
+//		Hostname string `json:"hostname,omitempty"`
 //	}
 //
 //	client.NodeCapability.Query().
-//		Select(nodecapability.FieldVersion).
+//		Select(nodecapability.FieldHostname).
 //		Scan(ctx, &v)
 func (_q *NodeCapabilityQuery) Select(fields ...string) *NodeCapabilitySelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)

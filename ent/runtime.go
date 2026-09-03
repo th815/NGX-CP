@@ -15,6 +15,8 @@ import (
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/ent/nodeconfigfile"
+	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
 	"github.com/th/ngxcp/ent/schema"
 )
@@ -129,16 +131,56 @@ func init() {
 	node.UpdateDefaultUpdatedAt = nodeDescUpdatedAt.UpdateDefault.(func() time.Time)
 	nodecapabilityFields := schema.NodeCapability{}.Fields()
 	_ = nodecapabilityFields
+	// nodecapabilityDescHasKeepalived is the schema descriptor for has_keepalived field.
+	nodecapabilityDescHasKeepalived := nodecapabilityFields[3].Descriptor()
+	// nodecapability.DefaultHasKeepalived holds the default value on creation for the has_keepalived field.
+	nodecapability.DefaultHasKeepalived = nodecapabilityDescHasKeepalived.Default.(bool)
+	// nodecapabilityDescHasIpvsadm is the schema descriptor for has_ipvsadm field.
+	nodecapabilityDescHasIpvsadm := nodecapabilityFields[4].Descriptor()
+	// nodecapability.DefaultHasIpvsadm holds the default value on creation for the has_ipvsadm field.
+	nodecapability.DefaultHasIpvsadm = nodecapabilityDescHasIpvsadm.Default.(bool)
 	// nodecapabilityDescCreatedAt is the schema descriptor for created_at field.
-	nodecapabilityDescCreatedAt := nodecapabilityFields[8].Descriptor()
+	nodecapabilityDescCreatedAt := nodecapabilityFields[15].Descriptor()
 	// nodecapability.DefaultCreatedAt holds the default value on creation for the created_at field.
 	nodecapability.DefaultCreatedAt = nodecapabilityDescCreatedAt.Default.(func() time.Time)
 	// nodecapabilityDescUpdatedAt is the schema descriptor for updated_at field.
-	nodecapabilityDescUpdatedAt := nodecapabilityFields[9].Descriptor()
+	nodecapabilityDescUpdatedAt := nodecapabilityFields[16].Descriptor()
 	// nodecapability.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	nodecapability.DefaultUpdatedAt = nodecapabilityDescUpdatedAt.Default.(func() time.Time)
 	// nodecapability.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	nodecapability.UpdateDefaultUpdatedAt = nodecapabilityDescUpdatedAt.UpdateDefault.(func() time.Time)
+	nodeconfigfileFields := schema.NodeConfigFile{}.Fields()
+	_ = nodeconfigfileFields
+	// nodeconfigfileDescCreatedAt is the schema descriptor for created_at field.
+	nodeconfigfileDescCreatedAt := nodeconfigfileFields[5].Descriptor()
+	// nodeconfigfile.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nodeconfigfile.DefaultCreatedAt = nodeconfigfileDescCreatedAt.Default.(func() time.Time)
+	nodelogtargetFields := schema.NodeLogTarget{}.Fields()
+	_ = nodelogtargetFields
+	// nodelogtargetDescIsSyslog is the schema descriptor for is_syslog field.
+	nodelogtargetDescIsSyslog := nodelogtargetFields[4].Descriptor()
+	// nodelogtarget.DefaultIsSyslog holds the default value on creation for the is_syslog field.
+	nodelogtarget.DefaultIsSyslog = nodelogtargetDescIsSyslog.Default.(bool)
+	// nodelogtargetDescIsOff is the schema descriptor for is_off field.
+	nodelogtargetDescIsOff := nodelogtargetFields[5].Descriptor()
+	// nodelogtarget.DefaultIsOff holds the default value on creation for the is_off field.
+	nodelogtarget.DefaultIsOff = nodelogtargetDescIsOff.Default.(bool)
+	// nodelogtargetDescHasVariable is the schema descriptor for has_variable field.
+	nodelogtargetDescHasVariable := nodelogtargetFields[6].Descriptor()
+	// nodelogtarget.DefaultHasVariable holds the default value on creation for the has_variable field.
+	nodelogtarget.DefaultHasVariable = nodelogtargetDescHasVariable.Default.(bool)
+	// nodelogtargetDescSize is the schema descriptor for size field.
+	nodelogtargetDescSize := nodelogtargetFields[8].Descriptor()
+	// nodelogtarget.DefaultSize holds the default value on creation for the size field.
+	nodelogtarget.DefaultSize = nodelogtargetDescSize.Default.(int64)
+	// nodelogtargetDescInode is the schema descriptor for inode field.
+	nodelogtargetDescInode := nodelogtargetFields[9].Descriptor()
+	// nodelogtarget.DefaultInode holds the default value on creation for the inode field.
+	nodelogtarget.DefaultInode = nodelogtargetDescInode.Default.(uint64)
+	// nodelogtargetDescCreatedAt is the schema descriptor for created_at field.
+	nodelogtargetDescCreatedAt := nodelogtargetFields[12].Descriptor()
+	// nodelogtarget.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nodelogtarget.DefaultCreatedAt = nodelogtargetDescCreatedAt.Default.(func() time.Time)
 	realserverFields := schema.RealServer{}.Fields()
 	_ = realserverFields
 	// realserverDescWeight is the schema descriptor for weight field.

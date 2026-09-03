@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"github.com/th/ngxcp/ent"
 	entnode "github.com/th/ngxcp/ent/node"
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
+	entncf "github.com/th/ngxcp/ent/nodeconfigfile"
+	entnlt "github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/internal/domain/compliance"
 	"github.com/th/ngxcp/internal/domain/probe"
 	"github.com/th/ngxcp/internal/pkg/apperr"
@@ -89,6 +92,73 @@ type NodeFsProbeView struct {
 	Passed         bool     `json:"passed"`
 	CheckedAt      int64    `json:"checked_at"`
 	CriticalFailed []string `json:"critical_failed,omitempty"` // 未通过的关键项名（驱动 degraded 的依据）
+}
+
+// CapabilityView 是节点能力基线的对外视图（T016/T017/T018 采集结果）。
+// Nginx 为 nil 表示非 nginx 节点（如纯 LVS Director）。
+type CapabilityView struct {
+	NodeID        int                  `json:"node_id"`
+	Hostname      string               `json:"hostname,omitempty"`
+	OS            string               `json:"os,omitempty"`
+	Kernel        string               `json:"kernel,omitempty"`
+	HasKeepalived bool                 `json:"has_keepalived"`
+	HasIPVS       bool                 `json:"has_ipvsadm"`
+	Nginx         *NginxCapabilityView `json:"nginx,omitempty"`
+	Checksum      string               `json:"checksum,omitempty"` // 双机一致性 diff 用
+	CapturedAt    *time.Time           `json:"captured_at,omitempty"`
+	System        *SystemInfoView      `json:"system,omitempty"`      // T018：主机运行底座画像
+	ConfigFiles   []*ConfigFileView    `json:"config_files,omitempty"` // T018：配置树（仅元数据）
+	LogTargets    []*LogTargetView     `json:"log_targets,omitempty"`  // T018：日志采集目标
+}
+
+// SystemInfoView 是主机运行底座画像的对外视图（T018，源自 Agent 上报的 capability.system）。
+type SystemInfoView struct {
+	OS             string           `json:"os,omitempty"`
+	Kernel         string           `json:"kernel,omitempty"`
+	NginxManagedBy string           `json:"nginx_managed_by,omitempty"` // systemd | manual
+	SELinuxStatus  string           `json:"selinux_status,omitempty"`   // enforcing | permissive | disabled | unknown
+	UlimitNofile   int              `json:"ulimit_nofile,omitempty"`
+	Timezone       string           `json:"timezone,omitempty"`
+	NTPSynced      bool             `json:"ntp_synced,omitempty"`
+	LogRotateConf  string           `json:"logrotate_conf,omitempty"`
+	DiskFree       map[string]int64 `json:"disk_free,omitempty"`
+	Warnings       []string         `json:"warnings,omitempty"`
+}
+
+// NginxCapabilityView 是 nginx 侧的能力基线（来自 `nginx -V` 与 `nginx -T`）。
+type NginxCapabilityView struct {
+	Version    string   `json:"version,omitempty"`
+	Prefix     string   `json:"prefix,omitempty"`
+	ConfPath   string   `json:"conf_path,omitempty"`
+	SbinPath   string   `json:"sbin_path,omitempty"`
+	Modules    []string `json:"modules"`
+	RawArgs    string   `json:"raw_args,omitempty"`
+	ConfigHash string   `json:"config_hash,omitempty"` // nginx -T 全量配置哈希
+}
+
+// ConfigFileView 是配置树中单个文件的元数据（不含内容，内容按需向 Agent 请求）。
+type ConfigFileView struct {
+	Path       string     `json:"path"`
+	SHA256     string     `json:"sha256"`
+	Size       int64      `json:"size"`
+	ModTime    *time.Time `json:"mod_time,omitempty"`
+	CapturedAt time.Time  `json:"captured_at"`
+}
+
+// LogTargetView 是一个日志采集目标的对外视图。
+type LogTargetView struct {
+	Path        string    `json:"path"`
+	Type        string    `json:"type"`
+	Format      string    `json:"format,omitempty"`
+	Level       string    `json:"level,omitempty"`
+	IsSyslog    bool      `json:"is_syslog"`
+	IsOff       bool      `json:"is_off"`
+	HasVariable bool      `json:"has_variable"`
+	SkipReason  string    `json:"skip_reason,omitempty"`
+	Size        int64     `json:"size"`
+	Inode       uint64    `json:"inode"`
+	StatErr     string    `json:"stat_err,omitempty"`
+	CapturedAt  time.Time `json:"captured_at"`
 }
 
 func toOut(n *ent.Node) *NodeOut {
@@ -372,6 +442,7 @@ type CapabilityIn struct {
 	NginxModules  []string
 	NginxRawArgs  string
 	ConfigHash    string
+	SystemInfo    *SystemInfoView // T018：主机运行底座画像（可为 nil，非 nginx 节点或采集失败）
 }
 
 // SaveCapability 落库节点能力基线（T016/T017 解析结果）。按 nodeID upsert 到 node_capabilities，
@@ -387,6 +458,14 @@ func (s *Service) SaveCapability(ctx context.Context, id int, in CapabilityIn) e
 	}
 	checksum := capabilityChecksum(in)
 
+	// 系统信息 JSON 序列化（T018）；nil 时存空串，表示未采集。
+	var sysJSON string
+	if in.SystemInfo != nil {
+		if b, e := json.Marshal(in.SystemInfo); e == nil {
+			sysJSON = string(b)
+		}
+	}
+
 	existing, err := s.client.NodeCapability.Query().
 		Where(entnodecap.HasNodeWith(entnode.ID(id))).
 		Exist(ctx)
@@ -394,29 +473,46 @@ func (s *Service) SaveCapability(ctx context.Context, id int, in CapabilityIn) e
 		return apperr.Wrap(apperr.CodeInternal, "查询已有能力基线失败", err)
 	}
 
+	// 主机身份与角色判定依据此前只存在于 CapabilityIn 而从未落库，
+	// 导致节点详情页拿不到 hostname/OS/内核，也无法据 has_keepalived 判定 Director 角色。
+	now := time.Now()
 	if existing {
 		_, err = s.client.NodeCapability.Update().
 			Where(entnodecap.HasNodeWith(entnode.ID(id))).
+			SetHostname(in.Hostname).
+			SetOs(in.OS).
+			SetKernel(in.Kernel).
+			SetHasKeepalived(in.HasKeepalived).
+			SetHasIpvsadm(in.HasIPVS).
 			SetVersion(in.NginxVersion).
 			SetPrefix(in.NginxPrefix).
 			SetConfPath(in.NginxConfPath).
 			SetSbinPath(in.NginxSbinPath).
 			SetModules(modules).
 			SetRawArgs(in.NginxRawArgs).
+			SetConfigHash(in.ConfigHash).
 			SetChecksum(checksum).
-			SetCapturedAt(time.Now()).
+			SetSystemInfo(sysJSON).
+			SetCapturedAt(now).
 			Save(ctx)
 	} else {
 		_, err = s.client.NodeCapability.Create().
 			SetNodeID(id).
+			SetHostname(in.Hostname).
+			SetOs(in.OS).
+			SetKernel(in.Kernel).
+			SetHasKeepalived(in.HasKeepalived).
+			SetHasIpvsadm(in.HasIPVS).
 			SetVersion(in.NginxVersion).
 			SetPrefix(in.NginxPrefix).
 			SetConfPath(in.NginxConfPath).
 			SetSbinPath(in.NginxSbinPath).
 			SetModules(modules).
 			SetRawArgs(in.NginxRawArgs).
+			SetConfigHash(in.ConfigHash).
 			SetChecksum(checksum).
-			SetCapturedAt(time.Now()).
+			SetSystemInfo(sysJSON).
+			SetCapturedAt(now).
 			Save(ctx)
 	}
 	if err != nil {
@@ -556,19 +652,198 @@ func (s *Service) recomputeHealth(ctx context.Context, id int) error {
 	return nil
 }
 
-// GetCapability 返回节点能力基线（真实解析器已在 internal/agent/capability 落地：
-// ParseNginxV / ParseConfigTree；待 T015 心跳上报后由 Agent 采集并入库，此处仍返回占位）。
-func (s *Service) GetCapability(ctx context.Context, id int) (map[string]any, error) {
-	n, err := s.Get(ctx, id)
+// ---- T018-C：配置树 / 日志目标持久化与 API 暴露 ----
+
+// SaveConfigTree 用 Agent 上报的 nginx -T 配置树**整体替换**该节点的配置文件快照（快照语义）。
+// 仅持久化元数据（路径/大小/哈希），不存内容（见 ent NodeConfigFile 设计说明）。
+func (s *Service) SaveConfigTree(ctx context.Context, id int, files []*agentv1.ConfigFile) error {
+	if _, err := s.Get(ctx, id); err != nil {
+		return err
+	}
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "开启事务失败", err)
+	}
+	// 先清空旧快照再写入新快照：保证配置被删除后视图同步消失，避免孤儿记录。
+	if _, err := tx.NodeConfigFile.Delete().Where(entncf.HasNodeWith(entnode.ID(id))).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return apperr.Wrap(apperr.CodeInternal, "清理旧配置树失败", err)
+	}
+	now := time.Now()
+	for _, f := range files {
+		if f == nil {
+			continue
+		}
+		if err := tx.NodeConfigFile.Create().
+			SetNodeID(id).
+			SetPath(f.GetPath()).
+			SetSha256(f.GetSha256()).
+			SetSize(f.GetSize()).
+			SetCapturedAt(now).
+			Exec(ctx); err != nil {
+			_ = tx.Rollback()
+			return apperr.Wrap(apperr.CodeInternal, "写入配置树失败", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "提交配置树事务失败", err)
+	}
+	return nil
+}
+
+// GetConfigFiles 返回节点最近一次配置树的文件元数据列表（不含内容）。
+func (s *Service) GetConfigFiles(ctx context.Context, id int) ([]*ConfigFileView, error) {
+	if _, err := s.Get(ctx, id); err != nil {
 		return nil, err
 	}
-	return map[string]any{
-		"node_id": n.ID,
-		"role":    n.Role,
-		"status":  n.Status,
-		"note":    "能力上报（nginx -V / -T 解析）已由 internal/agent/capability 实现，待 T015 接入上报",
-	}, nil
+	rows, err := s.client.NodeConfigFile.Query().
+		Where(entncf.HasNodeWith(entnode.ID(id))).
+		Order(ent.Asc("path")).
+		All(ctx)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "查询配置树失败", err)
+	}
+	out := make([]*ConfigFileView, 0, len(rows))
+	for _, r := range rows {
+		v := &ConfigFileView{
+			Path:       r.Path,
+			SHA256:     r.Sha256,
+			Size:       r.Size,
+			CapturedAt: r.CapturedAt,
+		}
+		if !r.ModTime.IsZero() {
+			t := r.ModTime
+			v.ModTime = &t
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// SaveLogTargets 用 Agent 上报的日志采集目标**整体替换**该节点的日志目标快照。
+func (s *Service) SaveLogTargets(ctx context.Context, id int, items []*agentv1.LogTarget) error {
+	if _, err := s.Get(ctx, id); err != nil {
+		return err
+	}
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "开启事务失败", err)
+	}
+	if _, err := tx.NodeLogTarget.Delete().Where(entnlt.HasNodeWith(entnode.ID(id))).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return apperr.Wrap(apperr.CodeInternal, "清理旧日志目标失败", err)
+	}
+	now := time.Now()
+	for _, t := range items {
+		if t == nil {
+			continue
+		}
+		if err := tx.NodeLogTarget.Create().
+			SetNodeID(id).
+			SetPath(t.GetPath()).
+			SetType(entnlt.Type(t.GetType())).
+			SetFormat(t.GetFormat()).
+			SetLevel(t.GetLevel()).
+			SetIsSyslog(t.GetIsSyslog()).
+			SetIsOff(t.GetIsOff()).
+			SetHasVariable(t.GetHasVariable()).
+			SetSkipReason(t.GetSkipReason()).
+			SetSize(t.GetSize()).
+			SetInode(t.GetInode()).
+			SetStatErr(t.GetStatErr()).
+			SetCapturedAt(now).
+			Exec(ctx); err != nil {
+			_ = tx.Rollback()
+			return apperr.Wrap(apperr.CodeInternal, "写入日志目标失败", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "提交日志目标事务失败", err)
+	}
+	return nil
+}
+
+// GetLogTargets 返回节点最近一次日志采集目标列表。
+func (s *Service) GetLogTargets(ctx context.Context, id int) ([]*LogTargetView, error) {
+	if _, err := s.Get(ctx, id); err != nil {
+		return nil, err
+	}
+	rows, err := s.client.NodeLogTarget.Query().
+		Where(entnlt.HasNodeWith(entnode.ID(id))).
+		Order(ent.Asc("type"), ent.Asc("path")).
+		All(ctx)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "查询日志目标失败", err)
+	}
+	out := make([]*LogTargetView, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, &LogTargetView{
+			Path:        r.Path,
+			Type:        r.Type.String(),
+			Format:      r.Format,
+			Level:       r.Level,
+			IsSyslog:    r.IsSyslog,
+			IsOff:       r.IsOff,
+			HasVariable: r.HasVariable,
+			SkipReason:  r.SkipReason,
+			Size:        r.Size,
+			Inode:       r.Inode,
+			StatErr:     r.StatErr,
+			CapturedAt:  r.CapturedAt,
+		})
+	}
+	return out, nil
+}
+
+// GetCapability 返回节点能力基线真实视图（T016/T017/T018 采集结果已落库）：
+// nginx 编译画像、主机系统信息、配置树与日志采集目标快照。
+func (s *Service) GetCapability(ctx context.Context, id int) (*CapabilityView, error) {
+	if _, err := s.Get(ctx, id); err != nil {
+		return nil, err
+	}
+	v := &CapabilityView{NodeID: id}
+	cap, err := s.client.NodeCapability.Query().
+		Where(entnodecap.HasNodeWith(entnode.ID(id))).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, apperr.Wrap(apperr.CodeInternal, "查询能力基线失败", err)
+	}
+	if cap != nil {
+		v.Hostname = cap.Hostname
+		v.OS = cap.Os
+		v.Kernel = cap.Kernel
+		v.HasKeepalived = cap.HasKeepalived
+		v.HasIPVS = cap.HasIpvsadm
+		v.Checksum = cap.Checksum
+		if !cap.CapturedAt.IsZero() {
+			t := cap.CapturedAt
+			v.CapturedAt = &t
+		}
+		if cap.Version != "" {
+			v.Nginx = &NginxCapabilityView{
+				Version:    cap.Version,
+				Prefix:     cap.Prefix,
+				ConfPath:   cap.ConfPath,
+				SbinPath:   cap.SbinPath,
+				Modules:    cap.Modules,
+				RawArgs:    cap.RawArgs,
+				ConfigHash: cap.ConfigHash,
+			}
+		}
+		if cap.SystemInfo != "" {
+			var si SystemInfoView
+			if json.Unmarshal([]byte(cap.SystemInfo), &si) == nil {
+				v.System = &si
+			}
+		}
+	}
+	if v.ConfigFiles, err = s.GetConfigFiles(ctx, id); err != nil {
+		return nil, err
+	}
+	if v.LogTargets, err = s.GetLogTargets(ctx, id); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 // RefreshCapability 触发一次能力刷新（T015 会话管理落地后下发指令；此处仅校验节点存在）。

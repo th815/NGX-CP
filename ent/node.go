@@ -49,6 +49,10 @@ type Node struct {
 type NodeEdges struct {
 	// Capabilities holds the value of the capabilities edge.
 	Capabilities []*NodeCapability `json:"capabilities,omitempty"`
+	// ConfigFiles holds the value of the config_files edge.
+	ConfigFiles []*NodeConfigFile `json:"config_files,omitempty"`
+	// LogTargets holds the value of the log_targets edge.
+	LogTargets []*NodeLogTarget `json:"log_targets,omitempty"`
 	// Snapshots holds the value of the snapshots edge.
 	Snapshots []*ConfigSnapshot `json:"snapshots,omitempty"`
 	// DeployTasks holds the value of the deploy_tasks edge.
@@ -59,7 +63,7 @@ type NodeEdges struct {
 	Cluster *Cluster `json:"cluster,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [7]bool
 }
 
 // CapabilitiesOrErr returns the Capabilities value or an error if the edge
@@ -71,10 +75,28 @@ func (e NodeEdges) CapabilitiesOrErr() ([]*NodeCapability, error) {
 	return nil, &NotLoadedError{edge: "capabilities"}
 }
 
+// ConfigFilesOrErr returns the ConfigFiles value or an error if the edge
+// was not loaded in eager-loading.
+func (e NodeEdges) ConfigFilesOrErr() ([]*NodeConfigFile, error) {
+	if e.loadedTypes[1] {
+		return e.ConfigFiles, nil
+	}
+	return nil, &NotLoadedError{edge: "config_files"}
+}
+
+// LogTargetsOrErr returns the LogTargets value or an error if the edge
+// was not loaded in eager-loading.
+func (e NodeEdges) LogTargetsOrErr() ([]*NodeLogTarget, error) {
+	if e.loadedTypes[2] {
+		return e.LogTargets, nil
+	}
+	return nil, &NotLoadedError{edge: "log_targets"}
+}
+
 // SnapshotsOrErr returns the Snapshots value or an error if the edge
 // was not loaded in eager-loading.
 func (e NodeEdges) SnapshotsOrErr() ([]*ConfigSnapshot, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[3] {
 		return e.Snapshots, nil
 	}
 	return nil, &NotLoadedError{edge: "snapshots"}
@@ -83,7 +105,7 @@ func (e NodeEdges) SnapshotsOrErr() ([]*ConfigSnapshot, error) {
 // DeployTasksOrErr returns the DeployTasks value or an error if the edge
 // was not loaded in eager-loading.
 func (e NodeEdges) DeployTasksOrErr() ([]*DeployTask, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[4] {
 		return e.DeployTasks, nil
 	}
 	return nil, &NotLoadedError{edge: "deploy_tasks"}
@@ -92,7 +114,7 @@ func (e NodeEdges) DeployTasksOrErr() ([]*DeployTask, error) {
 // RealServersOrErr returns the RealServers value or an error if the edge
 // was not loaded in eager-loading.
 func (e NodeEdges) RealServersOrErr() ([]*RealServer, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[5] {
 		return e.RealServers, nil
 	}
 	return nil, &NotLoadedError{edge: "real_servers"}
@@ -103,7 +125,7 @@ func (e NodeEdges) RealServersOrErr() ([]*RealServer, error) {
 func (e NodeEdges) ClusterOrErr() (*Cluster, error) {
 	if e.Cluster != nil {
 		return e.Cluster, nil
-	} else if e.loadedTypes[4] {
+	} else if e.loadedTypes[6] {
 		return nil, &NotFoundError{label: cluster.Label}
 	}
 	return nil, &NotLoadedError{edge: "cluster"}
@@ -228,6 +250,16 @@ func (_m *Node) Value(name string) (ent.Value, error) {
 // QueryCapabilities queries the "capabilities" edge of the Node entity.
 func (_m *Node) QueryCapabilities() *NodeCapabilityQuery {
 	return NewNodeClient(_m.config).QueryCapabilities(_m)
+}
+
+// QueryConfigFiles queries the "config_files" edge of the Node entity.
+func (_m *Node) QueryConfigFiles() *NodeConfigFileQuery {
+	return NewNodeClient(_m.config).QueryConfigFiles(_m)
+}
+
+// QueryLogTargets queries the "log_targets" edge of the Node entity.
+func (_m *Node) QueryLogTargets() *NodeLogTargetQuery {
+	return NewNodeClient(_m.config).QueryLogTargets(_m)
 }
 
 // QuerySnapshots queries the "snapshots" edge of the Node entity.

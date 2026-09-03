@@ -292,3 +292,56 @@ func TestHeartbeaterReportsComplianceAndFsProbe(t *testing.T) {
 		t.Error("未见 FS_PROBE 上报（日志/FS 健康探测未上行）")
 	}
 }
+
+// TestHeartbeaterReportsConfigTreeAndLogTargets 验证 T018-C：Agent 侧配置树与日志目标采集结果
+// 经心跳流上行（CONFIG_TREE / LOG_TARGETS）。
+func TestHeartbeaterReportsConfigTreeAndLogTargets(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stream := &recordingStream{
+		ctx:  ctx,
+		sent: make(chan *agentv1.HeartbeatRequest, 64),
+		cmds: make(chan *agentv1.HeartbeatResponse, 8),
+	}
+	cli := &fakeAgentClient{stream: stream}
+
+	hb := agent.NewHeartbeater(cli,
+		agent.HeartbeatConfig{Interval: 100 * time.Millisecond, FsProbeInterval: 150 * time.Millisecond},
+		agent.HeartbeatCallbacks{
+			ReportConfigTree: func(ctx context.Context) (*agentv1.ConfigTreeReport, error) {
+				return &agentv1.ConfigTreeReport{
+					CapturedAt: time.Now().Unix(),
+					Files:      []*agentv1.ConfigFile{{Path: "/etc/nginx/nginx.conf", Sha256: "abc", Size: 100}},
+				}, nil
+			},
+			ReportLogTargets: func(ctx context.Context) (*agentv1.LogTargetsReport, error) {
+				return &agentv1.LogTargetsReport{
+					CapturedAt: time.Now().Unix(),
+					Items:      []*agentv1.LogTarget{{Path: "/var/log/nginx/access.log", Type: "access", Size: 10, Inode: 7}},
+				}, nil
+			},
+		}, nil)
+
+	go func() { _ = hb.Run(ctx) }()
+
+	seen := map[agentv1.HeartbeatRequest_Type]bool{}
+	timeout := time.After(3 * time.Second)
+	for len(seen) < 3 { // 期望观察 PING + CONFIG_TREE + LOG_TARGETS
+		select {
+		case r := <-stream.sent:
+			seen[r.GetType()] = true
+		case <-timeout:
+			t.Fatalf("未在超时内观察到全部上报类型，已见: %v", seen)
+		}
+	}
+	if !seen[agentv1.HeartbeatRequest_PING] {
+		t.Error("未见 PING 上报")
+	}
+	if !seen[agentv1.HeartbeatRequest_CONFIG_TREE] {
+		t.Error("未见 CONFIG_TREE 上报（配置树未上行）")
+	}
+	if !seen[agentv1.HeartbeatRequest_LOG_TARGETS] {
+		t.Error("未见 LOG_TARGETS 上报（日志目标未上行）")
+	}
+}

@@ -37,6 +37,10 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// EdgeCapabilities holds the string denoting the capabilities edge name in mutations.
 	EdgeCapabilities = "capabilities"
+	// EdgeConfigFiles holds the string denoting the config_files edge name in mutations.
+	EdgeConfigFiles = "config_files"
+	// EdgeLogTargets holds the string denoting the log_targets edge name in mutations.
+	EdgeLogTargets = "log_targets"
 	// EdgeSnapshots holds the string denoting the snapshots edge name in mutations.
 	EdgeSnapshots = "snapshots"
 	// EdgeDeployTasks holds the string denoting the deploy_tasks edge name in mutations.
@@ -54,6 +58,20 @@ const (
 	CapabilitiesInverseTable = "node_capabilities"
 	// CapabilitiesColumn is the table column denoting the capabilities relation/edge.
 	CapabilitiesColumn = "node_capabilities"
+	// ConfigFilesTable is the table that holds the config_files relation/edge.
+	ConfigFilesTable = "node_config_files"
+	// ConfigFilesInverseTable is the table name for the NodeConfigFile entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeconfigfile" package.
+	ConfigFilesInverseTable = "node_config_files"
+	// ConfigFilesColumn is the table column denoting the config_files relation/edge.
+	ConfigFilesColumn = "node_config_files"
+	// LogTargetsTable is the table that holds the log_targets relation/edge.
+	LogTargetsTable = "node_log_targets"
+	// LogTargetsInverseTable is the table name for the NodeLogTarget entity.
+	// It exists in this package in order to avoid circular dependency with the "nodelogtarget" package.
+	LogTargetsInverseTable = "node_log_targets"
+	// LogTargetsColumn is the table column denoting the log_targets relation/edge.
+	LogTargetsColumn = "node_log_targets"
 	// SnapshotsTable is the table that holds the snapshots relation/edge.
 	SnapshotsTable = "config_snapshots"
 	// SnapshotsInverseTable is the table name for the ConfigSnapshot entity.
@@ -256,6 +274,34 @@ func ByCapabilities(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByConfigFilesCount orders the results by config_files count.
+func ByConfigFilesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newConfigFilesStep(), opts...)
+	}
+}
+
+// ByConfigFiles orders the results by config_files terms.
+func ByConfigFiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newConfigFilesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByLogTargetsCount orders the results by log_targets count.
+func ByLogTargetsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLogTargetsStep(), opts...)
+	}
+}
+
+// ByLogTargets orders the results by log_targets terms.
+func ByLogTargets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLogTargetsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // BySnapshotsCount orders the results by snapshots count.
 func BySnapshotsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -309,6 +355,20 @@ func newCapabilitiesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(CapabilitiesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, CapabilitiesTable, CapabilitiesColumn),
+	)
+}
+func newConfigFilesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ConfigFilesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ConfigFilesTable, ConfigFilesColumn),
+	)
+}
+func newLogTargetsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LogTargetsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LogTargetsTable, LogTargetsColumn),
 	)
 }
 func newSnapshotsStep() *sqlgraph.Step {

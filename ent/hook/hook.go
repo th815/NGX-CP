@@ -129,6 +129,30 @@ func (f NodeCapabilityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeCapabilityMutation", m)
 }
 
+// The NodeConfigFileFunc type is an adapter to allow the use of ordinary
+// function as NodeConfigFile mutator.
+type NodeConfigFileFunc func(context.Context, *ent.NodeConfigFileMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NodeConfigFileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NodeConfigFileMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeConfigFileMutation", m)
+}
+
+// The NodeLogTargetFunc type is an adapter to allow the use of ordinary
+// function as NodeLogTarget mutator.
+type NodeLogTargetFunc func(context.Context, *ent.NodeLogTargetMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NodeLogTargetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NodeLogTargetMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeLogTargetMutation", m)
+}
+
 // The RealServerFunc type is an adapter to allow the use of ordinary
 // function as RealServer mutator.
 type RealServerFunc func(context.Context, *ent.RealServerMutation) (ent.Value, error)

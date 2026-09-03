@@ -23,9 +23,87 @@ type NodeCapabilityCreate struct {
 	conflict []sql.ConflictOption
 }
 
+// SetHostname sets the "hostname" field.
+func (_c *NodeCapabilityCreate) SetHostname(v string) *NodeCapabilityCreate {
+	_c.mutation.SetHostname(v)
+	return _c
+}
+
+// SetNillableHostname sets the "hostname" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableHostname(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetHostname(*v)
+	}
+	return _c
+}
+
+// SetOs sets the "os" field.
+func (_c *NodeCapabilityCreate) SetOs(v string) *NodeCapabilityCreate {
+	_c.mutation.SetOs(v)
+	return _c
+}
+
+// SetNillableOs sets the "os" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableOs(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetOs(*v)
+	}
+	return _c
+}
+
+// SetKernel sets the "kernel" field.
+func (_c *NodeCapabilityCreate) SetKernel(v string) *NodeCapabilityCreate {
+	_c.mutation.SetKernel(v)
+	return _c
+}
+
+// SetNillableKernel sets the "kernel" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableKernel(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetKernel(*v)
+	}
+	return _c
+}
+
+// SetHasKeepalived sets the "has_keepalived" field.
+func (_c *NodeCapabilityCreate) SetHasKeepalived(v bool) *NodeCapabilityCreate {
+	_c.mutation.SetHasKeepalived(v)
+	return _c
+}
+
+// SetNillableHasKeepalived sets the "has_keepalived" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableHasKeepalived(v *bool) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetHasKeepalived(*v)
+	}
+	return _c
+}
+
+// SetHasIpvsadm sets the "has_ipvsadm" field.
+func (_c *NodeCapabilityCreate) SetHasIpvsadm(v bool) *NodeCapabilityCreate {
+	_c.mutation.SetHasIpvsadm(v)
+	return _c
+}
+
+// SetNillableHasIpvsadm sets the "has_ipvsadm" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableHasIpvsadm(v *bool) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetHasIpvsadm(*v)
+	}
+	return _c
+}
+
 // SetVersion sets the "version" field.
 func (_c *NodeCapabilityCreate) SetVersion(v string) *NodeCapabilityCreate {
 	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableVersion(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
 	return _c
 }
 
@@ -35,15 +113,39 @@ func (_c *NodeCapabilityCreate) SetPrefix(v string) *NodeCapabilityCreate {
 	return _c
 }
 
+// SetNillablePrefix sets the "prefix" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillablePrefix(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetPrefix(*v)
+	}
+	return _c
+}
+
 // SetConfPath sets the "conf_path" field.
 func (_c *NodeCapabilityCreate) SetConfPath(v string) *NodeCapabilityCreate {
 	_c.mutation.SetConfPath(v)
 	return _c
 }
 
+// SetNillableConfPath sets the "conf_path" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableConfPath(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetConfPath(*v)
+	}
+	return _c
+}
+
 // SetSbinPath sets the "sbin_path" field.
 func (_c *NodeCapabilityCreate) SetSbinPath(v string) *NodeCapabilityCreate {
 	_c.mutation.SetSbinPath(v)
+	return _c
+}
+
+// SetNillableSbinPath sets the "sbin_path" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableSbinPath(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetSbinPath(*v)
+	}
 	return _c
 }
 
@@ -59,15 +161,67 @@ func (_c *NodeCapabilityCreate) SetRawArgs(v string) *NodeCapabilityCreate {
 	return _c
 }
 
+// SetNillableRawArgs sets the "raw_args" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableRawArgs(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetRawArgs(*v)
+	}
+	return _c
+}
+
+// SetConfigHash sets the "config_hash" field.
+func (_c *NodeCapabilityCreate) SetConfigHash(v string) *NodeCapabilityCreate {
+	_c.mutation.SetConfigHash(v)
+	return _c
+}
+
+// SetNillableConfigHash sets the "config_hash" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableConfigHash(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetConfigHash(*v)
+	}
+	return _c
+}
+
 // SetChecksum sets the "checksum" field.
 func (_c *NodeCapabilityCreate) SetChecksum(v string) *NodeCapabilityCreate {
 	_c.mutation.SetChecksum(v)
 	return _c
 }
 
+// SetNillableChecksum sets the "checksum" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableChecksum(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetChecksum(*v)
+	}
+	return _c
+}
+
+// SetSystemInfo sets the "system_info" field.
+func (_c *NodeCapabilityCreate) SetSystemInfo(v string) *NodeCapabilityCreate {
+	_c.mutation.SetSystemInfo(v)
+	return _c
+}
+
+// SetNillableSystemInfo sets the "system_info" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableSystemInfo(v *string) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetSystemInfo(*v)
+	}
+	return _c
+}
+
 // SetCapturedAt sets the "captured_at" field.
 func (_c *NodeCapabilityCreate) SetCapturedAt(v time.Time) *NodeCapabilityCreate {
 	_c.mutation.SetCapturedAt(v)
+	return _c
+}
+
+// SetNillableCapturedAt sets the "captured_at" field if the given value is not nil.
+func (_c *NodeCapabilityCreate) SetNillableCapturedAt(v *time.Time) *NodeCapabilityCreate {
+	if v != nil {
+		_c.SetCapturedAt(*v)
+	}
 	return _c
 }
 
@@ -153,6 +307,14 @@ func (_c *NodeCapabilityCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *NodeCapabilityCreate) defaults() {
+	if _, ok := _c.mutation.HasKeepalived(); !ok {
+		v := nodecapability.DefaultHasKeepalived
+		_c.mutation.SetHasKeepalived(v)
+	}
+	if _, ok := _c.mutation.HasIpvsadm(); !ok {
+		v := nodecapability.DefaultHasIpvsadm
+		_c.mutation.SetHasIpvsadm(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := nodecapability.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -165,29 +327,11 @@ func (_c *NodeCapabilityCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *NodeCapabilityCreate) check() error {
-	if _, ok := _c.mutation.Version(); !ok {
-		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "NodeCapability.version"`)}
+	if _, ok := _c.mutation.HasKeepalived(); !ok {
+		return &ValidationError{Name: "has_keepalived", err: errors.New(`ent: missing required field "NodeCapability.has_keepalived"`)}
 	}
-	if _, ok := _c.mutation.Prefix(); !ok {
-		return &ValidationError{Name: "prefix", err: errors.New(`ent: missing required field "NodeCapability.prefix"`)}
-	}
-	if _, ok := _c.mutation.ConfPath(); !ok {
-		return &ValidationError{Name: "conf_path", err: errors.New(`ent: missing required field "NodeCapability.conf_path"`)}
-	}
-	if _, ok := _c.mutation.SbinPath(); !ok {
-		return &ValidationError{Name: "sbin_path", err: errors.New(`ent: missing required field "NodeCapability.sbin_path"`)}
-	}
-	if _, ok := _c.mutation.Modules(); !ok {
-		return &ValidationError{Name: "modules", err: errors.New(`ent: missing required field "NodeCapability.modules"`)}
-	}
-	if _, ok := _c.mutation.RawArgs(); !ok {
-		return &ValidationError{Name: "raw_args", err: errors.New(`ent: missing required field "NodeCapability.raw_args"`)}
-	}
-	if _, ok := _c.mutation.Checksum(); !ok {
-		return &ValidationError{Name: "checksum", err: errors.New(`ent: missing required field "NodeCapability.checksum"`)}
-	}
-	if _, ok := _c.mutation.CapturedAt(); !ok {
-		return &ValidationError{Name: "captured_at", err: errors.New(`ent: missing required field "NodeCapability.captured_at"`)}
+	if _, ok := _c.mutation.HasIpvsadm(); !ok {
+		return &ValidationError{Name: "has_ipvsadm", err: errors.New(`ent: missing required field "NodeCapability.has_ipvsadm"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "NodeCapability.created_at"`)}
@@ -222,6 +366,26 @@ func (_c *NodeCapabilityCreate) createSpec() (*NodeCapability, *sqlgraph.CreateS
 		_spec = sqlgraph.NewCreateSpec(nodecapability.Table, sqlgraph.NewFieldSpec(nodecapability.FieldID, field.TypeInt))
 	)
 	_spec.OnConflict = _c.conflict
+	if value, ok := _c.mutation.Hostname(); ok {
+		_spec.SetField(nodecapability.FieldHostname, field.TypeString, value)
+		_node.Hostname = value
+	}
+	if value, ok := _c.mutation.Os(); ok {
+		_spec.SetField(nodecapability.FieldOs, field.TypeString, value)
+		_node.Os = value
+	}
+	if value, ok := _c.mutation.Kernel(); ok {
+		_spec.SetField(nodecapability.FieldKernel, field.TypeString, value)
+		_node.Kernel = value
+	}
+	if value, ok := _c.mutation.HasKeepalived(); ok {
+		_spec.SetField(nodecapability.FieldHasKeepalived, field.TypeBool, value)
+		_node.HasKeepalived = value
+	}
+	if value, ok := _c.mutation.HasIpvsadm(); ok {
+		_spec.SetField(nodecapability.FieldHasIpvsadm, field.TypeBool, value)
+		_node.HasIpvsadm = value
+	}
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(nodecapability.FieldVersion, field.TypeString, value)
 		_node.Version = value
@@ -246,9 +410,17 @@ func (_c *NodeCapabilityCreate) createSpec() (*NodeCapability, *sqlgraph.CreateS
 		_spec.SetField(nodecapability.FieldRawArgs, field.TypeString, value)
 		_node.RawArgs = value
 	}
+	if value, ok := _c.mutation.ConfigHash(); ok {
+		_spec.SetField(nodecapability.FieldConfigHash, field.TypeString, value)
+		_node.ConfigHash = value
+	}
 	if value, ok := _c.mutation.Checksum(); ok {
 		_spec.SetField(nodecapability.FieldChecksum, field.TypeString, value)
 		_node.Checksum = value
+	}
+	if value, ok := _c.mutation.SystemInfo(); ok {
+		_spec.SetField(nodecapability.FieldSystemInfo, field.TypeString, value)
+		_node.SystemInfo = value
 	}
 	if value, ok := _c.mutation.CapturedAt(); ok {
 		_spec.SetField(nodecapability.FieldCapturedAt, field.TypeTime, value)
@@ -286,7 +458,7 @@ func (_c *NodeCapabilityCreate) createSpec() (*NodeCapability, *sqlgraph.CreateS
 // of the `INSERT` statement. For example:
 //
 //	client.NodeCapability.Create().
-//		SetVersion(v).
+//		SetHostname(v).
 //		OnConflict(
 //			// Update the row with the new values
 //			// the was proposed for insertion.
@@ -295,7 +467,7 @@ func (_c *NodeCapabilityCreate) createSpec() (*NodeCapability, *sqlgraph.CreateS
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.NodeCapabilityUpsert) {
-//			SetVersion(v+v).
+//			SetHostname(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *NodeCapabilityCreate) OnConflict(opts ...sql.ConflictOption) *NodeCapabilityUpsertOne {
@@ -331,6 +503,84 @@ type (
 	}
 )
 
+// SetHostname sets the "hostname" field.
+func (u *NodeCapabilityUpsert) SetHostname(v string) *NodeCapabilityUpsert {
+	u.Set(nodecapability.FieldHostname, v)
+	return u
+}
+
+// UpdateHostname sets the "hostname" field to the value that was provided on create.
+func (u *NodeCapabilityUpsert) UpdateHostname() *NodeCapabilityUpsert {
+	u.SetExcluded(nodecapability.FieldHostname)
+	return u
+}
+
+// ClearHostname clears the value of the "hostname" field.
+func (u *NodeCapabilityUpsert) ClearHostname() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldHostname)
+	return u
+}
+
+// SetOs sets the "os" field.
+func (u *NodeCapabilityUpsert) SetOs(v string) *NodeCapabilityUpsert {
+	u.Set(nodecapability.FieldOs, v)
+	return u
+}
+
+// UpdateOs sets the "os" field to the value that was provided on create.
+func (u *NodeCapabilityUpsert) UpdateOs() *NodeCapabilityUpsert {
+	u.SetExcluded(nodecapability.FieldOs)
+	return u
+}
+
+// ClearOs clears the value of the "os" field.
+func (u *NodeCapabilityUpsert) ClearOs() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldOs)
+	return u
+}
+
+// SetKernel sets the "kernel" field.
+func (u *NodeCapabilityUpsert) SetKernel(v string) *NodeCapabilityUpsert {
+	u.Set(nodecapability.FieldKernel, v)
+	return u
+}
+
+// UpdateKernel sets the "kernel" field to the value that was provided on create.
+func (u *NodeCapabilityUpsert) UpdateKernel() *NodeCapabilityUpsert {
+	u.SetExcluded(nodecapability.FieldKernel)
+	return u
+}
+
+// ClearKernel clears the value of the "kernel" field.
+func (u *NodeCapabilityUpsert) ClearKernel() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldKernel)
+	return u
+}
+
+// SetHasKeepalived sets the "has_keepalived" field.
+func (u *NodeCapabilityUpsert) SetHasKeepalived(v bool) *NodeCapabilityUpsert {
+	u.Set(nodecapability.FieldHasKeepalived, v)
+	return u
+}
+
+// UpdateHasKeepalived sets the "has_keepalived" field to the value that was provided on create.
+func (u *NodeCapabilityUpsert) UpdateHasKeepalived() *NodeCapabilityUpsert {
+	u.SetExcluded(nodecapability.FieldHasKeepalived)
+	return u
+}
+
+// SetHasIpvsadm sets the "has_ipvsadm" field.
+func (u *NodeCapabilityUpsert) SetHasIpvsadm(v bool) *NodeCapabilityUpsert {
+	u.Set(nodecapability.FieldHasIpvsadm, v)
+	return u
+}
+
+// UpdateHasIpvsadm sets the "has_ipvsadm" field to the value that was provided on create.
+func (u *NodeCapabilityUpsert) UpdateHasIpvsadm() *NodeCapabilityUpsert {
+	u.SetExcluded(nodecapability.FieldHasIpvsadm)
+	return u
+}
+
 // SetVersion sets the "version" field.
 func (u *NodeCapabilityUpsert) SetVersion(v string) *NodeCapabilityUpsert {
 	u.Set(nodecapability.FieldVersion, v)
@@ -340,6 +590,12 @@ func (u *NodeCapabilityUpsert) SetVersion(v string) *NodeCapabilityUpsert {
 // UpdateVersion sets the "version" field to the value that was provided on create.
 func (u *NodeCapabilityUpsert) UpdateVersion() *NodeCapabilityUpsert {
 	u.SetExcluded(nodecapability.FieldVersion)
+	return u
+}
+
+// ClearVersion clears the value of the "version" field.
+func (u *NodeCapabilityUpsert) ClearVersion() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldVersion)
 	return u
 }
 
@@ -355,6 +611,12 @@ func (u *NodeCapabilityUpsert) UpdatePrefix() *NodeCapabilityUpsert {
 	return u
 }
 
+// ClearPrefix clears the value of the "prefix" field.
+func (u *NodeCapabilityUpsert) ClearPrefix() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldPrefix)
+	return u
+}
+
 // SetConfPath sets the "conf_path" field.
 func (u *NodeCapabilityUpsert) SetConfPath(v string) *NodeCapabilityUpsert {
 	u.Set(nodecapability.FieldConfPath, v)
@@ -364,6 +626,12 @@ func (u *NodeCapabilityUpsert) SetConfPath(v string) *NodeCapabilityUpsert {
 // UpdateConfPath sets the "conf_path" field to the value that was provided on create.
 func (u *NodeCapabilityUpsert) UpdateConfPath() *NodeCapabilityUpsert {
 	u.SetExcluded(nodecapability.FieldConfPath)
+	return u
+}
+
+// ClearConfPath clears the value of the "conf_path" field.
+func (u *NodeCapabilityUpsert) ClearConfPath() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldConfPath)
 	return u
 }
 
@@ -379,6 +647,12 @@ func (u *NodeCapabilityUpsert) UpdateSbinPath() *NodeCapabilityUpsert {
 	return u
 }
 
+// ClearSbinPath clears the value of the "sbin_path" field.
+func (u *NodeCapabilityUpsert) ClearSbinPath() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldSbinPath)
+	return u
+}
+
 // SetModules sets the "modules" field.
 func (u *NodeCapabilityUpsert) SetModules(v []string) *NodeCapabilityUpsert {
 	u.Set(nodecapability.FieldModules, v)
@@ -388,6 +662,12 @@ func (u *NodeCapabilityUpsert) SetModules(v []string) *NodeCapabilityUpsert {
 // UpdateModules sets the "modules" field to the value that was provided on create.
 func (u *NodeCapabilityUpsert) UpdateModules() *NodeCapabilityUpsert {
 	u.SetExcluded(nodecapability.FieldModules)
+	return u
+}
+
+// ClearModules clears the value of the "modules" field.
+func (u *NodeCapabilityUpsert) ClearModules() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldModules)
 	return u
 }
 
@@ -403,6 +683,30 @@ func (u *NodeCapabilityUpsert) UpdateRawArgs() *NodeCapabilityUpsert {
 	return u
 }
 
+// ClearRawArgs clears the value of the "raw_args" field.
+func (u *NodeCapabilityUpsert) ClearRawArgs() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldRawArgs)
+	return u
+}
+
+// SetConfigHash sets the "config_hash" field.
+func (u *NodeCapabilityUpsert) SetConfigHash(v string) *NodeCapabilityUpsert {
+	u.Set(nodecapability.FieldConfigHash, v)
+	return u
+}
+
+// UpdateConfigHash sets the "config_hash" field to the value that was provided on create.
+func (u *NodeCapabilityUpsert) UpdateConfigHash() *NodeCapabilityUpsert {
+	u.SetExcluded(nodecapability.FieldConfigHash)
+	return u
+}
+
+// ClearConfigHash clears the value of the "config_hash" field.
+func (u *NodeCapabilityUpsert) ClearConfigHash() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldConfigHash)
+	return u
+}
+
 // SetChecksum sets the "checksum" field.
 func (u *NodeCapabilityUpsert) SetChecksum(v string) *NodeCapabilityUpsert {
 	u.Set(nodecapability.FieldChecksum, v)
@@ -415,6 +719,30 @@ func (u *NodeCapabilityUpsert) UpdateChecksum() *NodeCapabilityUpsert {
 	return u
 }
 
+// ClearChecksum clears the value of the "checksum" field.
+func (u *NodeCapabilityUpsert) ClearChecksum() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldChecksum)
+	return u
+}
+
+// SetSystemInfo sets the "system_info" field.
+func (u *NodeCapabilityUpsert) SetSystemInfo(v string) *NodeCapabilityUpsert {
+	u.Set(nodecapability.FieldSystemInfo, v)
+	return u
+}
+
+// UpdateSystemInfo sets the "system_info" field to the value that was provided on create.
+func (u *NodeCapabilityUpsert) UpdateSystemInfo() *NodeCapabilityUpsert {
+	u.SetExcluded(nodecapability.FieldSystemInfo)
+	return u
+}
+
+// ClearSystemInfo clears the value of the "system_info" field.
+func (u *NodeCapabilityUpsert) ClearSystemInfo() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldSystemInfo)
+	return u
+}
+
 // SetCapturedAt sets the "captured_at" field.
 func (u *NodeCapabilityUpsert) SetCapturedAt(v time.Time) *NodeCapabilityUpsert {
 	u.Set(nodecapability.FieldCapturedAt, v)
@@ -424,6 +752,12 @@ func (u *NodeCapabilityUpsert) SetCapturedAt(v time.Time) *NodeCapabilityUpsert 
 // UpdateCapturedAt sets the "captured_at" field to the value that was provided on create.
 func (u *NodeCapabilityUpsert) UpdateCapturedAt() *NodeCapabilityUpsert {
 	u.SetExcluded(nodecapability.FieldCapturedAt)
+	return u
+}
+
+// ClearCapturedAt clears the value of the "captured_at" field.
+func (u *NodeCapabilityUpsert) ClearCapturedAt() *NodeCapabilityUpsert {
+	u.SetNull(nodecapability.FieldCapturedAt)
 	return u
 }
 
@@ -484,6 +818,97 @@ func (u *NodeCapabilityUpsertOne) Update(set func(*NodeCapabilityUpsert)) *NodeC
 	return u
 }
 
+// SetHostname sets the "hostname" field.
+func (u *NodeCapabilityUpsertOne) SetHostname(v string) *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetHostname(v)
+	})
+}
+
+// UpdateHostname sets the "hostname" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertOne) UpdateHostname() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateHostname()
+	})
+}
+
+// ClearHostname clears the value of the "hostname" field.
+func (u *NodeCapabilityUpsertOne) ClearHostname() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearHostname()
+	})
+}
+
+// SetOs sets the "os" field.
+func (u *NodeCapabilityUpsertOne) SetOs(v string) *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetOs(v)
+	})
+}
+
+// UpdateOs sets the "os" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertOne) UpdateOs() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateOs()
+	})
+}
+
+// ClearOs clears the value of the "os" field.
+func (u *NodeCapabilityUpsertOne) ClearOs() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearOs()
+	})
+}
+
+// SetKernel sets the "kernel" field.
+func (u *NodeCapabilityUpsertOne) SetKernel(v string) *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetKernel(v)
+	})
+}
+
+// UpdateKernel sets the "kernel" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertOne) UpdateKernel() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateKernel()
+	})
+}
+
+// ClearKernel clears the value of the "kernel" field.
+func (u *NodeCapabilityUpsertOne) ClearKernel() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearKernel()
+	})
+}
+
+// SetHasKeepalived sets the "has_keepalived" field.
+func (u *NodeCapabilityUpsertOne) SetHasKeepalived(v bool) *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetHasKeepalived(v)
+	})
+}
+
+// UpdateHasKeepalived sets the "has_keepalived" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertOne) UpdateHasKeepalived() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateHasKeepalived()
+	})
+}
+
+// SetHasIpvsadm sets the "has_ipvsadm" field.
+func (u *NodeCapabilityUpsertOne) SetHasIpvsadm(v bool) *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetHasIpvsadm(v)
+	})
+}
+
+// UpdateHasIpvsadm sets the "has_ipvsadm" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertOne) UpdateHasIpvsadm() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateHasIpvsadm()
+	})
+}
+
 // SetVersion sets the "version" field.
 func (u *NodeCapabilityUpsertOne) SetVersion(v string) *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -495,6 +920,13 @@ func (u *NodeCapabilityUpsertOne) SetVersion(v string) *NodeCapabilityUpsertOne 
 func (u *NodeCapabilityUpsertOne) UpdateVersion() *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateVersion()
+	})
+}
+
+// ClearVersion clears the value of the "version" field.
+func (u *NodeCapabilityUpsertOne) ClearVersion() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearVersion()
 	})
 }
 
@@ -512,6 +944,13 @@ func (u *NodeCapabilityUpsertOne) UpdatePrefix() *NodeCapabilityUpsertOne {
 	})
 }
 
+// ClearPrefix clears the value of the "prefix" field.
+func (u *NodeCapabilityUpsertOne) ClearPrefix() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearPrefix()
+	})
+}
+
 // SetConfPath sets the "conf_path" field.
 func (u *NodeCapabilityUpsertOne) SetConfPath(v string) *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -523,6 +962,13 @@ func (u *NodeCapabilityUpsertOne) SetConfPath(v string) *NodeCapabilityUpsertOne
 func (u *NodeCapabilityUpsertOne) UpdateConfPath() *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateConfPath()
+	})
+}
+
+// ClearConfPath clears the value of the "conf_path" field.
+func (u *NodeCapabilityUpsertOne) ClearConfPath() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearConfPath()
 	})
 }
 
@@ -540,6 +986,13 @@ func (u *NodeCapabilityUpsertOne) UpdateSbinPath() *NodeCapabilityUpsertOne {
 	})
 }
 
+// ClearSbinPath clears the value of the "sbin_path" field.
+func (u *NodeCapabilityUpsertOne) ClearSbinPath() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearSbinPath()
+	})
+}
+
 // SetModules sets the "modules" field.
 func (u *NodeCapabilityUpsertOne) SetModules(v []string) *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -551,6 +1004,13 @@ func (u *NodeCapabilityUpsertOne) SetModules(v []string) *NodeCapabilityUpsertOn
 func (u *NodeCapabilityUpsertOne) UpdateModules() *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateModules()
+	})
+}
+
+// ClearModules clears the value of the "modules" field.
+func (u *NodeCapabilityUpsertOne) ClearModules() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearModules()
 	})
 }
 
@@ -568,6 +1028,34 @@ func (u *NodeCapabilityUpsertOne) UpdateRawArgs() *NodeCapabilityUpsertOne {
 	})
 }
 
+// ClearRawArgs clears the value of the "raw_args" field.
+func (u *NodeCapabilityUpsertOne) ClearRawArgs() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearRawArgs()
+	})
+}
+
+// SetConfigHash sets the "config_hash" field.
+func (u *NodeCapabilityUpsertOne) SetConfigHash(v string) *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetConfigHash(v)
+	})
+}
+
+// UpdateConfigHash sets the "config_hash" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertOne) UpdateConfigHash() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateConfigHash()
+	})
+}
+
+// ClearConfigHash clears the value of the "config_hash" field.
+func (u *NodeCapabilityUpsertOne) ClearConfigHash() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearConfigHash()
+	})
+}
+
 // SetChecksum sets the "checksum" field.
 func (u *NodeCapabilityUpsertOne) SetChecksum(v string) *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -582,6 +1070,34 @@ func (u *NodeCapabilityUpsertOne) UpdateChecksum() *NodeCapabilityUpsertOne {
 	})
 }
 
+// ClearChecksum clears the value of the "checksum" field.
+func (u *NodeCapabilityUpsertOne) ClearChecksum() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearChecksum()
+	})
+}
+
+// SetSystemInfo sets the "system_info" field.
+func (u *NodeCapabilityUpsertOne) SetSystemInfo(v string) *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetSystemInfo(v)
+	})
+}
+
+// UpdateSystemInfo sets the "system_info" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertOne) UpdateSystemInfo() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateSystemInfo()
+	})
+}
+
+// ClearSystemInfo clears the value of the "system_info" field.
+func (u *NodeCapabilityUpsertOne) ClearSystemInfo() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearSystemInfo()
+	})
+}
+
 // SetCapturedAt sets the "captured_at" field.
 func (u *NodeCapabilityUpsertOne) SetCapturedAt(v time.Time) *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -593,6 +1109,13 @@ func (u *NodeCapabilityUpsertOne) SetCapturedAt(v time.Time) *NodeCapabilityUpse
 func (u *NodeCapabilityUpsertOne) UpdateCapturedAt() *NodeCapabilityUpsertOne {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateCapturedAt()
+	})
+}
+
+// ClearCapturedAt clears the value of the "captured_at" field.
+func (u *NodeCapabilityUpsertOne) ClearCapturedAt() *NodeCapabilityUpsertOne {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearCapturedAt()
 	})
 }
 
@@ -745,7 +1268,7 @@ func (_c *NodeCapabilityCreateBulk) ExecX(ctx context.Context) {
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.NodeCapabilityUpsert) {
-//			SetVersion(v+v).
+//			SetHostname(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *NodeCapabilityCreateBulk) OnConflict(opts ...sql.ConflictOption) *NodeCapabilityUpsertBulk {
@@ -821,6 +1344,97 @@ func (u *NodeCapabilityUpsertBulk) Update(set func(*NodeCapabilityUpsert)) *Node
 	return u
 }
 
+// SetHostname sets the "hostname" field.
+func (u *NodeCapabilityUpsertBulk) SetHostname(v string) *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetHostname(v)
+	})
+}
+
+// UpdateHostname sets the "hostname" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertBulk) UpdateHostname() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateHostname()
+	})
+}
+
+// ClearHostname clears the value of the "hostname" field.
+func (u *NodeCapabilityUpsertBulk) ClearHostname() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearHostname()
+	})
+}
+
+// SetOs sets the "os" field.
+func (u *NodeCapabilityUpsertBulk) SetOs(v string) *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetOs(v)
+	})
+}
+
+// UpdateOs sets the "os" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertBulk) UpdateOs() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateOs()
+	})
+}
+
+// ClearOs clears the value of the "os" field.
+func (u *NodeCapabilityUpsertBulk) ClearOs() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearOs()
+	})
+}
+
+// SetKernel sets the "kernel" field.
+func (u *NodeCapabilityUpsertBulk) SetKernel(v string) *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetKernel(v)
+	})
+}
+
+// UpdateKernel sets the "kernel" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertBulk) UpdateKernel() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateKernel()
+	})
+}
+
+// ClearKernel clears the value of the "kernel" field.
+func (u *NodeCapabilityUpsertBulk) ClearKernel() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearKernel()
+	})
+}
+
+// SetHasKeepalived sets the "has_keepalived" field.
+func (u *NodeCapabilityUpsertBulk) SetHasKeepalived(v bool) *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetHasKeepalived(v)
+	})
+}
+
+// UpdateHasKeepalived sets the "has_keepalived" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertBulk) UpdateHasKeepalived() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateHasKeepalived()
+	})
+}
+
+// SetHasIpvsadm sets the "has_ipvsadm" field.
+func (u *NodeCapabilityUpsertBulk) SetHasIpvsadm(v bool) *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetHasIpvsadm(v)
+	})
+}
+
+// UpdateHasIpvsadm sets the "has_ipvsadm" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertBulk) UpdateHasIpvsadm() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateHasIpvsadm()
+	})
+}
+
 // SetVersion sets the "version" field.
 func (u *NodeCapabilityUpsertBulk) SetVersion(v string) *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -832,6 +1446,13 @@ func (u *NodeCapabilityUpsertBulk) SetVersion(v string) *NodeCapabilityUpsertBul
 func (u *NodeCapabilityUpsertBulk) UpdateVersion() *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateVersion()
+	})
+}
+
+// ClearVersion clears the value of the "version" field.
+func (u *NodeCapabilityUpsertBulk) ClearVersion() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearVersion()
 	})
 }
 
@@ -849,6 +1470,13 @@ func (u *NodeCapabilityUpsertBulk) UpdatePrefix() *NodeCapabilityUpsertBulk {
 	})
 }
 
+// ClearPrefix clears the value of the "prefix" field.
+func (u *NodeCapabilityUpsertBulk) ClearPrefix() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearPrefix()
+	})
+}
+
 // SetConfPath sets the "conf_path" field.
 func (u *NodeCapabilityUpsertBulk) SetConfPath(v string) *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -860,6 +1488,13 @@ func (u *NodeCapabilityUpsertBulk) SetConfPath(v string) *NodeCapabilityUpsertBu
 func (u *NodeCapabilityUpsertBulk) UpdateConfPath() *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateConfPath()
+	})
+}
+
+// ClearConfPath clears the value of the "conf_path" field.
+func (u *NodeCapabilityUpsertBulk) ClearConfPath() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearConfPath()
 	})
 }
 
@@ -877,6 +1512,13 @@ func (u *NodeCapabilityUpsertBulk) UpdateSbinPath() *NodeCapabilityUpsertBulk {
 	})
 }
 
+// ClearSbinPath clears the value of the "sbin_path" field.
+func (u *NodeCapabilityUpsertBulk) ClearSbinPath() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearSbinPath()
+	})
+}
+
 // SetModules sets the "modules" field.
 func (u *NodeCapabilityUpsertBulk) SetModules(v []string) *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -888,6 +1530,13 @@ func (u *NodeCapabilityUpsertBulk) SetModules(v []string) *NodeCapabilityUpsertB
 func (u *NodeCapabilityUpsertBulk) UpdateModules() *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateModules()
+	})
+}
+
+// ClearModules clears the value of the "modules" field.
+func (u *NodeCapabilityUpsertBulk) ClearModules() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearModules()
 	})
 }
 
@@ -905,6 +1554,34 @@ func (u *NodeCapabilityUpsertBulk) UpdateRawArgs() *NodeCapabilityUpsertBulk {
 	})
 }
 
+// ClearRawArgs clears the value of the "raw_args" field.
+func (u *NodeCapabilityUpsertBulk) ClearRawArgs() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearRawArgs()
+	})
+}
+
+// SetConfigHash sets the "config_hash" field.
+func (u *NodeCapabilityUpsertBulk) SetConfigHash(v string) *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetConfigHash(v)
+	})
+}
+
+// UpdateConfigHash sets the "config_hash" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertBulk) UpdateConfigHash() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateConfigHash()
+	})
+}
+
+// ClearConfigHash clears the value of the "config_hash" field.
+func (u *NodeCapabilityUpsertBulk) ClearConfigHash() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearConfigHash()
+	})
+}
+
 // SetChecksum sets the "checksum" field.
 func (u *NodeCapabilityUpsertBulk) SetChecksum(v string) *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -919,6 +1596,34 @@ func (u *NodeCapabilityUpsertBulk) UpdateChecksum() *NodeCapabilityUpsertBulk {
 	})
 }
 
+// ClearChecksum clears the value of the "checksum" field.
+func (u *NodeCapabilityUpsertBulk) ClearChecksum() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearChecksum()
+	})
+}
+
+// SetSystemInfo sets the "system_info" field.
+func (u *NodeCapabilityUpsertBulk) SetSystemInfo(v string) *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.SetSystemInfo(v)
+	})
+}
+
+// UpdateSystemInfo sets the "system_info" field to the value that was provided on create.
+func (u *NodeCapabilityUpsertBulk) UpdateSystemInfo() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.UpdateSystemInfo()
+	})
+}
+
+// ClearSystemInfo clears the value of the "system_info" field.
+func (u *NodeCapabilityUpsertBulk) ClearSystemInfo() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearSystemInfo()
+	})
+}
+
 // SetCapturedAt sets the "captured_at" field.
 func (u *NodeCapabilityUpsertBulk) SetCapturedAt(v time.Time) *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
@@ -930,6 +1635,13 @@ func (u *NodeCapabilityUpsertBulk) SetCapturedAt(v time.Time) *NodeCapabilityUps
 func (u *NodeCapabilityUpsertBulk) UpdateCapturedAt() *NodeCapabilityUpsertBulk {
 	return u.Update(func(s *NodeCapabilityUpsert) {
 		s.UpdateCapturedAt()
+	})
+}
+
+// ClearCapturedAt clears the value of the "captured_at" field.
+func (u *NodeCapabilityUpsertBulk) ClearCapturedAt() *NodeCapabilityUpsertBulk {
+	return u.Update(func(s *NodeCapabilityUpsert) {
+		s.ClearCapturedAt()
 	})
 }
 

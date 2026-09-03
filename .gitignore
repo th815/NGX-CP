@@ -48,3 +48,6 @@ coverage.out
 
 # Node deps (if any tooling added)
 node_modules/
+
+# Frontend build output
+web/dist/

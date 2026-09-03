@@ -39,6 +39,8 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, sessions *session.Se
 			ns.GET("", nh.List)
 			ns.GET("/:id", nh.Get)
 			ns.GET("/:id/capability", nh.GetCapability)
+			ns.GET("/:id/config-files", nh.ConfigFiles)
+			ns.GET("/:id/log-targets", nh.LogTargets)
 
 			// 写操作 + 接入令牌：需鉴权
 			auth := middleware.RequireAuth(cfg.AuthAdminToken)

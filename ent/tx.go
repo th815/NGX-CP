@@ -32,6 +32,10 @@ type Tx struct {
 	Node *NodeClient
 	// NodeCapability is the client for interacting with the NodeCapability builders.
 	NodeCapability *NodeCapabilityClient
+	// NodeConfigFile is the client for interacting with the NodeConfigFile builders.
+	NodeConfigFile *NodeConfigFileClient
+	// NodeLogTarget is the client for interacting with the NodeLogTarget builders.
+	NodeLogTarget *NodeLogTargetClient
 	// RealServer is the client for interacting with the RealServer builders.
 	RealServer *RealServerClient
 
@@ -175,6 +179,8 @@ func (tx *Tx) init() {
 	tx.DeployTask = NewDeployTaskClient(tx.config)
 	tx.Node = NewNodeClient(tx.config)
 	tx.NodeCapability = NewNodeCapabilityClient(tx.config)
+	tx.NodeConfigFile = NewNodeConfigFileClient(tx.config)
+	tx.NodeLogTarget = NewNodeLogTargetClient(tx.config)
 	tx.RealServer = NewRealServerClient(tx.config)
 }
 

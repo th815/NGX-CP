@@ -14,6 +14,16 @@ const (
 	Label = "node_capability"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldHostname holds the string denoting the hostname field in the database.
+	FieldHostname = "hostname"
+	// FieldOs holds the string denoting the os field in the database.
+	FieldOs = "os"
+	// FieldKernel holds the string denoting the kernel field in the database.
+	FieldKernel = "kernel"
+	// FieldHasKeepalived holds the string denoting the has_keepalived field in the database.
+	FieldHasKeepalived = "has_keepalived"
+	// FieldHasIpvsadm holds the string denoting the has_ipvsadm field in the database.
+	FieldHasIpvsadm = "has_ipvsadm"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldPrefix holds the string denoting the prefix field in the database.
@@ -26,8 +36,12 @@ const (
 	FieldModules = "modules"
 	// FieldRawArgs holds the string denoting the raw_args field in the database.
 	FieldRawArgs = "raw_args"
+	// FieldConfigHash holds the string denoting the config_hash field in the database.
+	FieldConfigHash = "config_hash"
 	// FieldChecksum holds the string denoting the checksum field in the database.
 	FieldChecksum = "checksum"
+	// FieldSystemInfo holds the string denoting the system_info field in the database.
+	FieldSystemInfo = "system_info"
 	// FieldCapturedAt holds the string denoting the captured_at field in the database.
 	FieldCapturedAt = "captured_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -50,13 +64,20 @@ const (
 // Columns holds all SQL columns for nodecapability fields.
 var Columns = []string{
 	FieldID,
+	FieldHostname,
+	FieldOs,
+	FieldKernel,
+	FieldHasKeepalived,
+	FieldHasIpvsadm,
 	FieldVersion,
 	FieldPrefix,
 	FieldConfPath,
 	FieldSbinPath,
 	FieldModules,
 	FieldRawArgs,
+	FieldConfigHash,
 	FieldChecksum,
+	FieldSystemInfo,
 	FieldCapturedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -84,6 +105,10 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultHasKeepalived holds the default value on creation for the "has_keepalived" field.
+	DefaultHasKeepalived bool
+	// DefaultHasIpvsadm holds the default value on creation for the "has_ipvsadm" field.
+	DefaultHasIpvsadm bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -98,6 +123,31 @@ type OrderOption func(*sql.Selector)
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByHostname orders the results by the hostname field.
+func ByHostname(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHostname, opts...).ToFunc()
+}
+
+// ByOs orders the results by the os field.
+func ByOs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOs, opts...).ToFunc()
+}
+
+// ByKernel orders the results by the kernel field.
+func ByKernel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKernel, opts...).ToFunc()
+}
+
+// ByHasKeepalived orders the results by the has_keepalived field.
+func ByHasKeepalived(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHasKeepalived, opts...).ToFunc()
+}
+
+// ByHasIpvsadm orders the results by the has_ipvsadm field.
+func ByHasIpvsadm(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHasIpvsadm, opts...).ToFunc()
 }
 
 // ByVersion orders the results by the version field.
@@ -125,9 +175,19 @@ func ByRawArgs(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRawArgs, opts...).ToFunc()
 }
 
+// ByConfigHash orders the results by the config_hash field.
+func ByConfigHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConfigHash, opts...).ToFunc()
+}
+
 // ByChecksum orders the results by the checksum field.
 func ByChecksum(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChecksum, opts...).ToFunc()
+}
+
+// BySystemInfo orders the results by the system_info field.
+func BySystemInfo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSystemInfo, opts...).ToFunc()
 }
 
 // ByCapturedAt orders the results by the captured_at field.

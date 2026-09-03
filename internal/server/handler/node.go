@@ -150,7 +150,7 @@ func (h *NodeHandler) IssueEnrollToken(c *gin.Context) {
 	response.OK(c, gin.H{"token": tok, "node_id": id, "expires_at": exp})
 }
 
-// GetCapability 查看节点能力基线占位。
+// GetCapability 查看节点能力基线（真实视图：nginx 画像 + 系统信息 + 配置树 + 日志目标）。
 func (h *NodeHandler) GetCapability(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -163,6 +163,36 @@ func (h *NodeHandler) GetCapability(c *gin.Context) {
 		return
 	}
 	response.OK(c, cap)
+}
+
+// ConfigFiles 列出节点配置树的文件元数据（不含内容，内容按需向 Agent 请求）。
+func (h *NodeHandler) ConfigFiles(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	files, err := h.svc.GetConfigFiles(c.Request.Context(), id)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, files)
+}
+
+// LogTargets 列出节点的日志采集目标（回答「Agent 该 tail 哪些文件」）。
+func (h *NodeHandler) LogTargets(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	targets, err := h.svc.GetLogTargets(c.Request.Context(), id)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, targets)
 }
 
 // RefreshCapability 触发一次能力刷新（需鉴权）。

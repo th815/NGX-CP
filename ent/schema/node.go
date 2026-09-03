@@ -34,6 +34,8 @@ func (Node) Fields() []ent.Field {
 func (Node) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("capabilities", NodeCapability.Type),
+		edge.To("config_files", NodeConfigFile.Type),
+		edge.To("log_targets", NodeLogTarget.Type),
 		edge.To("snapshots", ConfigSnapshot.Type),
 		edge.To("deploy_tasks", DeployTask.Type),
 		edge.To("real_servers", RealServer.Type),

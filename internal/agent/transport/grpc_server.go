@@ -148,6 +148,21 @@ func (s *Server) ReportCapability(ctx context.Context, req *agentv1.CapabilityRe
 		in.NginxRawArgs = ng.GetConfigureArgs()
 		in.ConfigHash = ng.GetConfigHash()
 	}
+	// 主机运行底座画像（T018）：尽力而为采集，缺失不阻断能力上报。
+	if sys := cap.GetSystem(); sys != nil {
+		in.SystemInfo = &node.SystemInfoView{
+			OS:             sys.GetOs(),
+			Kernel:         sys.GetKernel(),
+			NginxManagedBy: sys.GetNginxManagedBy(),
+			SELinuxStatus:  sys.GetSelinuxStatus(),
+			UlimitNofile:   int(sys.GetUlimitNofile()),
+			Timezone:       sys.GetTimezone(),
+			NTPSynced:      sys.GetNtpSynced(),
+			LogRotateConf:  sys.GetLogrotateConf(),
+			DiskFree:       sys.GetDiskFree(),
+			Warnings:       sys.GetWarnings(),
+		}
+	}
 	if err := s.nodeSvc.SaveCapability(ctx, nodeID, in); err != nil {
 		return nil, status.Error(codes.Internal, "落库能力基线失败: "+err.Error())
 	}
@@ -234,6 +249,20 @@ func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
 		if f := req.GetFsProbe(); f != nil && s.nodeSvc != nil {
 			if err := s.nodeSvc.SetFsProbe(stream.Context(), nodeID, f); err != nil {
 				s.log.Warn("set fs probe failed", "node_id", nodeID, "err", err)
+			}
+		}
+
+		// 配置树上报（T018）：nginx -T 解析出的文件元数据快照，整体替换落库。
+		if ct := req.GetConfigTree(); ct != nil && s.nodeSvc != nil {
+			if err := s.nodeSvc.SaveConfigTree(stream.Context(), nodeID, ct.GetFiles()); err != nil {
+				s.log.Warn("save config tree failed", "node_id", nodeID, "err", err)
+			}
+		}
+
+		// 日志采集目标上报（T018）：决定 Agent 该 tail 哪些文件，整体替换落库。
+		if lt := req.GetLogTargets(); lt != nil && s.nodeSvc != nil {
+			if err := s.nodeSvc.SaveLogTargets(stream.Context(), nodeID, lt.GetItems()); err != nil {
+				s.log.Warn("save log targets failed", "node_id", nodeID, "err", err)
 			}
 		}
 

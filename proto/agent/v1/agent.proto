@@ -46,6 +46,8 @@ message HeartbeatRequest {
     COMPLIANCE = 2;
     METRICS = 3;
     FS_PROBE = 4;                 // T018：日志/FS 健康探测上报
+    CONFIG_TREE = 5;              // T018：nginx -T 配置树上报
+    LOG_TARGETS = 6;              // T018：日志采集目标上报
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
@@ -53,6 +55,8 @@ message HeartbeatRequest {
   ComplianceReport compliance = 4;
   bytes metrics_payload = 5;      // Prometheus 文本格式
   FsProbeReport fs_probe = 6;     // T018：日志/FS 健康探测结果
+  ConfigTreeReport config_tree = 7;   // T018：nginx -T 配置树
+  LogTargetsReport log_targets = 8;   // T018：日志采集目标清单
 }
 
 message HeartbeatResponse {
@@ -84,6 +88,7 @@ message Capability {
   bool has_ipvsadm = 6;
   ComplianceReport compliance = 7;
   double clock_skew_seconds = 8;  // 与控制面的时间偏差（由控制面计算填入）
+  SystemInfo system = 9;          // T018：主机运行底座画像（OS 细节/SELinux/ulimit/磁盘等）
 }
 
 message NginxInfo {
@@ -140,4 +145,48 @@ message ComplianceItem {
 message FsProbeReport {
   int64 checked_at = 1;                 // unix 秒
   repeated ComplianceItem items = 2;    // 各项检查结果（severity=critical 不通过 → 节点 degraded）
+}
+
+// SystemInfo 是主机的运行底座画像（T018）。
+// 采集为尽力而为：单项取不到时留零值，不阻断整体能力上报。
+message SystemInfo {
+  string os = 1;                  // "rocky 9.4"
+  string kernel = 2;
+  string nginx_managed_by = 3;    // systemd | manual
+  string selinux_status = 4;      // enforcing | permissive | disabled | unknown
+  int64 ulimit_nofile = 5;
+  string timezone = 6;            // Asia/Shanghai
+  bool ntp_synced = 7;
+  string logrotate_conf = 8;      // /etc/logrotate.d/nginx，空表示不存在
+  map<string, int64> disk_free = 9; // 挂载点 -> 可用字节
+  repeated string warnings = 10;  // 采集失败的项（selinux / ntp / disk ...）
+}
+
+// ConfigTreeReport 是 `nginx -T` 解析出的配置树（T018）。
+// 控制面只持久化元数据（路径/大小/哈希），内容按需由 Agent 重新采集——
+// 完整配置可能数 MB，常驻落库既浪费也会把私钥路径等敏感信息扩散到数据库。
+message ConfigTreeReport {
+  int64 captured_at = 1;          // unix 秒
+  repeated ConfigFile files = 2;
+}
+
+// LogTargetsReport 是从配置里提取的日志采集目标清单（T018）。
+// 决定「Agent 该 tail 哪些文件」：off / syslog 目标跳过，变量路径只标记不展开。
+message LogTargetsReport {
+  int64 captured_at = 1;          // unix 秒
+  repeated LogTarget items = 2;
+}
+
+message LogTarget {
+  string path = 1;                // /var/log/nginx/access.log
+  string type = 2;                // access | error
+  string format = 3;              // main | json（未指定为空，即 nginx 默认 combined）
+  string level = 4;               // warn | error（仅 error_log）
+  bool is_syslog = 5;             // syslog:server=... → 跳过采集
+  bool is_off = 6;                // off / stderr / memory → 跳过采集
+  bool has_variable = 7;          // 路径含 $host 等变量 → 不展开，告警
+  string skip_reason = 8;         // off | syslog | stderr | memory
+  int64 size = 9;                 // 字节；stat 失败为 -1
+  uint64 inode = 10;              // logrotate 轮转检测
+  string stat_err = 11;           // stat 失败原因
 }

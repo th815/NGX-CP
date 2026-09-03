@@ -25,6 +25,8 @@ import (
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/ent/nodeconfigfile"
+	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
 )
 
@@ -53,6 +55,10 @@ type Client struct {
 	Node *NodeClient
 	// NodeCapability is the client for interacting with the NodeCapability builders.
 	NodeCapability *NodeCapabilityClient
+	// NodeConfigFile is the client for interacting with the NodeConfigFile builders.
+	NodeConfigFile *NodeConfigFileClient
+	// NodeLogTarget is the client for interacting with the NodeLogTarget builders.
+	NodeLogTarget *NodeLogTargetClient
 	// RealServer is the client for interacting with the RealServer builders.
 	RealServer *RealServerClient
 }
@@ -76,6 +82,8 @@ func (c *Client) init() {
 	c.DeployTask = NewDeployTaskClient(c.config)
 	c.Node = NewNodeClient(c.config)
 	c.NodeCapability = NewNodeCapabilityClient(c.config)
+	c.NodeConfigFile = NewNodeConfigFileClient(c.config)
+	c.NodeLogTarget = NewNodeLogTargetClient(c.config)
 	c.RealServer = NewRealServerClient(c.config)
 }
 
@@ -179,6 +187,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DeployTask:     NewDeployTaskClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
+		NodeConfigFile: NewNodeConfigFileClient(cfg),
+		NodeLogTarget:  NewNodeLogTargetClient(cfg),
 		RealServer:     NewRealServerClient(cfg),
 	}, nil
 }
@@ -209,6 +219,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DeployTask:     NewDeployTaskClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
+		NodeConfigFile: NewNodeConfigFileClient(cfg),
+		NodeLogTarget:  NewNodeLogTargetClient(cfg),
 		RealServer:     NewRealServerClient(cfg),
 	}, nil
 }
@@ -241,7 +253,7 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AuditLog, c.ChangeOrder, c.Cluster, c.ConfigBlob, c.ConfigFile,
 		c.ConfigRevision, c.ConfigSnapshot, c.DeployTask, c.Node, c.NodeCapability,
-		c.RealServer,
+		c.NodeConfigFile, c.NodeLogTarget, c.RealServer,
 	} {
 		n.Use(hooks...)
 	}
@@ -253,7 +265,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AuditLog, c.ChangeOrder, c.Cluster, c.ConfigBlob, c.ConfigFile,
 		c.ConfigRevision, c.ConfigSnapshot, c.DeployTask, c.Node, c.NodeCapability,
-		c.RealServer,
+		c.NodeConfigFile, c.NodeLogTarget, c.RealServer,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -282,6 +294,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Node.mutate(ctx, m)
 	case *NodeCapabilityMutation:
 		return c.NodeCapability.mutate(ctx, m)
+	case *NodeConfigFileMutation:
+		return c.NodeConfigFile.mutate(ctx, m)
+	case *NodeLogTargetMutation:
+		return c.NodeLogTarget.mutate(ctx, m)
 	case *RealServerMutation:
 		return c.RealServer.mutate(ctx, m)
 	default:
@@ -1653,6 +1669,38 @@ func (c *NodeClient) QueryCapabilities(_m *Node) *NodeCapabilityQuery {
 	return query
 }
 
+// QueryConfigFiles queries the config_files edge of a Node.
+func (c *NodeClient) QueryConfigFiles(_m *Node) *NodeConfigFileQuery {
+	query := (&NodeConfigFileClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, id),
+			sqlgraph.To(nodeconfigfile.Table, nodeconfigfile.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.ConfigFilesTable, node.ConfigFilesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLogTargets queries the log_targets edge of a Node.
+func (c *NodeClient) QueryLogTargets(_m *Node) *NodeLogTargetQuery {
+	query := (&NodeLogTargetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, id),
+			sqlgraph.To(nodelogtarget.Table, nodelogtarget.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.LogTargetsTable, node.LogTargetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QuerySnapshots queries the snapshots edge of a Node.
 func (c *NodeClient) QuerySnapshots(_m *Node) *ConfigSnapshotQuery {
 	query := (&ConfigSnapshotClient{config: c.config}).Query()
@@ -1891,6 +1939,304 @@ func (c *NodeCapabilityClient) mutate(ctx context.Context, m *NodeCapabilityMuta
 	}
 }
 
+// NodeConfigFileClient is a client for the NodeConfigFile schema.
+type NodeConfigFileClient struct {
+	config
+}
+
+// NewNodeConfigFileClient returns a client for the NodeConfigFile from the given config.
+func NewNodeConfigFileClient(c config) *NodeConfigFileClient {
+	return &NodeConfigFileClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nodeconfigfile.Hooks(f(g(h())))`.
+func (c *NodeConfigFileClient) Use(hooks ...Hook) {
+	c.hooks.NodeConfigFile = append(c.hooks.NodeConfigFile, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nodeconfigfile.Intercept(f(g(h())))`.
+func (c *NodeConfigFileClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NodeConfigFile = append(c.inters.NodeConfigFile, interceptors...)
+}
+
+// Create returns a builder for creating a NodeConfigFile entity.
+func (c *NodeConfigFileClient) Create() *NodeConfigFileCreate {
+	mutation := newNodeConfigFileMutation(c.config, OpCreate)
+	return &NodeConfigFileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NodeConfigFile entities.
+func (c *NodeConfigFileClient) CreateBulk(builders ...*NodeConfigFileCreate) *NodeConfigFileCreateBulk {
+	return &NodeConfigFileCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NodeConfigFileClient) MapCreateBulk(slice any, setFunc func(*NodeConfigFileCreate, int)) *NodeConfigFileCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NodeConfigFileCreateBulk{err: fmt.Errorf("calling to NodeConfigFileClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NodeConfigFileCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NodeConfigFileCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NodeConfigFile.
+func (c *NodeConfigFileClient) Update() *NodeConfigFileUpdate {
+	mutation := newNodeConfigFileMutation(c.config, OpUpdate)
+	return &NodeConfigFileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NodeConfigFileClient) UpdateOne(_m *NodeConfigFile) *NodeConfigFileUpdateOne {
+	mutation := newNodeConfigFileMutation(c.config, OpUpdateOne, withNodeConfigFile(_m))
+	return &NodeConfigFileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NodeConfigFileClient) UpdateOneID(id int) *NodeConfigFileUpdateOne {
+	mutation := newNodeConfigFileMutation(c.config, OpUpdateOne, withNodeConfigFileID(id))
+	return &NodeConfigFileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NodeConfigFile.
+func (c *NodeConfigFileClient) Delete() *NodeConfigFileDelete {
+	mutation := newNodeConfigFileMutation(c.config, OpDelete)
+	return &NodeConfigFileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NodeConfigFileClient) DeleteOne(_m *NodeConfigFile) *NodeConfigFileDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NodeConfigFileClient) DeleteOneID(id int) *NodeConfigFileDeleteOne {
+	builder := c.Delete().Where(nodeconfigfile.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NodeConfigFileDeleteOne{builder}
+}
+
+// Query returns a query builder for NodeConfigFile.
+func (c *NodeConfigFileClient) Query() *NodeConfigFileQuery {
+	return &NodeConfigFileQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNodeConfigFile},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NodeConfigFile entity by its id.
+func (c *NodeConfigFileClient) Get(ctx context.Context, id int) (*NodeConfigFile, error) {
+	return c.Query().Where(nodeconfigfile.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NodeConfigFileClient) GetX(ctx context.Context, id int) *NodeConfigFile {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryNode queries the node edge of a NodeConfigFile.
+func (c *NodeConfigFileClient) QueryNode(_m *NodeConfigFile) *NodeQuery {
+	query := (&NodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeconfigfile.Table, nodeconfigfile.FieldID, id),
+			sqlgraph.To(node.Table, node.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeconfigfile.NodeTable, nodeconfigfile.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NodeConfigFileClient) Hooks() []Hook {
+	return c.hooks.NodeConfigFile
+}
+
+// Interceptors returns the client interceptors.
+func (c *NodeConfigFileClient) Interceptors() []Interceptor {
+	return c.inters.NodeConfigFile
+}
+
+func (c *NodeConfigFileClient) mutate(ctx context.Context, m *NodeConfigFileMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NodeConfigFileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NodeConfigFileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NodeConfigFileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NodeConfigFileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NodeConfigFile mutation op: %q", m.Op())
+	}
+}
+
+// NodeLogTargetClient is a client for the NodeLogTarget schema.
+type NodeLogTargetClient struct {
+	config
+}
+
+// NewNodeLogTargetClient returns a client for the NodeLogTarget from the given config.
+func NewNodeLogTargetClient(c config) *NodeLogTargetClient {
+	return &NodeLogTargetClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nodelogtarget.Hooks(f(g(h())))`.
+func (c *NodeLogTargetClient) Use(hooks ...Hook) {
+	c.hooks.NodeLogTarget = append(c.hooks.NodeLogTarget, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nodelogtarget.Intercept(f(g(h())))`.
+func (c *NodeLogTargetClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NodeLogTarget = append(c.inters.NodeLogTarget, interceptors...)
+}
+
+// Create returns a builder for creating a NodeLogTarget entity.
+func (c *NodeLogTargetClient) Create() *NodeLogTargetCreate {
+	mutation := newNodeLogTargetMutation(c.config, OpCreate)
+	return &NodeLogTargetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NodeLogTarget entities.
+func (c *NodeLogTargetClient) CreateBulk(builders ...*NodeLogTargetCreate) *NodeLogTargetCreateBulk {
+	return &NodeLogTargetCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NodeLogTargetClient) MapCreateBulk(slice any, setFunc func(*NodeLogTargetCreate, int)) *NodeLogTargetCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NodeLogTargetCreateBulk{err: fmt.Errorf("calling to NodeLogTargetClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NodeLogTargetCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NodeLogTargetCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NodeLogTarget.
+func (c *NodeLogTargetClient) Update() *NodeLogTargetUpdate {
+	mutation := newNodeLogTargetMutation(c.config, OpUpdate)
+	return &NodeLogTargetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NodeLogTargetClient) UpdateOne(_m *NodeLogTarget) *NodeLogTargetUpdateOne {
+	mutation := newNodeLogTargetMutation(c.config, OpUpdateOne, withNodeLogTarget(_m))
+	return &NodeLogTargetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NodeLogTargetClient) UpdateOneID(id int) *NodeLogTargetUpdateOne {
+	mutation := newNodeLogTargetMutation(c.config, OpUpdateOne, withNodeLogTargetID(id))
+	return &NodeLogTargetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NodeLogTarget.
+func (c *NodeLogTargetClient) Delete() *NodeLogTargetDelete {
+	mutation := newNodeLogTargetMutation(c.config, OpDelete)
+	return &NodeLogTargetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NodeLogTargetClient) DeleteOne(_m *NodeLogTarget) *NodeLogTargetDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NodeLogTargetClient) DeleteOneID(id int) *NodeLogTargetDeleteOne {
+	builder := c.Delete().Where(nodelogtarget.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NodeLogTargetDeleteOne{builder}
+}
+
+// Query returns a query builder for NodeLogTarget.
+func (c *NodeLogTargetClient) Query() *NodeLogTargetQuery {
+	return &NodeLogTargetQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNodeLogTarget},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NodeLogTarget entity by its id.
+func (c *NodeLogTargetClient) Get(ctx context.Context, id int) (*NodeLogTarget, error) {
+	return c.Query().Where(nodelogtarget.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NodeLogTargetClient) GetX(ctx context.Context, id int) *NodeLogTarget {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryNode queries the node edge of a NodeLogTarget.
+func (c *NodeLogTargetClient) QueryNode(_m *NodeLogTarget) *NodeQuery {
+	query := (&NodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodelogtarget.Table, nodelogtarget.FieldID, id),
+			sqlgraph.To(node.Table, node.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodelogtarget.NodeTable, nodelogtarget.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NodeLogTargetClient) Hooks() []Hook {
+	return c.hooks.NodeLogTarget
+}
+
+// Interceptors returns the client interceptors.
+func (c *NodeLogTargetClient) Interceptors() []Interceptor {
+	return c.inters.NodeLogTarget
+}
+
+func (c *NodeLogTargetClient) mutate(ctx context.Context, m *NodeLogTargetMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NodeLogTargetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NodeLogTargetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NodeLogTargetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NodeLogTargetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NodeLogTarget mutation op: %q", m.Op())
+	}
+}
+
 // RealServerClient is a client for the RealServer schema.
 type RealServerClient struct {
 	config
@@ -2044,10 +2390,12 @@ func (c *RealServerClient) mutate(ctx context.Context, m *RealServerMutation) (V
 type (
 	hooks struct {
 		AuditLog, ChangeOrder, Cluster, ConfigBlob, ConfigFile, ConfigRevision,
-		ConfigSnapshot, DeployTask, Node, NodeCapability, RealServer []ent.Hook
+		ConfigSnapshot, DeployTask, Node, NodeCapability, NodeConfigFile,
+		NodeLogTarget, RealServer []ent.Hook
 	}
 	inters struct {
 		AuditLog, ChangeOrder, Cluster, ConfigBlob, ConfigFile, ConfigRevision,
-		ConfigSnapshot, DeployTask, Node, NodeCapability, RealServer []ent.Interceptor
+		ConfigSnapshot, DeployTask, Node, NodeCapability, NodeConfigFile,
+		NodeLogTarget, RealServer []ent.Interceptor
 	}
 )

@@ -16,6 +16,8 @@ import (
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/ent/nodeconfigfile"
+	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/predicate"
 	"github.com/th/ngxcp/ent/realserver"
 )
@@ -185,6 +187,36 @@ func (_u *NodeUpdate) AddCapabilities(v ...*NodeCapability) *NodeUpdate {
 	return _u.AddCapabilityIDs(ids...)
 }
 
+// AddConfigFileIDs adds the "config_files" edge to the NodeConfigFile entity by IDs.
+func (_u *NodeUpdate) AddConfigFileIDs(ids ...int) *NodeUpdate {
+	_u.mutation.AddConfigFileIDs(ids...)
+	return _u
+}
+
+// AddConfigFiles adds the "config_files" edges to the NodeConfigFile entity.
+func (_u *NodeUpdate) AddConfigFiles(v ...*NodeConfigFile) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConfigFileIDs(ids...)
+}
+
+// AddLogTargetIDs adds the "log_targets" edge to the NodeLogTarget entity by IDs.
+func (_u *NodeUpdate) AddLogTargetIDs(ids ...int) *NodeUpdate {
+	_u.mutation.AddLogTargetIDs(ids...)
+	return _u
+}
+
+// AddLogTargets adds the "log_targets" edges to the NodeLogTarget entity.
+func (_u *NodeUpdate) AddLogTargets(v ...*NodeLogTarget) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLogTargetIDs(ids...)
+}
+
 // AddSnapshotIDs adds the "snapshots" edge to the ConfigSnapshot entity by IDs.
 func (_u *NodeUpdate) AddSnapshotIDs(ids ...int) *NodeUpdate {
 	_u.mutation.AddSnapshotIDs(ids...)
@@ -273,6 +305,48 @@ func (_u *NodeUpdate) RemoveCapabilities(v ...*NodeCapability) *NodeUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCapabilityIDs(ids...)
+}
+
+// ClearConfigFiles clears all "config_files" edges to the NodeConfigFile entity.
+func (_u *NodeUpdate) ClearConfigFiles() *NodeUpdate {
+	_u.mutation.ClearConfigFiles()
+	return _u
+}
+
+// RemoveConfigFileIDs removes the "config_files" edge to NodeConfigFile entities by IDs.
+func (_u *NodeUpdate) RemoveConfigFileIDs(ids ...int) *NodeUpdate {
+	_u.mutation.RemoveConfigFileIDs(ids...)
+	return _u
+}
+
+// RemoveConfigFiles removes "config_files" edges to NodeConfigFile entities.
+func (_u *NodeUpdate) RemoveConfigFiles(v ...*NodeConfigFile) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConfigFileIDs(ids...)
+}
+
+// ClearLogTargets clears all "log_targets" edges to the NodeLogTarget entity.
+func (_u *NodeUpdate) ClearLogTargets() *NodeUpdate {
+	_u.mutation.ClearLogTargets()
+	return _u
+}
+
+// RemoveLogTargetIDs removes the "log_targets" edge to NodeLogTarget entities by IDs.
+func (_u *NodeUpdate) RemoveLogTargetIDs(ids ...int) *NodeUpdate {
+	_u.mutation.RemoveLogTargetIDs(ids...)
+	return _u
+}
+
+// RemoveLogTargets removes "log_targets" edges to NodeLogTarget entities.
+func (_u *NodeUpdate) RemoveLogTargets(v ...*NodeLogTarget) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLogTargetIDs(ids...)
 }
 
 // ClearSnapshots clears all "snapshots" edges to the ConfigSnapshot entity.
@@ -481,6 +555,96 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodecapability.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ConfigFilesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.ConfigFilesTable,
+			Columns: []string{node.ConfigFilesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeconfigfile.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConfigFilesIDs(); len(nodes) > 0 && !_u.mutation.ConfigFilesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.ConfigFilesTable,
+			Columns: []string{node.ConfigFilesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeconfigfile.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConfigFilesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.ConfigFilesTable,
+			Columns: []string{node.ConfigFilesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeconfigfile.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LogTargetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.LogTargetsTable,
+			Columns: []string{node.LogTargetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodelogtarget.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLogTargetsIDs(); len(nodes) > 0 && !_u.mutation.LogTargetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.LogTargetsTable,
+			Columns: []string{node.LogTargetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodelogtarget.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LogTargetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.LogTargetsTable,
+			Columns: []string{node.LogTargetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodelogtarget.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -824,6 +988,36 @@ func (_u *NodeUpdateOne) AddCapabilities(v ...*NodeCapability) *NodeUpdateOne {
 	return _u.AddCapabilityIDs(ids...)
 }
 
+// AddConfigFileIDs adds the "config_files" edge to the NodeConfigFile entity by IDs.
+func (_u *NodeUpdateOne) AddConfigFileIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.AddConfigFileIDs(ids...)
+	return _u
+}
+
+// AddConfigFiles adds the "config_files" edges to the NodeConfigFile entity.
+func (_u *NodeUpdateOne) AddConfigFiles(v ...*NodeConfigFile) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConfigFileIDs(ids...)
+}
+
+// AddLogTargetIDs adds the "log_targets" edge to the NodeLogTarget entity by IDs.
+func (_u *NodeUpdateOne) AddLogTargetIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.AddLogTargetIDs(ids...)
+	return _u
+}
+
+// AddLogTargets adds the "log_targets" edges to the NodeLogTarget entity.
+func (_u *NodeUpdateOne) AddLogTargets(v ...*NodeLogTarget) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLogTargetIDs(ids...)
+}
+
 // AddSnapshotIDs adds the "snapshots" edge to the ConfigSnapshot entity by IDs.
 func (_u *NodeUpdateOne) AddSnapshotIDs(ids ...int) *NodeUpdateOne {
 	_u.mutation.AddSnapshotIDs(ids...)
@@ -912,6 +1106,48 @@ func (_u *NodeUpdateOne) RemoveCapabilities(v ...*NodeCapability) *NodeUpdateOne
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCapabilityIDs(ids...)
+}
+
+// ClearConfigFiles clears all "config_files" edges to the NodeConfigFile entity.
+func (_u *NodeUpdateOne) ClearConfigFiles() *NodeUpdateOne {
+	_u.mutation.ClearConfigFiles()
+	return _u
+}
+
+// RemoveConfigFileIDs removes the "config_files" edge to NodeConfigFile entities by IDs.
+func (_u *NodeUpdateOne) RemoveConfigFileIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.RemoveConfigFileIDs(ids...)
+	return _u
+}
+
+// RemoveConfigFiles removes "config_files" edges to NodeConfigFile entities.
+func (_u *NodeUpdateOne) RemoveConfigFiles(v ...*NodeConfigFile) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConfigFileIDs(ids...)
+}
+
+// ClearLogTargets clears all "log_targets" edges to the NodeLogTarget entity.
+func (_u *NodeUpdateOne) ClearLogTargets() *NodeUpdateOne {
+	_u.mutation.ClearLogTargets()
+	return _u
+}
+
+// RemoveLogTargetIDs removes the "log_targets" edge to NodeLogTarget entities by IDs.
+func (_u *NodeUpdateOne) RemoveLogTargetIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.RemoveLogTargetIDs(ids...)
+	return _u
+}
+
+// RemoveLogTargets removes "log_targets" edges to NodeLogTarget entities.
+func (_u *NodeUpdateOne) RemoveLogTargets(v ...*NodeLogTarget) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLogTargetIDs(ids...)
 }
 
 // ClearSnapshots clears all "snapshots" edges to the ConfigSnapshot entity.
@@ -1150,6 +1386,96 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodecapability.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ConfigFilesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.ConfigFilesTable,
+			Columns: []string{node.ConfigFilesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeconfigfile.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConfigFilesIDs(); len(nodes) > 0 && !_u.mutation.ConfigFilesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.ConfigFilesTable,
+			Columns: []string{node.ConfigFilesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeconfigfile.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConfigFilesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.ConfigFilesTable,
+			Columns: []string{node.ConfigFilesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeconfigfile.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LogTargetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.LogTargetsTable,
+			Columns: []string{node.LogTargetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodelogtarget.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLogTargetsIDs(); len(nodes) > 0 && !_u.mutation.LogTargetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.LogTargetsTable,
+			Columns: []string{node.LogTargetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodelogtarget.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LogTargetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.LogTargetsTable,
+			Columns: []string{node.LogTargetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodelogtarget.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -219,14 +219,21 @@ var (
 	// NodeCapabilitiesColumns holds the columns for the "node_capabilities" table.
 	NodeCapabilitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "version", Type: field.TypeString},
-		{Name: "prefix", Type: field.TypeString},
-		{Name: "conf_path", Type: field.TypeString},
-		{Name: "sbin_path", Type: field.TypeString},
-		{Name: "modules", Type: field.TypeJSON},
-		{Name: "raw_args", Type: field.TypeString, Size: 2147483647},
-		{Name: "checksum", Type: field.TypeString},
-		{Name: "captured_at", Type: field.TypeTime},
+		{Name: "hostname", Type: field.TypeString, Nullable: true},
+		{Name: "os", Type: field.TypeString, Nullable: true},
+		{Name: "kernel", Type: field.TypeString, Nullable: true},
+		{Name: "has_keepalived", Type: field.TypeBool, Default: false},
+		{Name: "has_ipvsadm", Type: field.TypeBool, Default: false},
+		{Name: "version", Type: field.TypeString, Nullable: true},
+		{Name: "prefix", Type: field.TypeString, Nullable: true},
+		{Name: "conf_path", Type: field.TypeString, Nullable: true},
+		{Name: "sbin_path", Type: field.TypeString, Nullable: true},
+		{Name: "modules", Type: field.TypeJSON, Nullable: true},
+		{Name: "raw_args", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "config_hash", Type: field.TypeString, Nullable: true},
+		{Name: "checksum", Type: field.TypeString, Nullable: true},
+		{Name: "system_info", Type: field.TypeString, Nullable: true},
+		{Name: "captured_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "node_capabilities", Type: field.TypeInt, Nullable: true},
@@ -239,9 +246,80 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "node_capabilities_nodes_capabilities",
-				Columns:    []*schema.Column{NodeCapabilitiesColumns[11]},
+				Columns:    []*schema.Column{NodeCapabilitiesColumns[18]},
 				RefColumns: []*schema.Column{NodesColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// NodeConfigFilesColumns holds the columns for the "node_config_files" table.
+	NodeConfigFilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "path", Type: field.TypeString},
+		{Name: "sha256", Type: field.TypeString},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "mod_time", Type: field.TypeTime, Nullable: true},
+		{Name: "captured_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "node_config_files", Type: field.TypeInt},
+	}
+	// NodeConfigFilesTable holds the schema information for the "node_config_files" table.
+	NodeConfigFilesTable = &schema.Table{
+		Name:       "node_config_files",
+		Columns:    NodeConfigFilesColumns,
+		PrimaryKey: []*schema.Column{NodeConfigFilesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "node_config_files_nodes_config_files",
+				Columns:    []*schema.Column{NodeConfigFilesColumns[7]},
+				RefColumns: []*schema.Column{NodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nodeconfigfile_path_node_config_files",
+				Unique:  true,
+				Columns: []*schema.Column{NodeConfigFilesColumns[1], NodeConfigFilesColumns[7]},
+			},
+		},
+	}
+	// NodeLogTargetsColumns holds the columns for the "node_log_targets" table.
+	NodeLogTargetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "path", Type: field.TypeString},
+		{Name: "type", Type: field.TypeEnum, Enums: []string{"access", "error"}},
+		{Name: "format", Type: field.TypeString, Nullable: true},
+		{Name: "level", Type: field.TypeString, Nullable: true},
+		{Name: "is_syslog", Type: field.TypeBool, Default: false},
+		{Name: "is_off", Type: field.TypeBool, Default: false},
+		{Name: "has_variable", Type: field.TypeBool, Default: false},
+		{Name: "skip_reason", Type: field.TypeString, Nullable: true},
+		{Name: "size", Type: field.TypeInt64, Default: -1},
+		{Name: "inode", Type: field.TypeUint64, Default: 0},
+		{Name: "stat_err", Type: field.TypeString, Nullable: true},
+		{Name: "captured_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "node_log_targets", Type: field.TypeInt},
+	}
+	// NodeLogTargetsTable holds the schema information for the "node_log_targets" table.
+	NodeLogTargetsTable = &schema.Table{
+		Name:       "node_log_targets",
+		Columns:    NodeLogTargetsColumns,
+		PrimaryKey: []*schema.Column{NodeLogTargetsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "node_log_targets_nodes_log_targets",
+				Columns:    []*schema.Column{NodeLogTargetsColumns[14]},
+				RefColumns: []*schema.Column{NodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nodelogtarget_path_skip_reason_node_log_targets",
+				Unique:  false,
+				Columns: []*schema.Column{NodeLogTargetsColumns[1], NodeLogTargetsColumns[8], NodeLogTargetsColumns[14]},
 			},
 		},
 	}
@@ -287,6 +365,8 @@ var (
 		DeployTasksTable,
 		NodesTable,
 		NodeCapabilitiesTable,
+		NodeConfigFilesTable,
+		NodeLogTargetsTable,
 		RealServersTable,
 	}
 )
@@ -300,5 +380,7 @@ func init() {
 	DeployTasksTable.ForeignKeys[1].RefTable = NodesTable
 	NodesTable.ForeignKeys[0].RefTable = ClustersTable
 	NodeCapabilitiesTable.ForeignKeys[0].RefTable = NodesTable
+	NodeConfigFilesTable.ForeignKeys[0].RefTable = NodesTable
+	NodeLogTargetsTable.ForeignKeys[0].RefTable = NodesTable
 	RealServersTable.ForeignKeys[0].RefTable = NodesTable
 }

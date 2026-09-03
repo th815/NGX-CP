@@ -30,6 +30,94 @@ func (_u *NodeCapabilityUpdate) Where(ps ...predicate.NodeCapability) *NodeCapab
 	return _u
 }
 
+// SetHostname sets the "hostname" field.
+func (_u *NodeCapabilityUpdate) SetHostname(v string) *NodeCapabilityUpdate {
+	_u.mutation.SetHostname(v)
+	return _u
+}
+
+// SetNillableHostname sets the "hostname" field if the given value is not nil.
+func (_u *NodeCapabilityUpdate) SetNillableHostname(v *string) *NodeCapabilityUpdate {
+	if v != nil {
+		_u.SetHostname(*v)
+	}
+	return _u
+}
+
+// ClearHostname clears the value of the "hostname" field.
+func (_u *NodeCapabilityUpdate) ClearHostname() *NodeCapabilityUpdate {
+	_u.mutation.ClearHostname()
+	return _u
+}
+
+// SetOs sets the "os" field.
+func (_u *NodeCapabilityUpdate) SetOs(v string) *NodeCapabilityUpdate {
+	_u.mutation.SetOs(v)
+	return _u
+}
+
+// SetNillableOs sets the "os" field if the given value is not nil.
+func (_u *NodeCapabilityUpdate) SetNillableOs(v *string) *NodeCapabilityUpdate {
+	if v != nil {
+		_u.SetOs(*v)
+	}
+	return _u
+}
+
+// ClearOs clears the value of the "os" field.
+func (_u *NodeCapabilityUpdate) ClearOs() *NodeCapabilityUpdate {
+	_u.mutation.ClearOs()
+	return _u
+}
+
+// SetKernel sets the "kernel" field.
+func (_u *NodeCapabilityUpdate) SetKernel(v string) *NodeCapabilityUpdate {
+	_u.mutation.SetKernel(v)
+	return _u
+}
+
+// SetNillableKernel sets the "kernel" field if the given value is not nil.
+func (_u *NodeCapabilityUpdate) SetNillableKernel(v *string) *NodeCapabilityUpdate {
+	if v != nil {
+		_u.SetKernel(*v)
+	}
+	return _u
+}
+
+// ClearKernel clears the value of the "kernel" field.
+func (_u *NodeCapabilityUpdate) ClearKernel() *NodeCapabilityUpdate {
+	_u.mutation.ClearKernel()
+	return _u
+}
+
+// SetHasKeepalived sets the "has_keepalived" field.
+func (_u *NodeCapabilityUpdate) SetHasKeepalived(v bool) *NodeCapabilityUpdate {
+	_u.mutation.SetHasKeepalived(v)
+	return _u
+}
+
+// SetNillableHasKeepalived sets the "has_keepalived" field if the given value is not nil.
+func (_u *NodeCapabilityUpdate) SetNillableHasKeepalived(v *bool) *NodeCapabilityUpdate {
+	if v != nil {
+		_u.SetHasKeepalived(*v)
+	}
+	return _u
+}
+
+// SetHasIpvsadm sets the "has_ipvsadm" field.
+func (_u *NodeCapabilityUpdate) SetHasIpvsadm(v bool) *NodeCapabilityUpdate {
+	_u.mutation.SetHasIpvsadm(v)
+	return _u
+}
+
+// SetNillableHasIpvsadm sets the "has_ipvsadm" field if the given value is not nil.
+func (_u *NodeCapabilityUpdate) SetNillableHasIpvsadm(v *bool) *NodeCapabilityUpdate {
+	if v != nil {
+		_u.SetHasIpvsadm(*v)
+	}
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *NodeCapabilityUpdate) SetVersion(v string) *NodeCapabilityUpdate {
 	_u.mutation.SetVersion(v)
@@ -41,6 +129,12 @@ func (_u *NodeCapabilityUpdate) SetNillableVersion(v *string) *NodeCapabilityUpd
 	if v != nil {
 		_u.SetVersion(*v)
 	}
+	return _u
+}
+
+// ClearVersion clears the value of the "version" field.
+func (_u *NodeCapabilityUpdate) ClearVersion() *NodeCapabilityUpdate {
+	_u.mutation.ClearVersion()
 	return _u
 }
 
@@ -58,6 +152,12 @@ func (_u *NodeCapabilityUpdate) SetNillablePrefix(v *string) *NodeCapabilityUpda
 	return _u
 }
 
+// ClearPrefix clears the value of the "prefix" field.
+func (_u *NodeCapabilityUpdate) ClearPrefix() *NodeCapabilityUpdate {
+	_u.mutation.ClearPrefix()
+	return _u
+}
+
 // SetConfPath sets the "conf_path" field.
 func (_u *NodeCapabilityUpdate) SetConfPath(v string) *NodeCapabilityUpdate {
 	_u.mutation.SetConfPath(v)
@@ -69,6 +169,12 @@ func (_u *NodeCapabilityUpdate) SetNillableConfPath(v *string) *NodeCapabilityUp
 	if v != nil {
 		_u.SetConfPath(*v)
 	}
+	return _u
+}
+
+// ClearConfPath clears the value of the "conf_path" field.
+func (_u *NodeCapabilityUpdate) ClearConfPath() *NodeCapabilityUpdate {
+	_u.mutation.ClearConfPath()
 	return _u
 }
 
@@ -86,6 +192,12 @@ func (_u *NodeCapabilityUpdate) SetNillableSbinPath(v *string) *NodeCapabilityUp
 	return _u
 }
 
+// ClearSbinPath clears the value of the "sbin_path" field.
+func (_u *NodeCapabilityUpdate) ClearSbinPath() *NodeCapabilityUpdate {
+	_u.mutation.ClearSbinPath()
+	return _u
+}
+
 // SetModules sets the "modules" field.
 func (_u *NodeCapabilityUpdate) SetModules(v []string) *NodeCapabilityUpdate {
 	_u.mutation.SetModules(v)
@@ -95,6 +207,12 @@ func (_u *NodeCapabilityUpdate) SetModules(v []string) *NodeCapabilityUpdate {
 // AppendModules appends value to the "modules" field.
 func (_u *NodeCapabilityUpdate) AppendModules(v []string) *NodeCapabilityUpdate {
 	_u.mutation.AppendModules(v)
+	return _u
+}
+
+// ClearModules clears the value of the "modules" field.
+func (_u *NodeCapabilityUpdate) ClearModules() *NodeCapabilityUpdate {
+	_u.mutation.ClearModules()
 	return _u
 }
 
@@ -112,6 +230,32 @@ func (_u *NodeCapabilityUpdate) SetNillableRawArgs(v *string) *NodeCapabilityUpd
 	return _u
 }
 
+// ClearRawArgs clears the value of the "raw_args" field.
+func (_u *NodeCapabilityUpdate) ClearRawArgs() *NodeCapabilityUpdate {
+	_u.mutation.ClearRawArgs()
+	return _u
+}
+
+// SetConfigHash sets the "config_hash" field.
+func (_u *NodeCapabilityUpdate) SetConfigHash(v string) *NodeCapabilityUpdate {
+	_u.mutation.SetConfigHash(v)
+	return _u
+}
+
+// SetNillableConfigHash sets the "config_hash" field if the given value is not nil.
+func (_u *NodeCapabilityUpdate) SetNillableConfigHash(v *string) *NodeCapabilityUpdate {
+	if v != nil {
+		_u.SetConfigHash(*v)
+	}
+	return _u
+}
+
+// ClearConfigHash clears the value of the "config_hash" field.
+func (_u *NodeCapabilityUpdate) ClearConfigHash() *NodeCapabilityUpdate {
+	_u.mutation.ClearConfigHash()
+	return _u
+}
+
 // SetChecksum sets the "checksum" field.
 func (_u *NodeCapabilityUpdate) SetChecksum(v string) *NodeCapabilityUpdate {
 	_u.mutation.SetChecksum(v)
@@ -126,6 +270,32 @@ func (_u *NodeCapabilityUpdate) SetNillableChecksum(v *string) *NodeCapabilityUp
 	return _u
 }
 
+// ClearChecksum clears the value of the "checksum" field.
+func (_u *NodeCapabilityUpdate) ClearChecksum() *NodeCapabilityUpdate {
+	_u.mutation.ClearChecksum()
+	return _u
+}
+
+// SetSystemInfo sets the "system_info" field.
+func (_u *NodeCapabilityUpdate) SetSystemInfo(v string) *NodeCapabilityUpdate {
+	_u.mutation.SetSystemInfo(v)
+	return _u
+}
+
+// SetNillableSystemInfo sets the "system_info" field if the given value is not nil.
+func (_u *NodeCapabilityUpdate) SetNillableSystemInfo(v *string) *NodeCapabilityUpdate {
+	if v != nil {
+		_u.SetSystemInfo(*v)
+	}
+	return _u
+}
+
+// ClearSystemInfo clears the value of the "system_info" field.
+func (_u *NodeCapabilityUpdate) ClearSystemInfo() *NodeCapabilityUpdate {
+	_u.mutation.ClearSystemInfo()
+	return _u
+}
+
 // SetCapturedAt sets the "captured_at" field.
 func (_u *NodeCapabilityUpdate) SetCapturedAt(v time.Time) *NodeCapabilityUpdate {
 	_u.mutation.SetCapturedAt(v)
@@ -137,6 +307,12 @@ func (_u *NodeCapabilityUpdate) SetNillableCapturedAt(v *time.Time) *NodeCapabil
 	if v != nil {
 		_u.SetCapturedAt(*v)
 	}
+	return _u
+}
+
+// ClearCapturedAt clears the value of the "captured_at" field.
+func (_u *NodeCapabilityUpdate) ClearCapturedAt() *NodeCapabilityUpdate {
+	_u.mutation.ClearCapturedAt()
 	return _u
 }
 
@@ -221,17 +397,53 @@ func (_u *NodeCapabilityUpdate) sqlSave(ctx context.Context) (_node int, err err
 			}
 		}
 	}
+	if value, ok := _u.mutation.Hostname(); ok {
+		_spec.SetField(nodecapability.FieldHostname, field.TypeString, value)
+	}
+	if _u.mutation.HostnameCleared() {
+		_spec.ClearField(nodecapability.FieldHostname, field.TypeString)
+	}
+	if value, ok := _u.mutation.Os(); ok {
+		_spec.SetField(nodecapability.FieldOs, field.TypeString, value)
+	}
+	if _u.mutation.OsCleared() {
+		_spec.ClearField(nodecapability.FieldOs, field.TypeString)
+	}
+	if value, ok := _u.mutation.Kernel(); ok {
+		_spec.SetField(nodecapability.FieldKernel, field.TypeString, value)
+	}
+	if _u.mutation.KernelCleared() {
+		_spec.ClearField(nodecapability.FieldKernel, field.TypeString)
+	}
+	if value, ok := _u.mutation.HasKeepalived(); ok {
+		_spec.SetField(nodecapability.FieldHasKeepalived, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HasIpvsadm(); ok {
+		_spec.SetField(nodecapability.FieldHasIpvsadm, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(nodecapability.FieldVersion, field.TypeString, value)
+	}
+	if _u.mutation.VersionCleared() {
+		_spec.ClearField(nodecapability.FieldVersion, field.TypeString)
 	}
 	if value, ok := _u.mutation.Prefix(); ok {
 		_spec.SetField(nodecapability.FieldPrefix, field.TypeString, value)
 	}
+	if _u.mutation.PrefixCleared() {
+		_spec.ClearField(nodecapability.FieldPrefix, field.TypeString)
+	}
 	if value, ok := _u.mutation.ConfPath(); ok {
 		_spec.SetField(nodecapability.FieldConfPath, field.TypeString, value)
 	}
+	if _u.mutation.ConfPathCleared() {
+		_spec.ClearField(nodecapability.FieldConfPath, field.TypeString)
+	}
 	if value, ok := _u.mutation.SbinPath(); ok {
 		_spec.SetField(nodecapability.FieldSbinPath, field.TypeString, value)
+	}
+	if _u.mutation.SbinPathCleared() {
+		_spec.ClearField(nodecapability.FieldSbinPath, field.TypeString)
 	}
 	if value, ok := _u.mutation.Modules(); ok {
 		_spec.SetField(nodecapability.FieldModules, field.TypeJSON, value)
@@ -241,14 +453,38 @@ func (_u *NodeCapabilityUpdate) sqlSave(ctx context.Context) (_node int, err err
 			sqljson.Append(u, nodecapability.FieldModules, value)
 		})
 	}
+	if _u.mutation.ModulesCleared() {
+		_spec.ClearField(nodecapability.FieldModules, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.RawArgs(); ok {
 		_spec.SetField(nodecapability.FieldRawArgs, field.TypeString, value)
+	}
+	if _u.mutation.RawArgsCleared() {
+		_spec.ClearField(nodecapability.FieldRawArgs, field.TypeString)
+	}
+	if value, ok := _u.mutation.ConfigHash(); ok {
+		_spec.SetField(nodecapability.FieldConfigHash, field.TypeString, value)
+	}
+	if _u.mutation.ConfigHashCleared() {
+		_spec.ClearField(nodecapability.FieldConfigHash, field.TypeString)
 	}
 	if value, ok := _u.mutation.Checksum(); ok {
 		_spec.SetField(nodecapability.FieldChecksum, field.TypeString, value)
 	}
+	if _u.mutation.ChecksumCleared() {
+		_spec.ClearField(nodecapability.FieldChecksum, field.TypeString)
+	}
+	if value, ok := _u.mutation.SystemInfo(); ok {
+		_spec.SetField(nodecapability.FieldSystemInfo, field.TypeString, value)
+	}
+	if _u.mutation.SystemInfoCleared() {
+		_spec.ClearField(nodecapability.FieldSystemInfo, field.TypeString)
+	}
 	if value, ok := _u.mutation.CapturedAt(); ok {
 		_spec.SetField(nodecapability.FieldCapturedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CapturedAtCleared() {
+		_spec.ClearField(nodecapability.FieldCapturedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(nodecapability.FieldUpdatedAt, field.TypeTime, value)
@@ -302,6 +538,94 @@ type NodeCapabilityUpdateOne struct {
 	mutation *NodeCapabilityMutation
 }
 
+// SetHostname sets the "hostname" field.
+func (_u *NodeCapabilityUpdateOne) SetHostname(v string) *NodeCapabilityUpdateOne {
+	_u.mutation.SetHostname(v)
+	return _u
+}
+
+// SetNillableHostname sets the "hostname" field if the given value is not nil.
+func (_u *NodeCapabilityUpdateOne) SetNillableHostname(v *string) *NodeCapabilityUpdateOne {
+	if v != nil {
+		_u.SetHostname(*v)
+	}
+	return _u
+}
+
+// ClearHostname clears the value of the "hostname" field.
+func (_u *NodeCapabilityUpdateOne) ClearHostname() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearHostname()
+	return _u
+}
+
+// SetOs sets the "os" field.
+func (_u *NodeCapabilityUpdateOne) SetOs(v string) *NodeCapabilityUpdateOne {
+	_u.mutation.SetOs(v)
+	return _u
+}
+
+// SetNillableOs sets the "os" field if the given value is not nil.
+func (_u *NodeCapabilityUpdateOne) SetNillableOs(v *string) *NodeCapabilityUpdateOne {
+	if v != nil {
+		_u.SetOs(*v)
+	}
+	return _u
+}
+
+// ClearOs clears the value of the "os" field.
+func (_u *NodeCapabilityUpdateOne) ClearOs() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearOs()
+	return _u
+}
+
+// SetKernel sets the "kernel" field.
+func (_u *NodeCapabilityUpdateOne) SetKernel(v string) *NodeCapabilityUpdateOne {
+	_u.mutation.SetKernel(v)
+	return _u
+}
+
+// SetNillableKernel sets the "kernel" field if the given value is not nil.
+func (_u *NodeCapabilityUpdateOne) SetNillableKernel(v *string) *NodeCapabilityUpdateOne {
+	if v != nil {
+		_u.SetKernel(*v)
+	}
+	return _u
+}
+
+// ClearKernel clears the value of the "kernel" field.
+func (_u *NodeCapabilityUpdateOne) ClearKernel() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearKernel()
+	return _u
+}
+
+// SetHasKeepalived sets the "has_keepalived" field.
+func (_u *NodeCapabilityUpdateOne) SetHasKeepalived(v bool) *NodeCapabilityUpdateOne {
+	_u.mutation.SetHasKeepalived(v)
+	return _u
+}
+
+// SetNillableHasKeepalived sets the "has_keepalived" field if the given value is not nil.
+func (_u *NodeCapabilityUpdateOne) SetNillableHasKeepalived(v *bool) *NodeCapabilityUpdateOne {
+	if v != nil {
+		_u.SetHasKeepalived(*v)
+	}
+	return _u
+}
+
+// SetHasIpvsadm sets the "has_ipvsadm" field.
+func (_u *NodeCapabilityUpdateOne) SetHasIpvsadm(v bool) *NodeCapabilityUpdateOne {
+	_u.mutation.SetHasIpvsadm(v)
+	return _u
+}
+
+// SetNillableHasIpvsadm sets the "has_ipvsadm" field if the given value is not nil.
+func (_u *NodeCapabilityUpdateOne) SetNillableHasIpvsadm(v *bool) *NodeCapabilityUpdateOne {
+	if v != nil {
+		_u.SetHasIpvsadm(*v)
+	}
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *NodeCapabilityUpdateOne) SetVersion(v string) *NodeCapabilityUpdateOne {
 	_u.mutation.SetVersion(v)
@@ -313,6 +637,12 @@ func (_u *NodeCapabilityUpdateOne) SetNillableVersion(v *string) *NodeCapability
 	if v != nil {
 		_u.SetVersion(*v)
 	}
+	return _u
+}
+
+// ClearVersion clears the value of the "version" field.
+func (_u *NodeCapabilityUpdateOne) ClearVersion() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearVersion()
 	return _u
 }
 
@@ -330,6 +660,12 @@ func (_u *NodeCapabilityUpdateOne) SetNillablePrefix(v *string) *NodeCapabilityU
 	return _u
 }
 
+// ClearPrefix clears the value of the "prefix" field.
+func (_u *NodeCapabilityUpdateOne) ClearPrefix() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearPrefix()
+	return _u
+}
+
 // SetConfPath sets the "conf_path" field.
 func (_u *NodeCapabilityUpdateOne) SetConfPath(v string) *NodeCapabilityUpdateOne {
 	_u.mutation.SetConfPath(v)
@@ -341,6 +677,12 @@ func (_u *NodeCapabilityUpdateOne) SetNillableConfPath(v *string) *NodeCapabilit
 	if v != nil {
 		_u.SetConfPath(*v)
 	}
+	return _u
+}
+
+// ClearConfPath clears the value of the "conf_path" field.
+func (_u *NodeCapabilityUpdateOne) ClearConfPath() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearConfPath()
 	return _u
 }
 
@@ -358,6 +700,12 @@ func (_u *NodeCapabilityUpdateOne) SetNillableSbinPath(v *string) *NodeCapabilit
 	return _u
 }
 
+// ClearSbinPath clears the value of the "sbin_path" field.
+func (_u *NodeCapabilityUpdateOne) ClearSbinPath() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearSbinPath()
+	return _u
+}
+
 // SetModules sets the "modules" field.
 func (_u *NodeCapabilityUpdateOne) SetModules(v []string) *NodeCapabilityUpdateOne {
 	_u.mutation.SetModules(v)
@@ -367,6 +715,12 @@ func (_u *NodeCapabilityUpdateOne) SetModules(v []string) *NodeCapabilityUpdateO
 // AppendModules appends value to the "modules" field.
 func (_u *NodeCapabilityUpdateOne) AppendModules(v []string) *NodeCapabilityUpdateOne {
 	_u.mutation.AppendModules(v)
+	return _u
+}
+
+// ClearModules clears the value of the "modules" field.
+func (_u *NodeCapabilityUpdateOne) ClearModules() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearModules()
 	return _u
 }
 
@@ -384,6 +738,32 @@ func (_u *NodeCapabilityUpdateOne) SetNillableRawArgs(v *string) *NodeCapability
 	return _u
 }
 
+// ClearRawArgs clears the value of the "raw_args" field.
+func (_u *NodeCapabilityUpdateOne) ClearRawArgs() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearRawArgs()
+	return _u
+}
+
+// SetConfigHash sets the "config_hash" field.
+func (_u *NodeCapabilityUpdateOne) SetConfigHash(v string) *NodeCapabilityUpdateOne {
+	_u.mutation.SetConfigHash(v)
+	return _u
+}
+
+// SetNillableConfigHash sets the "config_hash" field if the given value is not nil.
+func (_u *NodeCapabilityUpdateOne) SetNillableConfigHash(v *string) *NodeCapabilityUpdateOne {
+	if v != nil {
+		_u.SetConfigHash(*v)
+	}
+	return _u
+}
+
+// ClearConfigHash clears the value of the "config_hash" field.
+func (_u *NodeCapabilityUpdateOne) ClearConfigHash() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearConfigHash()
+	return _u
+}
+
 // SetChecksum sets the "checksum" field.
 func (_u *NodeCapabilityUpdateOne) SetChecksum(v string) *NodeCapabilityUpdateOne {
 	_u.mutation.SetChecksum(v)
@@ -398,6 +778,32 @@ func (_u *NodeCapabilityUpdateOne) SetNillableChecksum(v *string) *NodeCapabilit
 	return _u
 }
 
+// ClearChecksum clears the value of the "checksum" field.
+func (_u *NodeCapabilityUpdateOne) ClearChecksum() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearChecksum()
+	return _u
+}
+
+// SetSystemInfo sets the "system_info" field.
+func (_u *NodeCapabilityUpdateOne) SetSystemInfo(v string) *NodeCapabilityUpdateOne {
+	_u.mutation.SetSystemInfo(v)
+	return _u
+}
+
+// SetNillableSystemInfo sets the "system_info" field if the given value is not nil.
+func (_u *NodeCapabilityUpdateOne) SetNillableSystemInfo(v *string) *NodeCapabilityUpdateOne {
+	if v != nil {
+		_u.SetSystemInfo(*v)
+	}
+	return _u
+}
+
+// ClearSystemInfo clears the value of the "system_info" field.
+func (_u *NodeCapabilityUpdateOne) ClearSystemInfo() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearSystemInfo()
+	return _u
+}
+
 // SetCapturedAt sets the "captured_at" field.
 func (_u *NodeCapabilityUpdateOne) SetCapturedAt(v time.Time) *NodeCapabilityUpdateOne {
 	_u.mutation.SetCapturedAt(v)
@@ -409,6 +815,12 @@ func (_u *NodeCapabilityUpdateOne) SetNillableCapturedAt(v *time.Time) *NodeCapa
 	if v != nil {
 		_u.SetCapturedAt(*v)
 	}
+	return _u
+}
+
+// ClearCapturedAt clears the value of the "captured_at" field.
+func (_u *NodeCapabilityUpdateOne) ClearCapturedAt() *NodeCapabilityUpdateOne {
+	_u.mutation.ClearCapturedAt()
 	return _u
 }
 
@@ -523,17 +935,53 @@ func (_u *NodeCapabilityUpdateOne) sqlSave(ctx context.Context) (_node *NodeCapa
 			}
 		}
 	}
+	if value, ok := _u.mutation.Hostname(); ok {
+		_spec.SetField(nodecapability.FieldHostname, field.TypeString, value)
+	}
+	if _u.mutation.HostnameCleared() {
+		_spec.ClearField(nodecapability.FieldHostname, field.TypeString)
+	}
+	if value, ok := _u.mutation.Os(); ok {
+		_spec.SetField(nodecapability.FieldOs, field.TypeString, value)
+	}
+	if _u.mutation.OsCleared() {
+		_spec.ClearField(nodecapability.FieldOs, field.TypeString)
+	}
+	if value, ok := _u.mutation.Kernel(); ok {
+		_spec.SetField(nodecapability.FieldKernel, field.TypeString, value)
+	}
+	if _u.mutation.KernelCleared() {
+		_spec.ClearField(nodecapability.FieldKernel, field.TypeString)
+	}
+	if value, ok := _u.mutation.HasKeepalived(); ok {
+		_spec.SetField(nodecapability.FieldHasKeepalived, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HasIpvsadm(); ok {
+		_spec.SetField(nodecapability.FieldHasIpvsadm, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(nodecapability.FieldVersion, field.TypeString, value)
+	}
+	if _u.mutation.VersionCleared() {
+		_spec.ClearField(nodecapability.FieldVersion, field.TypeString)
 	}
 	if value, ok := _u.mutation.Prefix(); ok {
 		_spec.SetField(nodecapability.FieldPrefix, field.TypeString, value)
 	}
+	if _u.mutation.PrefixCleared() {
+		_spec.ClearField(nodecapability.FieldPrefix, field.TypeString)
+	}
 	if value, ok := _u.mutation.ConfPath(); ok {
 		_spec.SetField(nodecapability.FieldConfPath, field.TypeString, value)
 	}
+	if _u.mutation.ConfPathCleared() {
+		_spec.ClearField(nodecapability.FieldConfPath, field.TypeString)
+	}
 	if value, ok := _u.mutation.SbinPath(); ok {
 		_spec.SetField(nodecapability.FieldSbinPath, field.TypeString, value)
+	}
+	if _u.mutation.SbinPathCleared() {
+		_spec.ClearField(nodecapability.FieldSbinPath, field.TypeString)
 	}
 	if value, ok := _u.mutation.Modules(); ok {
 		_spec.SetField(nodecapability.FieldModules, field.TypeJSON, value)
@@ -543,14 +991,38 @@ func (_u *NodeCapabilityUpdateOne) sqlSave(ctx context.Context) (_node *NodeCapa
 			sqljson.Append(u, nodecapability.FieldModules, value)
 		})
 	}
+	if _u.mutation.ModulesCleared() {
+		_spec.ClearField(nodecapability.FieldModules, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.RawArgs(); ok {
 		_spec.SetField(nodecapability.FieldRawArgs, field.TypeString, value)
+	}
+	if _u.mutation.RawArgsCleared() {
+		_spec.ClearField(nodecapability.FieldRawArgs, field.TypeString)
+	}
+	if value, ok := _u.mutation.ConfigHash(); ok {
+		_spec.SetField(nodecapability.FieldConfigHash, field.TypeString, value)
+	}
+	if _u.mutation.ConfigHashCleared() {
+		_spec.ClearField(nodecapability.FieldConfigHash, field.TypeString)
 	}
 	if value, ok := _u.mutation.Checksum(); ok {
 		_spec.SetField(nodecapability.FieldChecksum, field.TypeString, value)
 	}
+	if _u.mutation.ChecksumCleared() {
+		_spec.ClearField(nodecapability.FieldChecksum, field.TypeString)
+	}
+	if value, ok := _u.mutation.SystemInfo(); ok {
+		_spec.SetField(nodecapability.FieldSystemInfo, field.TypeString, value)
+	}
+	if _u.mutation.SystemInfoCleared() {
+		_spec.ClearField(nodecapability.FieldSystemInfo, field.TypeString)
+	}
 	if value, ok := _u.mutation.CapturedAt(); ok {
 		_spec.SetField(nodecapability.FieldCapturedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CapturedAtCleared() {
+		_spec.ClearField(nodecapability.FieldCapturedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(nodecapability.FieldUpdatedAt, field.TypeTime, value)

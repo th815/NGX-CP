@@ -19,6 +19,16 @@ type NodeCapability struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
+	// Hostname holds the value of the "hostname" field.
+	Hostname string `json:"hostname,omitempty"`
+	// Os holds the value of the "os" field.
+	Os string `json:"os,omitempty"`
+	// Kernel holds the value of the "kernel" field.
+	Kernel string `json:"kernel,omitempty"`
+	// HasKeepalived holds the value of the "has_keepalived" field.
+	HasKeepalived bool `json:"has_keepalived,omitempty"`
+	// HasIpvsadm holds the value of the "has_ipvsadm" field.
+	HasIpvsadm bool `json:"has_ipvsadm,omitempty"`
 	// Version holds the value of the "version" field.
 	Version string `json:"version,omitempty"`
 	// Prefix holds the value of the "prefix" field.
@@ -31,8 +41,12 @@ type NodeCapability struct {
 	Modules []string `json:"modules,omitempty"`
 	// RawArgs holds the value of the "raw_args" field.
 	RawArgs string `json:"raw_args,omitempty"`
+	// ConfigHash holds the value of the "config_hash" field.
+	ConfigHash string `json:"config_hash,omitempty"`
 	// Checksum holds the value of the "checksum" field.
 	Checksum string `json:"checksum,omitempty"`
+	// SystemInfo holds the value of the "system_info" field.
+	SystemInfo string `json:"system_info,omitempty"`
 	// CapturedAt holds the value of the "captured_at" field.
 	CapturedAt time.Time `json:"captured_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -73,9 +87,11 @@ func (*NodeCapability) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case nodecapability.FieldModules:
 			values[i] = new([]byte)
+		case nodecapability.FieldHasKeepalived, nodecapability.FieldHasIpvsadm:
+			values[i] = new(sql.NullBool)
 		case nodecapability.FieldID:
 			values[i] = new(sql.NullInt64)
-		case nodecapability.FieldVersion, nodecapability.FieldPrefix, nodecapability.FieldConfPath, nodecapability.FieldSbinPath, nodecapability.FieldRawArgs, nodecapability.FieldChecksum:
+		case nodecapability.FieldHostname, nodecapability.FieldOs, nodecapability.FieldKernel, nodecapability.FieldVersion, nodecapability.FieldPrefix, nodecapability.FieldConfPath, nodecapability.FieldSbinPath, nodecapability.FieldRawArgs, nodecapability.FieldConfigHash, nodecapability.FieldChecksum, nodecapability.FieldSystemInfo:
 			values[i] = new(sql.NullString)
 		case nodecapability.FieldCapturedAt, nodecapability.FieldCreatedAt, nodecapability.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -102,6 +118,36 @@ func (_m *NodeCapability) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int(value.Int64)
+		case nodecapability.FieldHostname:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field hostname", values[i])
+			} else if value.Valid {
+				_m.Hostname = value.String
+			}
+		case nodecapability.FieldOs:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field os", values[i])
+			} else if value.Valid {
+				_m.Os = value.String
+			}
+		case nodecapability.FieldKernel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field kernel", values[i])
+			} else if value.Valid {
+				_m.Kernel = value.String
+			}
+		case nodecapability.FieldHasKeepalived:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field has_keepalived", values[i])
+			} else if value.Valid {
+				_m.HasKeepalived = value.Bool
+			}
+		case nodecapability.FieldHasIpvsadm:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field has_ipvsadm", values[i])
+			} else if value.Valid {
+				_m.HasIpvsadm = value.Bool
+			}
 		case nodecapability.FieldVersion:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field version", values[i])
@@ -140,11 +186,23 @@ func (_m *NodeCapability) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RawArgs = value.String
 			}
+		case nodecapability.FieldConfigHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field config_hash", values[i])
+			} else if value.Valid {
+				_m.ConfigHash = value.String
+			}
 		case nodecapability.FieldChecksum:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field checksum", values[i])
 			} else if value.Valid {
 				_m.Checksum = value.String
+			}
+		case nodecapability.FieldSystemInfo:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field system_info", values[i])
+			} else if value.Valid {
+				_m.SystemInfo = value.String
 			}
 		case nodecapability.FieldCapturedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -212,6 +270,21 @@ func (_m *NodeCapability) String() string {
 	var builder strings.Builder
 	builder.WriteString("NodeCapability(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("hostname=")
+	builder.WriteString(_m.Hostname)
+	builder.WriteString(", ")
+	builder.WriteString("os=")
+	builder.WriteString(_m.Os)
+	builder.WriteString(", ")
+	builder.WriteString("kernel=")
+	builder.WriteString(_m.Kernel)
+	builder.WriteString(", ")
+	builder.WriteString("has_keepalived=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HasKeepalived))
+	builder.WriteString(", ")
+	builder.WriteString("has_ipvsadm=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HasIpvsadm))
+	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(_m.Version)
 	builder.WriteString(", ")
@@ -230,8 +303,14 @@ func (_m *NodeCapability) String() string {
 	builder.WriteString("raw_args=")
 	builder.WriteString(_m.RawArgs)
 	builder.WriteString(", ")
+	builder.WriteString("config_hash=")
+	builder.WriteString(_m.ConfigHash)
+	builder.WriteString(", ")
 	builder.WriteString("checksum=")
 	builder.WriteString(_m.Checksum)
+	builder.WriteString(", ")
+	builder.WriteString("system_info=")
+	builder.WriteString(_m.SystemInfo)
 	builder.WriteString(", ")
 	builder.WriteString("captured_at=")
 	builder.WriteString(_m.CapturedAt.Format(time.ANSIC))

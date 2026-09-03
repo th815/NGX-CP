@@ -7,6 +7,7 @@
 //   - 断线后按指数退避重连，避免网络恢复瞬间所有 Agent 同时冲垮控制面；
 //   - 收到 RUN_COMPLIANCE 指令 → 运行 DR 合规自检并经心跳流上报 ComplianceReport；
 //   - 周期性（FsProbeInterval）运行日志/FS 健康探测并经心跳流上报 FsProbeReport；
+//   - 周期性运行 nginx -T 采集配置树与日志目标，分别经心跳流上报 ConfigTreeReport / LogTargetsReport；
 //   - 收到 REFRESH_CAPABILITY 指令 → 重跑能力发现并经 ReportCapability RPC 上报。
 //
 // 单一发送者约束：心跳流 stream.Send 只能在主循环 goroutine 调用，避免 SendMsg 并发 panic；
@@ -41,6 +42,10 @@ type HeartbeatCallbacks struct {
 	ReportCompliance func(ctx context.Context) (*agentv1.ComplianceReport, error)
 	// ReportFsProbe 运行日志/FS 健康探测并返回报告（经心跳流 FS_PROBE 上报）。
 	ReportFsProbe func(ctx context.Context) (*agentv1.FsProbeReport, error)
+	// ReportConfigTree 运行 nginx -T 并采集配置树元数据（经心跳流 CONFIG_TREE 上报）。
+	ReportConfigTree func(ctx context.Context) (*agentv1.ConfigTreeReport, error)
+	// ReportLogTargets 从配置提取日志采集目标（经心跳流 LOG_TARGETS 上报）。
+	ReportLogTargets func(ctx context.Context) (*agentv1.LogTargetsReport, error)
 }
 
 // Heartbeater 管理一条到控制面的心跳长连接。
@@ -119,6 +124,9 @@ func (h *Heartbeater) session(ctx context.Context) error {
 	pendingCompliance := make(chan struct{}, 1)
 	// FS 健康探测结果汇集通道（探测 goroutine → 主循环发送）。
 	fsProbeOut := make(chan *agentv1.FsProbeReport, 1)
+	// 配置树 / 日志目标汇集通道（周期采集 goroutine → 主循环发送）。
+	configTreeOut := make(chan *agentv1.ConfigTreeReport, 1)
+	logTargetsOut := make(chan *agentv1.LogTargetsReport, 1)
 
 	// 收指令 goroutine：避免在主循环里 Recv 阻塞发送。
 	recvDone := make(chan error, 1)
@@ -163,6 +171,64 @@ func (h *Heartbeater) session(ctx context.Context) error {
 		}
 	}()
 
+	// 配置树采集 goroutine：首跳立即跑一次，之后按 FsProbeInterval 周期运行。
+	go func() {
+		run := func() {
+			if h.cb.ReportConfigTree == nil {
+				return
+			}
+			rep, rerr := h.cb.ReportConfigTree(ctx)
+			if rerr != nil {
+				h.log.Warn("config tree collect failed", "err", rerr)
+				return
+			}
+			select {
+			case configTreeOut <- rep:
+			default:
+			}
+		}
+		run() // 首跳
+		ticker := time.NewTicker(h.cfg.FsProbeInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				run()
+			}
+		}
+	}()
+
+	// 日志采集目标 goroutine：首跳 + 周期。
+	go func() {
+		run := func() {
+			if h.cb.ReportLogTargets == nil {
+				return
+			}
+			rep, rerr := h.cb.ReportLogTargets(ctx)
+			if rerr != nil {
+				h.log.Warn("log targets collect failed", "err", rerr)
+				return
+			}
+			select {
+			case logTargetsOut <- rep:
+			default:
+			}
+		}
+		run() // 首跳
+		ticker := time.NewTicker(h.cfg.FsProbeInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				run()
+			}
+		}
+	}()
+
 	// 首发一次 PING，让控制面立即感知上线。
 	if err := h.sendPing(stream); err != nil {
 		return err
@@ -193,6 +259,14 @@ func (h *Heartbeater) session(ctx context.Context) error {
 			}
 		case rep := <-fsProbeOut:
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_FS_PROBE, rep); serr != nil {
+				return serr
+			}
+		case rep := <-configTreeOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CONFIG_TREE, rep); serr != nil {
+				return serr
+			}
+		case rep := <-logTargetsOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_LOG_TARGETS, rep); serr != nil {
 				return serr
 			}
 		}
@@ -242,6 +316,10 @@ func (h *Heartbeater) sendReport(stream agentv1.AgentService_HeartbeatClient, ty
 		req.Compliance = payload.(*agentv1.ComplianceReport)
 	case agentv1.HeartbeatRequest_FS_PROBE:
 		req.FsProbe = payload.(*agentv1.FsProbeReport)
+	case agentv1.HeartbeatRequest_CONFIG_TREE:
+		req.ConfigTree = payload.(*agentv1.ConfigTreeReport)
+	case agentv1.HeartbeatRequest_LOG_TARGETS:
+		req.LogTargets = payload.(*agentv1.LogTargetsReport)
 	}
 	return stream.Send(req)
 }

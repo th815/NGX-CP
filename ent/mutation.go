@@ -21,6 +21,8 @@ import (
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/ent/nodeconfigfile"
+	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/predicate"
 	"github.com/th/ngxcp/ent/realserver"
 )
@@ -44,6 +46,8 @@ const (
 	TypeDeployTask     = "DeployTask"
 	TypeNode           = "Node"
 	TypeNodeCapability = "NodeCapability"
+	TypeNodeConfigFile = "NodeConfigFile"
+	TypeNodeLogTarget  = "NodeLogTarget"
 	TypeRealServer     = "RealServer"
 )
 
@@ -6384,6 +6388,12 @@ type NodeMutation struct {
 	capabilities        map[int]struct{}
 	removedcapabilities map[int]struct{}
 	clearedcapabilities bool
+	config_files        map[int]struct{}
+	removedconfig_files map[int]struct{}
+	clearedconfig_files bool
+	log_targets         map[int]struct{}
+	removedlog_targets  map[int]struct{}
+	clearedlog_targets  bool
 	snapshots           map[int]struct{}
 	removedsnapshots    map[int]struct{}
 	clearedsnapshots    bool
@@ -6958,6 +6968,114 @@ func (m *NodeMutation) ResetCapabilities() {
 	m.removedcapabilities = nil
 }
 
+// AddConfigFileIDs adds the "config_files" edge to the NodeConfigFile entity by ids.
+func (m *NodeMutation) AddConfigFileIDs(ids ...int) {
+	if m.config_files == nil {
+		m.config_files = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.config_files[ids[i]] = struct{}{}
+	}
+}
+
+// ClearConfigFiles clears the "config_files" edge to the NodeConfigFile entity.
+func (m *NodeMutation) ClearConfigFiles() {
+	m.clearedconfig_files = true
+}
+
+// ConfigFilesCleared reports if the "config_files" edge to the NodeConfigFile entity was cleared.
+func (m *NodeMutation) ConfigFilesCleared() bool {
+	return m.clearedconfig_files
+}
+
+// RemoveConfigFileIDs removes the "config_files" edge to the NodeConfigFile entity by IDs.
+func (m *NodeMutation) RemoveConfigFileIDs(ids ...int) {
+	if m.removedconfig_files == nil {
+		m.removedconfig_files = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.config_files, ids[i])
+		m.removedconfig_files[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedConfigFiles returns the removed IDs of the "config_files" edge to the NodeConfigFile entity.
+func (m *NodeMutation) RemovedConfigFilesIDs() (ids []int) {
+	for id := range m.removedconfig_files {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ConfigFilesIDs returns the "config_files" edge IDs in the mutation.
+func (m *NodeMutation) ConfigFilesIDs() (ids []int) {
+	for id := range m.config_files {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetConfigFiles resets all changes to the "config_files" edge.
+func (m *NodeMutation) ResetConfigFiles() {
+	m.config_files = nil
+	m.clearedconfig_files = false
+	m.removedconfig_files = nil
+}
+
+// AddLogTargetIDs adds the "log_targets" edge to the NodeLogTarget entity by ids.
+func (m *NodeMutation) AddLogTargetIDs(ids ...int) {
+	if m.log_targets == nil {
+		m.log_targets = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.log_targets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearLogTargets clears the "log_targets" edge to the NodeLogTarget entity.
+func (m *NodeMutation) ClearLogTargets() {
+	m.clearedlog_targets = true
+}
+
+// LogTargetsCleared reports if the "log_targets" edge to the NodeLogTarget entity was cleared.
+func (m *NodeMutation) LogTargetsCleared() bool {
+	return m.clearedlog_targets
+}
+
+// RemoveLogTargetIDs removes the "log_targets" edge to the NodeLogTarget entity by IDs.
+func (m *NodeMutation) RemoveLogTargetIDs(ids ...int) {
+	if m.removedlog_targets == nil {
+		m.removedlog_targets = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.log_targets, ids[i])
+		m.removedlog_targets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLogTargets returns the removed IDs of the "log_targets" edge to the NodeLogTarget entity.
+func (m *NodeMutation) RemovedLogTargetsIDs() (ids []int) {
+	for id := range m.removedlog_targets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// LogTargetsIDs returns the "log_targets" edge IDs in the mutation.
+func (m *NodeMutation) LogTargetsIDs() (ids []int) {
+	for id := range m.log_targets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetLogTargets resets all changes to the "log_targets" edge.
+func (m *NodeMutation) ResetLogTargets() {
+	m.log_targets = nil
+	m.clearedlog_targets = false
+	m.removedlog_targets = nil
+}
+
 // AddSnapshotIDs adds the "snapshots" edge to the ConfigSnapshot entity by ids.
 func (m *NodeMutation) AddSnapshotIDs(ids ...int) {
 	if m.snapshots == nil {
@@ -7475,9 +7593,15 @@ func (m *NodeMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *NodeMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 7)
 	if m.capabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
+	}
+	if m.config_files != nil {
+		edges = append(edges, node.EdgeConfigFiles)
+	}
+	if m.log_targets != nil {
+		edges = append(edges, node.EdgeLogTargets)
 	}
 	if m.snapshots != nil {
 		edges = append(edges, node.EdgeSnapshots)
@@ -7501,6 +7625,18 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 	case node.EdgeCapabilities:
 		ids := make([]ent.Value, 0, len(m.capabilities))
 		for id := range m.capabilities {
+			ids = append(ids, id)
+		}
+		return ids
+	case node.EdgeConfigFiles:
+		ids := make([]ent.Value, 0, len(m.config_files))
+		for id := range m.config_files {
+			ids = append(ids, id)
+		}
+		return ids
+	case node.EdgeLogTargets:
+		ids := make([]ent.Value, 0, len(m.log_targets))
+		for id := range m.log_targets {
 			ids = append(ids, id)
 		}
 		return ids
@@ -7532,9 +7668,15 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *NodeMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 7)
 	if m.removedcapabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
+	}
+	if m.removedconfig_files != nil {
+		edges = append(edges, node.EdgeConfigFiles)
+	}
+	if m.removedlog_targets != nil {
+		edges = append(edges, node.EdgeLogTargets)
 	}
 	if m.removedsnapshots != nil {
 		edges = append(edges, node.EdgeSnapshots)
@@ -7555,6 +7697,18 @@ func (m *NodeMutation) RemovedIDs(name string) []ent.Value {
 	case node.EdgeCapabilities:
 		ids := make([]ent.Value, 0, len(m.removedcapabilities))
 		for id := range m.removedcapabilities {
+			ids = append(ids, id)
+		}
+		return ids
+	case node.EdgeConfigFiles:
+		ids := make([]ent.Value, 0, len(m.removedconfig_files))
+		for id := range m.removedconfig_files {
+			ids = append(ids, id)
+		}
+		return ids
+	case node.EdgeLogTargets:
+		ids := make([]ent.Value, 0, len(m.removedlog_targets))
+		for id := range m.removedlog_targets {
 			ids = append(ids, id)
 		}
 		return ids
@@ -7582,9 +7736,15 @@ func (m *NodeMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *NodeMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 7)
 	if m.clearedcapabilities {
 		edges = append(edges, node.EdgeCapabilities)
+	}
+	if m.clearedconfig_files {
+		edges = append(edges, node.EdgeConfigFiles)
+	}
+	if m.clearedlog_targets {
+		edges = append(edges, node.EdgeLogTargets)
 	}
 	if m.clearedsnapshots {
 		edges = append(edges, node.EdgeSnapshots)
@@ -7607,6 +7767,10 @@ func (m *NodeMutation) EdgeCleared(name string) bool {
 	switch name {
 	case node.EdgeCapabilities:
 		return m.clearedcapabilities
+	case node.EdgeConfigFiles:
+		return m.clearedconfig_files
+	case node.EdgeLogTargets:
+		return m.clearedlog_targets
 	case node.EdgeSnapshots:
 		return m.clearedsnapshots
 	case node.EdgeDeployTasks:
@@ -7637,6 +7801,12 @@ func (m *NodeMutation) ResetEdge(name string) error {
 	case node.EdgeCapabilities:
 		m.ResetCapabilities()
 		return nil
+	case node.EdgeConfigFiles:
+		m.ResetConfigFiles()
+		return nil
+	case node.EdgeLogTargets:
+		m.ResetLogTargets()
+		return nil
 	case node.EdgeSnapshots:
 		m.ResetSnapshots()
 		return nil
@@ -7656,26 +7826,33 @@ func (m *NodeMutation) ResetEdge(name string) error {
 // NodeCapabilityMutation represents an operation that mutates the NodeCapability nodes in the graph.
 type NodeCapabilityMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	version       *string
-	prefix        *string
-	conf_path     *string
-	sbin_path     *string
-	modules       *[]string
-	appendmodules []string
-	raw_args      *string
-	checksum      *string
-	captured_at   *time.Time
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	node          *int
-	clearednode   bool
-	done          bool
-	oldValue      func(context.Context) (*NodeCapability, error)
-	predicates    []predicate.NodeCapability
+	op             Op
+	typ            string
+	id             *int
+	hostname       *string
+	os             *string
+	kernel         *string
+	has_keepalived *bool
+	has_ipvsadm    *bool
+	version        *string
+	prefix         *string
+	conf_path      *string
+	sbin_path      *string
+	modules        *[]string
+	appendmodules  []string
+	raw_args       *string
+	config_hash    *string
+	checksum       *string
+	system_info    *string
+	captured_at    *time.Time
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	node           *int
+	clearednode    bool
+	done           bool
+	oldValue       func(context.Context) (*NodeCapability, error)
+	predicates     []predicate.NodeCapability
 }
 
 var _ ent.Mutation = (*NodeCapabilityMutation)(nil)
@@ -7776,6 +7953,225 @@ func (m *NodeCapabilityMutation) IDs(ctx context.Context) ([]int, error) {
 	}
 }
 
+// SetHostname sets the "hostname" field.
+func (m *NodeCapabilityMutation) SetHostname(s string) {
+	m.hostname = &s
+}
+
+// Hostname returns the value of the "hostname" field in the mutation.
+func (m *NodeCapabilityMutation) Hostname() (r string, exists bool) {
+	v := m.hostname
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHostname returns the old "hostname" field's value of the NodeCapability entity.
+// If the NodeCapability object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeCapabilityMutation) OldHostname(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHostname is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHostname requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHostname: %w", err)
+	}
+	return oldValue.Hostname, nil
+}
+
+// ClearHostname clears the value of the "hostname" field.
+func (m *NodeCapabilityMutation) ClearHostname() {
+	m.hostname = nil
+	m.clearedFields[nodecapability.FieldHostname] = struct{}{}
+}
+
+// HostnameCleared returns if the "hostname" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) HostnameCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldHostname]
+	return ok
+}
+
+// ResetHostname resets all changes to the "hostname" field.
+func (m *NodeCapabilityMutation) ResetHostname() {
+	m.hostname = nil
+	delete(m.clearedFields, nodecapability.FieldHostname)
+}
+
+// SetOs sets the "os" field.
+func (m *NodeCapabilityMutation) SetOs(s string) {
+	m.os = &s
+}
+
+// Os returns the value of the "os" field in the mutation.
+func (m *NodeCapabilityMutation) Os() (r string, exists bool) {
+	v := m.os
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOs returns the old "os" field's value of the NodeCapability entity.
+// If the NodeCapability object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeCapabilityMutation) OldOs(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOs: %w", err)
+	}
+	return oldValue.Os, nil
+}
+
+// ClearOs clears the value of the "os" field.
+func (m *NodeCapabilityMutation) ClearOs() {
+	m.os = nil
+	m.clearedFields[nodecapability.FieldOs] = struct{}{}
+}
+
+// OsCleared returns if the "os" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) OsCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldOs]
+	return ok
+}
+
+// ResetOs resets all changes to the "os" field.
+func (m *NodeCapabilityMutation) ResetOs() {
+	m.os = nil
+	delete(m.clearedFields, nodecapability.FieldOs)
+}
+
+// SetKernel sets the "kernel" field.
+func (m *NodeCapabilityMutation) SetKernel(s string) {
+	m.kernel = &s
+}
+
+// Kernel returns the value of the "kernel" field in the mutation.
+func (m *NodeCapabilityMutation) Kernel() (r string, exists bool) {
+	v := m.kernel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKernel returns the old "kernel" field's value of the NodeCapability entity.
+// If the NodeCapability object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeCapabilityMutation) OldKernel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKernel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKernel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKernel: %w", err)
+	}
+	return oldValue.Kernel, nil
+}
+
+// ClearKernel clears the value of the "kernel" field.
+func (m *NodeCapabilityMutation) ClearKernel() {
+	m.kernel = nil
+	m.clearedFields[nodecapability.FieldKernel] = struct{}{}
+}
+
+// KernelCleared returns if the "kernel" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) KernelCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldKernel]
+	return ok
+}
+
+// ResetKernel resets all changes to the "kernel" field.
+func (m *NodeCapabilityMutation) ResetKernel() {
+	m.kernel = nil
+	delete(m.clearedFields, nodecapability.FieldKernel)
+}
+
+// SetHasKeepalived sets the "has_keepalived" field.
+func (m *NodeCapabilityMutation) SetHasKeepalived(b bool) {
+	m.has_keepalived = &b
+}
+
+// HasKeepalived returns the value of the "has_keepalived" field in the mutation.
+func (m *NodeCapabilityMutation) HasKeepalived() (r bool, exists bool) {
+	v := m.has_keepalived
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHasKeepalived returns the old "has_keepalived" field's value of the NodeCapability entity.
+// If the NodeCapability object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeCapabilityMutation) OldHasKeepalived(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHasKeepalived is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHasKeepalived requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHasKeepalived: %w", err)
+	}
+	return oldValue.HasKeepalived, nil
+}
+
+// ResetHasKeepalived resets all changes to the "has_keepalived" field.
+func (m *NodeCapabilityMutation) ResetHasKeepalived() {
+	m.has_keepalived = nil
+}
+
+// SetHasIpvsadm sets the "has_ipvsadm" field.
+func (m *NodeCapabilityMutation) SetHasIpvsadm(b bool) {
+	m.has_ipvsadm = &b
+}
+
+// HasIpvsadm returns the value of the "has_ipvsadm" field in the mutation.
+func (m *NodeCapabilityMutation) HasIpvsadm() (r bool, exists bool) {
+	v := m.has_ipvsadm
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHasIpvsadm returns the old "has_ipvsadm" field's value of the NodeCapability entity.
+// If the NodeCapability object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeCapabilityMutation) OldHasIpvsadm(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHasIpvsadm is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHasIpvsadm requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHasIpvsadm: %w", err)
+	}
+	return oldValue.HasIpvsadm, nil
+}
+
+// ResetHasIpvsadm resets all changes to the "has_ipvsadm" field.
+func (m *NodeCapabilityMutation) ResetHasIpvsadm() {
+	m.has_ipvsadm = nil
+}
+
 // SetVersion sets the "version" field.
 func (m *NodeCapabilityMutation) SetVersion(s string) {
 	m.version = &s
@@ -7807,9 +8203,22 @@ func (m *NodeCapabilityMutation) OldVersion(ctx context.Context) (v string, err 
 	return oldValue.Version, nil
 }
 
+// ClearVersion clears the value of the "version" field.
+func (m *NodeCapabilityMutation) ClearVersion() {
+	m.version = nil
+	m.clearedFields[nodecapability.FieldVersion] = struct{}{}
+}
+
+// VersionCleared returns if the "version" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) VersionCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldVersion]
+	return ok
+}
+
 // ResetVersion resets all changes to the "version" field.
 func (m *NodeCapabilityMutation) ResetVersion() {
 	m.version = nil
+	delete(m.clearedFields, nodecapability.FieldVersion)
 }
 
 // SetPrefix sets the "prefix" field.
@@ -7843,9 +8252,22 @@ func (m *NodeCapabilityMutation) OldPrefix(ctx context.Context) (v string, err e
 	return oldValue.Prefix, nil
 }
 
+// ClearPrefix clears the value of the "prefix" field.
+func (m *NodeCapabilityMutation) ClearPrefix() {
+	m.prefix = nil
+	m.clearedFields[nodecapability.FieldPrefix] = struct{}{}
+}
+
+// PrefixCleared returns if the "prefix" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) PrefixCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldPrefix]
+	return ok
+}
+
 // ResetPrefix resets all changes to the "prefix" field.
 func (m *NodeCapabilityMutation) ResetPrefix() {
 	m.prefix = nil
+	delete(m.clearedFields, nodecapability.FieldPrefix)
 }
 
 // SetConfPath sets the "conf_path" field.
@@ -7879,9 +8301,22 @@ func (m *NodeCapabilityMutation) OldConfPath(ctx context.Context) (v string, err
 	return oldValue.ConfPath, nil
 }
 
+// ClearConfPath clears the value of the "conf_path" field.
+func (m *NodeCapabilityMutation) ClearConfPath() {
+	m.conf_path = nil
+	m.clearedFields[nodecapability.FieldConfPath] = struct{}{}
+}
+
+// ConfPathCleared returns if the "conf_path" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) ConfPathCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldConfPath]
+	return ok
+}
+
 // ResetConfPath resets all changes to the "conf_path" field.
 func (m *NodeCapabilityMutation) ResetConfPath() {
 	m.conf_path = nil
+	delete(m.clearedFields, nodecapability.FieldConfPath)
 }
 
 // SetSbinPath sets the "sbin_path" field.
@@ -7915,9 +8350,22 @@ func (m *NodeCapabilityMutation) OldSbinPath(ctx context.Context) (v string, err
 	return oldValue.SbinPath, nil
 }
 
+// ClearSbinPath clears the value of the "sbin_path" field.
+func (m *NodeCapabilityMutation) ClearSbinPath() {
+	m.sbin_path = nil
+	m.clearedFields[nodecapability.FieldSbinPath] = struct{}{}
+}
+
+// SbinPathCleared returns if the "sbin_path" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) SbinPathCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldSbinPath]
+	return ok
+}
+
 // ResetSbinPath resets all changes to the "sbin_path" field.
 func (m *NodeCapabilityMutation) ResetSbinPath() {
 	m.sbin_path = nil
+	delete(m.clearedFields, nodecapability.FieldSbinPath)
 }
 
 // SetModules sets the "modules" field.
@@ -7965,10 +8413,24 @@ func (m *NodeCapabilityMutation) AppendedModules() ([]string, bool) {
 	return m.appendmodules, true
 }
 
+// ClearModules clears the value of the "modules" field.
+func (m *NodeCapabilityMutation) ClearModules() {
+	m.modules = nil
+	m.appendmodules = nil
+	m.clearedFields[nodecapability.FieldModules] = struct{}{}
+}
+
+// ModulesCleared returns if the "modules" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) ModulesCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldModules]
+	return ok
+}
+
 // ResetModules resets all changes to the "modules" field.
 func (m *NodeCapabilityMutation) ResetModules() {
 	m.modules = nil
 	m.appendmodules = nil
+	delete(m.clearedFields, nodecapability.FieldModules)
 }
 
 // SetRawArgs sets the "raw_args" field.
@@ -8002,9 +8464,71 @@ func (m *NodeCapabilityMutation) OldRawArgs(ctx context.Context) (v string, err 
 	return oldValue.RawArgs, nil
 }
 
+// ClearRawArgs clears the value of the "raw_args" field.
+func (m *NodeCapabilityMutation) ClearRawArgs() {
+	m.raw_args = nil
+	m.clearedFields[nodecapability.FieldRawArgs] = struct{}{}
+}
+
+// RawArgsCleared returns if the "raw_args" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) RawArgsCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldRawArgs]
+	return ok
+}
+
 // ResetRawArgs resets all changes to the "raw_args" field.
 func (m *NodeCapabilityMutation) ResetRawArgs() {
 	m.raw_args = nil
+	delete(m.clearedFields, nodecapability.FieldRawArgs)
+}
+
+// SetConfigHash sets the "config_hash" field.
+func (m *NodeCapabilityMutation) SetConfigHash(s string) {
+	m.config_hash = &s
+}
+
+// ConfigHash returns the value of the "config_hash" field in the mutation.
+func (m *NodeCapabilityMutation) ConfigHash() (r string, exists bool) {
+	v := m.config_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfigHash returns the old "config_hash" field's value of the NodeCapability entity.
+// If the NodeCapability object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeCapabilityMutation) OldConfigHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfigHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfigHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfigHash: %w", err)
+	}
+	return oldValue.ConfigHash, nil
+}
+
+// ClearConfigHash clears the value of the "config_hash" field.
+func (m *NodeCapabilityMutation) ClearConfigHash() {
+	m.config_hash = nil
+	m.clearedFields[nodecapability.FieldConfigHash] = struct{}{}
+}
+
+// ConfigHashCleared returns if the "config_hash" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) ConfigHashCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldConfigHash]
+	return ok
+}
+
+// ResetConfigHash resets all changes to the "config_hash" field.
+func (m *NodeCapabilityMutation) ResetConfigHash() {
+	m.config_hash = nil
+	delete(m.clearedFields, nodecapability.FieldConfigHash)
 }
 
 // SetChecksum sets the "checksum" field.
@@ -8038,9 +8562,71 @@ func (m *NodeCapabilityMutation) OldChecksum(ctx context.Context) (v string, err
 	return oldValue.Checksum, nil
 }
 
+// ClearChecksum clears the value of the "checksum" field.
+func (m *NodeCapabilityMutation) ClearChecksum() {
+	m.checksum = nil
+	m.clearedFields[nodecapability.FieldChecksum] = struct{}{}
+}
+
+// ChecksumCleared returns if the "checksum" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) ChecksumCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldChecksum]
+	return ok
+}
+
 // ResetChecksum resets all changes to the "checksum" field.
 func (m *NodeCapabilityMutation) ResetChecksum() {
 	m.checksum = nil
+	delete(m.clearedFields, nodecapability.FieldChecksum)
+}
+
+// SetSystemInfo sets the "system_info" field.
+func (m *NodeCapabilityMutation) SetSystemInfo(s string) {
+	m.system_info = &s
+}
+
+// SystemInfo returns the value of the "system_info" field in the mutation.
+func (m *NodeCapabilityMutation) SystemInfo() (r string, exists bool) {
+	v := m.system_info
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemInfo returns the old "system_info" field's value of the NodeCapability entity.
+// If the NodeCapability object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeCapabilityMutation) OldSystemInfo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemInfo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemInfo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemInfo: %w", err)
+	}
+	return oldValue.SystemInfo, nil
+}
+
+// ClearSystemInfo clears the value of the "system_info" field.
+func (m *NodeCapabilityMutation) ClearSystemInfo() {
+	m.system_info = nil
+	m.clearedFields[nodecapability.FieldSystemInfo] = struct{}{}
+}
+
+// SystemInfoCleared returns if the "system_info" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) SystemInfoCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldSystemInfo]
+	return ok
+}
+
+// ResetSystemInfo resets all changes to the "system_info" field.
+func (m *NodeCapabilityMutation) ResetSystemInfo() {
+	m.system_info = nil
+	delete(m.clearedFields, nodecapability.FieldSystemInfo)
 }
 
 // SetCapturedAt sets the "captured_at" field.
@@ -8074,9 +8660,22 @@ func (m *NodeCapabilityMutation) OldCapturedAt(ctx context.Context) (v time.Time
 	return oldValue.CapturedAt, nil
 }
 
+// ClearCapturedAt clears the value of the "captured_at" field.
+func (m *NodeCapabilityMutation) ClearCapturedAt() {
+	m.captured_at = nil
+	m.clearedFields[nodecapability.FieldCapturedAt] = struct{}{}
+}
+
+// CapturedAtCleared returns if the "captured_at" field was cleared in this mutation.
+func (m *NodeCapabilityMutation) CapturedAtCleared() bool {
+	_, ok := m.clearedFields[nodecapability.FieldCapturedAt]
+	return ok
+}
+
 // ResetCapturedAt resets all changes to the "captured_at" field.
 func (m *NodeCapabilityMutation) ResetCapturedAt() {
 	m.captured_at = nil
+	delete(m.clearedFields, nodecapability.FieldCapturedAt)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -8224,7 +8823,22 @@ func (m *NodeCapabilityMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *NodeCapabilityMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 17)
+	if m.hostname != nil {
+		fields = append(fields, nodecapability.FieldHostname)
+	}
+	if m.os != nil {
+		fields = append(fields, nodecapability.FieldOs)
+	}
+	if m.kernel != nil {
+		fields = append(fields, nodecapability.FieldKernel)
+	}
+	if m.has_keepalived != nil {
+		fields = append(fields, nodecapability.FieldHasKeepalived)
+	}
+	if m.has_ipvsadm != nil {
+		fields = append(fields, nodecapability.FieldHasIpvsadm)
+	}
 	if m.version != nil {
 		fields = append(fields, nodecapability.FieldVersion)
 	}
@@ -8243,8 +8857,14 @@ func (m *NodeCapabilityMutation) Fields() []string {
 	if m.raw_args != nil {
 		fields = append(fields, nodecapability.FieldRawArgs)
 	}
+	if m.config_hash != nil {
+		fields = append(fields, nodecapability.FieldConfigHash)
+	}
 	if m.checksum != nil {
 		fields = append(fields, nodecapability.FieldChecksum)
+	}
+	if m.system_info != nil {
+		fields = append(fields, nodecapability.FieldSystemInfo)
 	}
 	if m.captured_at != nil {
 		fields = append(fields, nodecapability.FieldCapturedAt)
@@ -8263,6 +8883,16 @@ func (m *NodeCapabilityMutation) Fields() []string {
 // schema.
 func (m *NodeCapabilityMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case nodecapability.FieldHostname:
+		return m.Hostname()
+	case nodecapability.FieldOs:
+		return m.Os()
+	case nodecapability.FieldKernel:
+		return m.Kernel()
+	case nodecapability.FieldHasKeepalived:
+		return m.HasKeepalived()
+	case nodecapability.FieldHasIpvsadm:
+		return m.HasIpvsadm()
 	case nodecapability.FieldVersion:
 		return m.Version()
 	case nodecapability.FieldPrefix:
@@ -8275,8 +8905,12 @@ func (m *NodeCapabilityMutation) Field(name string) (ent.Value, bool) {
 		return m.Modules()
 	case nodecapability.FieldRawArgs:
 		return m.RawArgs()
+	case nodecapability.FieldConfigHash:
+		return m.ConfigHash()
 	case nodecapability.FieldChecksum:
 		return m.Checksum()
+	case nodecapability.FieldSystemInfo:
+		return m.SystemInfo()
 	case nodecapability.FieldCapturedAt:
 		return m.CapturedAt()
 	case nodecapability.FieldCreatedAt:
@@ -8292,6 +8926,16 @@ func (m *NodeCapabilityMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *NodeCapabilityMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case nodecapability.FieldHostname:
+		return m.OldHostname(ctx)
+	case nodecapability.FieldOs:
+		return m.OldOs(ctx)
+	case nodecapability.FieldKernel:
+		return m.OldKernel(ctx)
+	case nodecapability.FieldHasKeepalived:
+		return m.OldHasKeepalived(ctx)
+	case nodecapability.FieldHasIpvsadm:
+		return m.OldHasIpvsadm(ctx)
 	case nodecapability.FieldVersion:
 		return m.OldVersion(ctx)
 	case nodecapability.FieldPrefix:
@@ -8304,8 +8948,12 @@ func (m *NodeCapabilityMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldModules(ctx)
 	case nodecapability.FieldRawArgs:
 		return m.OldRawArgs(ctx)
+	case nodecapability.FieldConfigHash:
+		return m.OldConfigHash(ctx)
 	case nodecapability.FieldChecksum:
 		return m.OldChecksum(ctx)
+	case nodecapability.FieldSystemInfo:
+		return m.OldSystemInfo(ctx)
 	case nodecapability.FieldCapturedAt:
 		return m.OldCapturedAt(ctx)
 	case nodecapability.FieldCreatedAt:
@@ -8321,6 +8969,41 @@ func (m *NodeCapabilityMutation) OldField(ctx context.Context, name string) (ent
 // type.
 func (m *NodeCapabilityMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case nodecapability.FieldHostname:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHostname(v)
+		return nil
+	case nodecapability.FieldOs:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOs(v)
+		return nil
+	case nodecapability.FieldKernel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKernel(v)
+		return nil
+	case nodecapability.FieldHasKeepalived:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHasKeepalived(v)
+		return nil
+	case nodecapability.FieldHasIpvsadm:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHasIpvsadm(v)
+		return nil
 	case nodecapability.FieldVersion:
 		v, ok := value.(string)
 		if !ok {
@@ -8363,12 +9046,26 @@ func (m *NodeCapabilityMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRawArgs(v)
 		return nil
+	case nodecapability.FieldConfigHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfigHash(v)
+		return nil
 	case nodecapability.FieldChecksum:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetChecksum(v)
+		return nil
+	case nodecapability.FieldSystemInfo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemInfo(v)
 		return nil
 	case nodecapability.FieldCapturedAt:
 		v, ok := value.(time.Time)
@@ -8420,7 +9117,47 @@ func (m *NodeCapabilityMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *NodeCapabilityMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(nodecapability.FieldHostname) {
+		fields = append(fields, nodecapability.FieldHostname)
+	}
+	if m.FieldCleared(nodecapability.FieldOs) {
+		fields = append(fields, nodecapability.FieldOs)
+	}
+	if m.FieldCleared(nodecapability.FieldKernel) {
+		fields = append(fields, nodecapability.FieldKernel)
+	}
+	if m.FieldCleared(nodecapability.FieldVersion) {
+		fields = append(fields, nodecapability.FieldVersion)
+	}
+	if m.FieldCleared(nodecapability.FieldPrefix) {
+		fields = append(fields, nodecapability.FieldPrefix)
+	}
+	if m.FieldCleared(nodecapability.FieldConfPath) {
+		fields = append(fields, nodecapability.FieldConfPath)
+	}
+	if m.FieldCleared(nodecapability.FieldSbinPath) {
+		fields = append(fields, nodecapability.FieldSbinPath)
+	}
+	if m.FieldCleared(nodecapability.FieldModules) {
+		fields = append(fields, nodecapability.FieldModules)
+	}
+	if m.FieldCleared(nodecapability.FieldRawArgs) {
+		fields = append(fields, nodecapability.FieldRawArgs)
+	}
+	if m.FieldCleared(nodecapability.FieldConfigHash) {
+		fields = append(fields, nodecapability.FieldConfigHash)
+	}
+	if m.FieldCleared(nodecapability.FieldChecksum) {
+		fields = append(fields, nodecapability.FieldChecksum)
+	}
+	if m.FieldCleared(nodecapability.FieldSystemInfo) {
+		fields = append(fields, nodecapability.FieldSystemInfo)
+	}
+	if m.FieldCleared(nodecapability.FieldCapturedAt) {
+		fields = append(fields, nodecapability.FieldCapturedAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -8433,6 +9170,47 @@ func (m *NodeCapabilityMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *NodeCapabilityMutation) ClearField(name string) error {
+	switch name {
+	case nodecapability.FieldHostname:
+		m.ClearHostname()
+		return nil
+	case nodecapability.FieldOs:
+		m.ClearOs()
+		return nil
+	case nodecapability.FieldKernel:
+		m.ClearKernel()
+		return nil
+	case nodecapability.FieldVersion:
+		m.ClearVersion()
+		return nil
+	case nodecapability.FieldPrefix:
+		m.ClearPrefix()
+		return nil
+	case nodecapability.FieldConfPath:
+		m.ClearConfPath()
+		return nil
+	case nodecapability.FieldSbinPath:
+		m.ClearSbinPath()
+		return nil
+	case nodecapability.FieldModules:
+		m.ClearModules()
+		return nil
+	case nodecapability.FieldRawArgs:
+		m.ClearRawArgs()
+		return nil
+	case nodecapability.FieldConfigHash:
+		m.ClearConfigHash()
+		return nil
+	case nodecapability.FieldChecksum:
+		m.ClearChecksum()
+		return nil
+	case nodecapability.FieldSystemInfo:
+		m.ClearSystemInfo()
+		return nil
+	case nodecapability.FieldCapturedAt:
+		m.ClearCapturedAt()
+		return nil
+	}
 	return fmt.Errorf("unknown NodeCapability nullable field %s", name)
 }
 
@@ -8440,6 +9218,21 @@ func (m *NodeCapabilityMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *NodeCapabilityMutation) ResetField(name string) error {
 	switch name {
+	case nodecapability.FieldHostname:
+		m.ResetHostname()
+		return nil
+	case nodecapability.FieldOs:
+		m.ResetOs()
+		return nil
+	case nodecapability.FieldKernel:
+		m.ResetKernel()
+		return nil
+	case nodecapability.FieldHasKeepalived:
+		m.ResetHasKeepalived()
+		return nil
+	case nodecapability.FieldHasIpvsadm:
+		m.ResetHasIpvsadm()
+		return nil
 	case nodecapability.FieldVersion:
 		m.ResetVersion()
 		return nil
@@ -8458,8 +9251,14 @@ func (m *NodeCapabilityMutation) ResetField(name string) error {
 	case nodecapability.FieldRawArgs:
 		m.ResetRawArgs()
 		return nil
+	case nodecapability.FieldConfigHash:
+		m.ResetConfigHash()
+		return nil
 	case nodecapability.FieldChecksum:
 		m.ResetChecksum()
+		return nil
+	case nodecapability.FieldSystemInfo:
+		m.ResetSystemInfo()
 		return nil
 	case nodecapability.FieldCapturedAt:
 		m.ResetCapturedAt()
@@ -8546,6 +9345,1916 @@ func (m *NodeCapabilityMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown NodeCapability edge %s", name)
+}
+
+// NodeConfigFileMutation represents an operation that mutates the NodeConfigFile nodes in the graph.
+type NodeConfigFileMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	_path         *string
+	sha256        *string
+	size          *int64
+	addsize       *int64
+	mod_time      *time.Time
+	captured_at   *time.Time
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	node          *int
+	clearednode   bool
+	done          bool
+	oldValue      func(context.Context) (*NodeConfigFile, error)
+	predicates    []predicate.NodeConfigFile
+}
+
+var _ ent.Mutation = (*NodeConfigFileMutation)(nil)
+
+// nodeconfigfileOption allows management of the mutation configuration using functional options.
+type nodeconfigfileOption func(*NodeConfigFileMutation)
+
+// newNodeConfigFileMutation creates new mutation for the NodeConfigFile entity.
+func newNodeConfigFileMutation(c config, op Op, opts ...nodeconfigfileOption) *NodeConfigFileMutation {
+	m := &NodeConfigFileMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeNodeConfigFile,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withNodeConfigFileID sets the ID field of the mutation.
+func withNodeConfigFileID(id int) nodeconfigfileOption {
+	return func(m *NodeConfigFileMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *NodeConfigFile
+		)
+		m.oldValue = func(ctx context.Context) (*NodeConfigFile, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().NodeConfigFile.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withNodeConfigFile sets the old NodeConfigFile of the mutation.
+func withNodeConfigFile(node *NodeConfigFile) nodeconfigfileOption {
+	return func(m *NodeConfigFileMutation) {
+		m.oldValue = func(context.Context) (*NodeConfigFile, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m NodeConfigFileMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m NodeConfigFileMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *NodeConfigFileMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *NodeConfigFileMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().NodeConfigFile.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPath sets the "path" field.
+func (m *NodeConfigFileMutation) SetPath(s string) {
+	m._path = &s
+}
+
+// Path returns the value of the "path" field in the mutation.
+func (m *NodeConfigFileMutation) Path() (r string, exists bool) {
+	v := m._path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPath returns the old "path" field's value of the NodeConfigFile entity.
+// If the NodeConfigFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeConfigFileMutation) OldPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPath: %w", err)
+	}
+	return oldValue.Path, nil
+}
+
+// ResetPath resets all changes to the "path" field.
+func (m *NodeConfigFileMutation) ResetPath() {
+	m._path = nil
+}
+
+// SetSha256 sets the "sha256" field.
+func (m *NodeConfigFileMutation) SetSha256(s string) {
+	m.sha256 = &s
+}
+
+// Sha256 returns the value of the "sha256" field in the mutation.
+func (m *NodeConfigFileMutation) Sha256() (r string, exists bool) {
+	v := m.sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSha256 returns the old "sha256" field's value of the NodeConfigFile entity.
+// If the NodeConfigFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeConfigFileMutation) OldSha256(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSha256: %w", err)
+	}
+	return oldValue.Sha256, nil
+}
+
+// ResetSha256 resets all changes to the "sha256" field.
+func (m *NodeConfigFileMutation) ResetSha256() {
+	m.sha256 = nil
+}
+
+// SetSize sets the "size" field.
+func (m *NodeConfigFileMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *NodeConfigFileMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the NodeConfigFile entity.
+// If the NodeConfigFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeConfigFileMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *NodeConfigFileMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *NodeConfigFileMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *NodeConfigFileMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
+}
+
+// SetModTime sets the "mod_time" field.
+func (m *NodeConfigFileMutation) SetModTime(t time.Time) {
+	m.mod_time = &t
+}
+
+// ModTime returns the value of the "mod_time" field in the mutation.
+func (m *NodeConfigFileMutation) ModTime() (r time.Time, exists bool) {
+	v := m.mod_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModTime returns the old "mod_time" field's value of the NodeConfigFile entity.
+// If the NodeConfigFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeConfigFileMutation) OldModTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModTime: %w", err)
+	}
+	return oldValue.ModTime, nil
+}
+
+// ClearModTime clears the value of the "mod_time" field.
+func (m *NodeConfigFileMutation) ClearModTime() {
+	m.mod_time = nil
+	m.clearedFields[nodeconfigfile.FieldModTime] = struct{}{}
+}
+
+// ModTimeCleared returns if the "mod_time" field was cleared in this mutation.
+func (m *NodeConfigFileMutation) ModTimeCleared() bool {
+	_, ok := m.clearedFields[nodeconfigfile.FieldModTime]
+	return ok
+}
+
+// ResetModTime resets all changes to the "mod_time" field.
+func (m *NodeConfigFileMutation) ResetModTime() {
+	m.mod_time = nil
+	delete(m.clearedFields, nodeconfigfile.FieldModTime)
+}
+
+// SetCapturedAt sets the "captured_at" field.
+func (m *NodeConfigFileMutation) SetCapturedAt(t time.Time) {
+	m.captured_at = &t
+}
+
+// CapturedAt returns the value of the "captured_at" field in the mutation.
+func (m *NodeConfigFileMutation) CapturedAt() (r time.Time, exists bool) {
+	v := m.captured_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCapturedAt returns the old "captured_at" field's value of the NodeConfigFile entity.
+// If the NodeConfigFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeConfigFileMutation) OldCapturedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCapturedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCapturedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCapturedAt: %w", err)
+	}
+	return oldValue.CapturedAt, nil
+}
+
+// ResetCapturedAt resets all changes to the "captured_at" field.
+func (m *NodeConfigFileMutation) ResetCapturedAt() {
+	m.captured_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *NodeConfigFileMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *NodeConfigFileMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the NodeConfigFile entity.
+// If the NodeConfigFile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeConfigFileMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *NodeConfigFileMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetNodeID sets the "node" edge to the Node entity by id.
+func (m *NodeConfigFileMutation) SetNodeID(id int) {
+	m.node = &id
+}
+
+// ClearNode clears the "node" edge to the Node entity.
+func (m *NodeConfigFileMutation) ClearNode() {
+	m.clearednode = true
+}
+
+// NodeCleared reports if the "node" edge to the Node entity was cleared.
+func (m *NodeConfigFileMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeID returns the "node" edge ID in the mutation.
+func (m *NodeConfigFileMutation) NodeID() (id int, exists bool) {
+	if m.node != nil {
+		return *m.node, true
+	}
+	return
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *NodeConfigFileMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *NodeConfigFileMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// Where appends a list predicates to the NodeConfigFileMutation builder.
+func (m *NodeConfigFileMutation) Where(ps ...predicate.NodeConfigFile) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the NodeConfigFileMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *NodeConfigFileMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.NodeConfigFile, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *NodeConfigFileMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *NodeConfigFileMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (NodeConfigFile).
+func (m *NodeConfigFileMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *NodeConfigFileMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m._path != nil {
+		fields = append(fields, nodeconfigfile.FieldPath)
+	}
+	if m.sha256 != nil {
+		fields = append(fields, nodeconfigfile.FieldSha256)
+	}
+	if m.size != nil {
+		fields = append(fields, nodeconfigfile.FieldSize)
+	}
+	if m.mod_time != nil {
+		fields = append(fields, nodeconfigfile.FieldModTime)
+	}
+	if m.captured_at != nil {
+		fields = append(fields, nodeconfigfile.FieldCapturedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, nodeconfigfile.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *NodeConfigFileMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case nodeconfigfile.FieldPath:
+		return m.Path()
+	case nodeconfigfile.FieldSha256:
+		return m.Sha256()
+	case nodeconfigfile.FieldSize:
+		return m.Size()
+	case nodeconfigfile.FieldModTime:
+		return m.ModTime()
+	case nodeconfigfile.FieldCapturedAt:
+		return m.CapturedAt()
+	case nodeconfigfile.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *NodeConfigFileMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case nodeconfigfile.FieldPath:
+		return m.OldPath(ctx)
+	case nodeconfigfile.FieldSha256:
+		return m.OldSha256(ctx)
+	case nodeconfigfile.FieldSize:
+		return m.OldSize(ctx)
+	case nodeconfigfile.FieldModTime:
+		return m.OldModTime(ctx)
+	case nodeconfigfile.FieldCapturedAt:
+		return m.OldCapturedAt(ctx)
+	case nodeconfigfile.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown NodeConfigFile field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NodeConfigFileMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case nodeconfigfile.FieldPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPath(v)
+		return nil
+	case nodeconfigfile.FieldSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSha256(v)
+		return nil
+	case nodeconfigfile.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
+		return nil
+	case nodeconfigfile.FieldModTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModTime(v)
+		return nil
+	case nodeconfigfile.FieldCapturedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCapturedAt(v)
+		return nil
+	case nodeconfigfile.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NodeConfigFile field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *NodeConfigFileMutation) AddedFields() []string {
+	var fields []string
+	if m.addsize != nil {
+		fields = append(fields, nodeconfigfile.FieldSize)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *NodeConfigFileMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case nodeconfigfile.FieldSize:
+		return m.AddedSize()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NodeConfigFileMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case nodeconfigfile.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NodeConfigFile numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *NodeConfigFileMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(nodeconfigfile.FieldModTime) {
+		fields = append(fields, nodeconfigfile.FieldModTime)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *NodeConfigFileMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *NodeConfigFileMutation) ClearField(name string) error {
+	switch name {
+	case nodeconfigfile.FieldModTime:
+		m.ClearModTime()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeConfigFile nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *NodeConfigFileMutation) ResetField(name string) error {
+	switch name {
+	case nodeconfigfile.FieldPath:
+		m.ResetPath()
+		return nil
+	case nodeconfigfile.FieldSha256:
+		m.ResetSha256()
+		return nil
+	case nodeconfigfile.FieldSize:
+		m.ResetSize()
+		return nil
+	case nodeconfigfile.FieldModTime:
+		m.ResetModTime()
+		return nil
+	case nodeconfigfile.FieldCapturedAt:
+		m.ResetCapturedAt()
+		return nil
+	case nodeconfigfile.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeConfigFile field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *NodeConfigFileMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.node != nil {
+		edges = append(edges, nodeconfigfile.EdgeNode)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *NodeConfigFileMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case nodeconfigfile.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *NodeConfigFileMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *NodeConfigFileMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *NodeConfigFileMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearednode {
+		edges = append(edges, nodeconfigfile.EdgeNode)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *NodeConfigFileMutation) EdgeCleared(name string) bool {
+	switch name {
+	case nodeconfigfile.EdgeNode:
+		return m.clearednode
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *NodeConfigFileMutation) ClearEdge(name string) error {
+	switch name {
+	case nodeconfigfile.EdgeNode:
+		m.ClearNode()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeConfigFile unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *NodeConfigFileMutation) ResetEdge(name string) error {
+	switch name {
+	case nodeconfigfile.EdgeNode:
+		m.ResetNode()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeConfigFile edge %s", name)
+}
+
+// NodeLogTargetMutation represents an operation that mutates the NodeLogTarget nodes in the graph.
+type NodeLogTargetMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	_path         *string
+	_type         *nodelogtarget.Type
+	format        *string
+	level         *string
+	is_syslog     *bool
+	is_off        *bool
+	has_variable  *bool
+	skip_reason   *string
+	size          *int64
+	addsize       *int64
+	inode         *uint64
+	addinode      *int64
+	stat_err      *string
+	captured_at   *time.Time
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	node          *int
+	clearednode   bool
+	done          bool
+	oldValue      func(context.Context) (*NodeLogTarget, error)
+	predicates    []predicate.NodeLogTarget
+}
+
+var _ ent.Mutation = (*NodeLogTargetMutation)(nil)
+
+// nodelogtargetOption allows management of the mutation configuration using functional options.
+type nodelogtargetOption func(*NodeLogTargetMutation)
+
+// newNodeLogTargetMutation creates new mutation for the NodeLogTarget entity.
+func newNodeLogTargetMutation(c config, op Op, opts ...nodelogtargetOption) *NodeLogTargetMutation {
+	m := &NodeLogTargetMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeNodeLogTarget,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withNodeLogTargetID sets the ID field of the mutation.
+func withNodeLogTargetID(id int) nodelogtargetOption {
+	return func(m *NodeLogTargetMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *NodeLogTarget
+		)
+		m.oldValue = func(ctx context.Context) (*NodeLogTarget, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().NodeLogTarget.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withNodeLogTarget sets the old NodeLogTarget of the mutation.
+func withNodeLogTarget(node *NodeLogTarget) nodelogtargetOption {
+	return func(m *NodeLogTargetMutation) {
+		m.oldValue = func(context.Context) (*NodeLogTarget, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m NodeLogTargetMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m NodeLogTargetMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *NodeLogTargetMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *NodeLogTargetMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().NodeLogTarget.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPath sets the "path" field.
+func (m *NodeLogTargetMutation) SetPath(s string) {
+	m._path = &s
+}
+
+// Path returns the value of the "path" field in the mutation.
+func (m *NodeLogTargetMutation) Path() (r string, exists bool) {
+	v := m._path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPath returns the old "path" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPath: %w", err)
+	}
+	return oldValue.Path, nil
+}
+
+// ResetPath resets all changes to the "path" field.
+func (m *NodeLogTargetMutation) ResetPath() {
+	m._path = nil
+}
+
+// SetType sets the "type" field.
+func (m *NodeLogTargetMutation) SetType(n nodelogtarget.Type) {
+	m._type = &n
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *NodeLogTargetMutation) GetType() (r nodelogtarget.Type, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldType(ctx context.Context) (v nodelogtarget.Type, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *NodeLogTargetMutation) ResetType() {
+	m._type = nil
+}
+
+// SetFormat sets the "format" field.
+func (m *NodeLogTargetMutation) SetFormat(s string) {
+	m.format = &s
+}
+
+// Format returns the value of the "format" field in the mutation.
+func (m *NodeLogTargetMutation) Format() (r string, exists bool) {
+	v := m.format
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFormat returns the old "format" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldFormat(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFormat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFormat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFormat: %w", err)
+	}
+	return oldValue.Format, nil
+}
+
+// ClearFormat clears the value of the "format" field.
+func (m *NodeLogTargetMutation) ClearFormat() {
+	m.format = nil
+	m.clearedFields[nodelogtarget.FieldFormat] = struct{}{}
+}
+
+// FormatCleared returns if the "format" field was cleared in this mutation.
+func (m *NodeLogTargetMutation) FormatCleared() bool {
+	_, ok := m.clearedFields[nodelogtarget.FieldFormat]
+	return ok
+}
+
+// ResetFormat resets all changes to the "format" field.
+func (m *NodeLogTargetMutation) ResetFormat() {
+	m.format = nil
+	delete(m.clearedFields, nodelogtarget.FieldFormat)
+}
+
+// SetLevel sets the "level" field.
+func (m *NodeLogTargetMutation) SetLevel(s string) {
+	m.level = &s
+}
+
+// Level returns the value of the "level" field in the mutation.
+func (m *NodeLogTargetMutation) Level() (r string, exists bool) {
+	v := m.level
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLevel returns the old "level" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldLevel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLevel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLevel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLevel: %w", err)
+	}
+	return oldValue.Level, nil
+}
+
+// ClearLevel clears the value of the "level" field.
+func (m *NodeLogTargetMutation) ClearLevel() {
+	m.level = nil
+	m.clearedFields[nodelogtarget.FieldLevel] = struct{}{}
+}
+
+// LevelCleared returns if the "level" field was cleared in this mutation.
+func (m *NodeLogTargetMutation) LevelCleared() bool {
+	_, ok := m.clearedFields[nodelogtarget.FieldLevel]
+	return ok
+}
+
+// ResetLevel resets all changes to the "level" field.
+func (m *NodeLogTargetMutation) ResetLevel() {
+	m.level = nil
+	delete(m.clearedFields, nodelogtarget.FieldLevel)
+}
+
+// SetIsSyslog sets the "is_syslog" field.
+func (m *NodeLogTargetMutation) SetIsSyslog(b bool) {
+	m.is_syslog = &b
+}
+
+// IsSyslog returns the value of the "is_syslog" field in the mutation.
+func (m *NodeLogTargetMutation) IsSyslog() (r bool, exists bool) {
+	v := m.is_syslog
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsSyslog returns the old "is_syslog" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldIsSyslog(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsSyslog is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsSyslog requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsSyslog: %w", err)
+	}
+	return oldValue.IsSyslog, nil
+}
+
+// ResetIsSyslog resets all changes to the "is_syslog" field.
+func (m *NodeLogTargetMutation) ResetIsSyslog() {
+	m.is_syslog = nil
+}
+
+// SetIsOff sets the "is_off" field.
+func (m *NodeLogTargetMutation) SetIsOff(b bool) {
+	m.is_off = &b
+}
+
+// IsOff returns the value of the "is_off" field in the mutation.
+func (m *NodeLogTargetMutation) IsOff() (r bool, exists bool) {
+	v := m.is_off
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsOff returns the old "is_off" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldIsOff(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsOff is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsOff requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsOff: %w", err)
+	}
+	return oldValue.IsOff, nil
+}
+
+// ResetIsOff resets all changes to the "is_off" field.
+func (m *NodeLogTargetMutation) ResetIsOff() {
+	m.is_off = nil
+}
+
+// SetHasVariable sets the "has_variable" field.
+func (m *NodeLogTargetMutation) SetHasVariable(b bool) {
+	m.has_variable = &b
+}
+
+// HasVariable returns the value of the "has_variable" field in the mutation.
+func (m *NodeLogTargetMutation) HasVariable() (r bool, exists bool) {
+	v := m.has_variable
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHasVariable returns the old "has_variable" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldHasVariable(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHasVariable is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHasVariable requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHasVariable: %w", err)
+	}
+	return oldValue.HasVariable, nil
+}
+
+// ResetHasVariable resets all changes to the "has_variable" field.
+func (m *NodeLogTargetMutation) ResetHasVariable() {
+	m.has_variable = nil
+}
+
+// SetSkipReason sets the "skip_reason" field.
+func (m *NodeLogTargetMutation) SetSkipReason(s string) {
+	m.skip_reason = &s
+}
+
+// SkipReason returns the value of the "skip_reason" field in the mutation.
+func (m *NodeLogTargetMutation) SkipReason() (r string, exists bool) {
+	v := m.skip_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSkipReason returns the old "skip_reason" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldSkipReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSkipReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSkipReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSkipReason: %w", err)
+	}
+	return oldValue.SkipReason, nil
+}
+
+// ClearSkipReason clears the value of the "skip_reason" field.
+func (m *NodeLogTargetMutation) ClearSkipReason() {
+	m.skip_reason = nil
+	m.clearedFields[nodelogtarget.FieldSkipReason] = struct{}{}
+}
+
+// SkipReasonCleared returns if the "skip_reason" field was cleared in this mutation.
+func (m *NodeLogTargetMutation) SkipReasonCleared() bool {
+	_, ok := m.clearedFields[nodelogtarget.FieldSkipReason]
+	return ok
+}
+
+// ResetSkipReason resets all changes to the "skip_reason" field.
+func (m *NodeLogTargetMutation) ResetSkipReason() {
+	m.skip_reason = nil
+	delete(m.clearedFields, nodelogtarget.FieldSkipReason)
+}
+
+// SetSize sets the "size" field.
+func (m *NodeLogTargetMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *NodeLogTargetMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *NodeLogTargetMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *NodeLogTargetMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *NodeLogTargetMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
+}
+
+// SetInode sets the "inode" field.
+func (m *NodeLogTargetMutation) SetInode(u uint64) {
+	m.inode = &u
+	m.addinode = nil
+}
+
+// Inode returns the value of the "inode" field in the mutation.
+func (m *NodeLogTargetMutation) Inode() (r uint64, exists bool) {
+	v := m.inode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInode returns the old "inode" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldInode(ctx context.Context) (v uint64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInode: %w", err)
+	}
+	return oldValue.Inode, nil
+}
+
+// AddInode adds u to the "inode" field.
+func (m *NodeLogTargetMutation) AddInode(u int64) {
+	if m.addinode != nil {
+		*m.addinode += u
+	} else {
+		m.addinode = &u
+	}
+}
+
+// AddedInode returns the value that was added to the "inode" field in this mutation.
+func (m *NodeLogTargetMutation) AddedInode() (r int64, exists bool) {
+	v := m.addinode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetInode resets all changes to the "inode" field.
+func (m *NodeLogTargetMutation) ResetInode() {
+	m.inode = nil
+	m.addinode = nil
+}
+
+// SetStatErr sets the "stat_err" field.
+func (m *NodeLogTargetMutation) SetStatErr(s string) {
+	m.stat_err = &s
+}
+
+// StatErr returns the value of the "stat_err" field in the mutation.
+func (m *NodeLogTargetMutation) StatErr() (r string, exists bool) {
+	v := m.stat_err
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatErr returns the old "stat_err" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldStatErr(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatErr is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatErr requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatErr: %w", err)
+	}
+	return oldValue.StatErr, nil
+}
+
+// ClearStatErr clears the value of the "stat_err" field.
+func (m *NodeLogTargetMutation) ClearStatErr() {
+	m.stat_err = nil
+	m.clearedFields[nodelogtarget.FieldStatErr] = struct{}{}
+}
+
+// StatErrCleared returns if the "stat_err" field was cleared in this mutation.
+func (m *NodeLogTargetMutation) StatErrCleared() bool {
+	_, ok := m.clearedFields[nodelogtarget.FieldStatErr]
+	return ok
+}
+
+// ResetStatErr resets all changes to the "stat_err" field.
+func (m *NodeLogTargetMutation) ResetStatErr() {
+	m.stat_err = nil
+	delete(m.clearedFields, nodelogtarget.FieldStatErr)
+}
+
+// SetCapturedAt sets the "captured_at" field.
+func (m *NodeLogTargetMutation) SetCapturedAt(t time.Time) {
+	m.captured_at = &t
+}
+
+// CapturedAt returns the value of the "captured_at" field in the mutation.
+func (m *NodeLogTargetMutation) CapturedAt() (r time.Time, exists bool) {
+	v := m.captured_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCapturedAt returns the old "captured_at" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldCapturedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCapturedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCapturedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCapturedAt: %w", err)
+	}
+	return oldValue.CapturedAt, nil
+}
+
+// ResetCapturedAt resets all changes to the "captured_at" field.
+func (m *NodeLogTargetMutation) ResetCapturedAt() {
+	m.captured_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *NodeLogTargetMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *NodeLogTargetMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the NodeLogTarget entity.
+// If the NodeLogTarget object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeLogTargetMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *NodeLogTargetMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetNodeID sets the "node" edge to the Node entity by id.
+func (m *NodeLogTargetMutation) SetNodeID(id int) {
+	m.node = &id
+}
+
+// ClearNode clears the "node" edge to the Node entity.
+func (m *NodeLogTargetMutation) ClearNode() {
+	m.clearednode = true
+}
+
+// NodeCleared reports if the "node" edge to the Node entity was cleared.
+func (m *NodeLogTargetMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeID returns the "node" edge ID in the mutation.
+func (m *NodeLogTargetMutation) NodeID() (id int, exists bool) {
+	if m.node != nil {
+		return *m.node, true
+	}
+	return
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *NodeLogTargetMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *NodeLogTargetMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// Where appends a list predicates to the NodeLogTargetMutation builder.
+func (m *NodeLogTargetMutation) Where(ps ...predicate.NodeLogTarget) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the NodeLogTargetMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *NodeLogTargetMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.NodeLogTarget, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *NodeLogTargetMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *NodeLogTargetMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (NodeLogTarget).
+func (m *NodeLogTargetMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *NodeLogTargetMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m._path != nil {
+		fields = append(fields, nodelogtarget.FieldPath)
+	}
+	if m._type != nil {
+		fields = append(fields, nodelogtarget.FieldType)
+	}
+	if m.format != nil {
+		fields = append(fields, nodelogtarget.FieldFormat)
+	}
+	if m.level != nil {
+		fields = append(fields, nodelogtarget.FieldLevel)
+	}
+	if m.is_syslog != nil {
+		fields = append(fields, nodelogtarget.FieldIsSyslog)
+	}
+	if m.is_off != nil {
+		fields = append(fields, nodelogtarget.FieldIsOff)
+	}
+	if m.has_variable != nil {
+		fields = append(fields, nodelogtarget.FieldHasVariable)
+	}
+	if m.skip_reason != nil {
+		fields = append(fields, nodelogtarget.FieldSkipReason)
+	}
+	if m.size != nil {
+		fields = append(fields, nodelogtarget.FieldSize)
+	}
+	if m.inode != nil {
+		fields = append(fields, nodelogtarget.FieldInode)
+	}
+	if m.stat_err != nil {
+		fields = append(fields, nodelogtarget.FieldStatErr)
+	}
+	if m.captured_at != nil {
+		fields = append(fields, nodelogtarget.FieldCapturedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, nodelogtarget.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *NodeLogTargetMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case nodelogtarget.FieldPath:
+		return m.Path()
+	case nodelogtarget.FieldType:
+		return m.GetType()
+	case nodelogtarget.FieldFormat:
+		return m.Format()
+	case nodelogtarget.FieldLevel:
+		return m.Level()
+	case nodelogtarget.FieldIsSyslog:
+		return m.IsSyslog()
+	case nodelogtarget.FieldIsOff:
+		return m.IsOff()
+	case nodelogtarget.FieldHasVariable:
+		return m.HasVariable()
+	case nodelogtarget.FieldSkipReason:
+		return m.SkipReason()
+	case nodelogtarget.FieldSize:
+		return m.Size()
+	case nodelogtarget.FieldInode:
+		return m.Inode()
+	case nodelogtarget.FieldStatErr:
+		return m.StatErr()
+	case nodelogtarget.FieldCapturedAt:
+		return m.CapturedAt()
+	case nodelogtarget.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *NodeLogTargetMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case nodelogtarget.FieldPath:
+		return m.OldPath(ctx)
+	case nodelogtarget.FieldType:
+		return m.OldType(ctx)
+	case nodelogtarget.FieldFormat:
+		return m.OldFormat(ctx)
+	case nodelogtarget.FieldLevel:
+		return m.OldLevel(ctx)
+	case nodelogtarget.FieldIsSyslog:
+		return m.OldIsSyslog(ctx)
+	case nodelogtarget.FieldIsOff:
+		return m.OldIsOff(ctx)
+	case nodelogtarget.FieldHasVariable:
+		return m.OldHasVariable(ctx)
+	case nodelogtarget.FieldSkipReason:
+		return m.OldSkipReason(ctx)
+	case nodelogtarget.FieldSize:
+		return m.OldSize(ctx)
+	case nodelogtarget.FieldInode:
+		return m.OldInode(ctx)
+	case nodelogtarget.FieldStatErr:
+		return m.OldStatErr(ctx)
+	case nodelogtarget.FieldCapturedAt:
+		return m.OldCapturedAt(ctx)
+	case nodelogtarget.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown NodeLogTarget field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NodeLogTargetMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case nodelogtarget.FieldPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPath(v)
+		return nil
+	case nodelogtarget.FieldType:
+		v, ok := value.(nodelogtarget.Type)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case nodelogtarget.FieldFormat:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFormat(v)
+		return nil
+	case nodelogtarget.FieldLevel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLevel(v)
+		return nil
+	case nodelogtarget.FieldIsSyslog:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsSyslog(v)
+		return nil
+	case nodelogtarget.FieldIsOff:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsOff(v)
+		return nil
+	case nodelogtarget.FieldHasVariable:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHasVariable(v)
+		return nil
+	case nodelogtarget.FieldSkipReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSkipReason(v)
+		return nil
+	case nodelogtarget.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
+		return nil
+	case nodelogtarget.FieldInode:
+		v, ok := value.(uint64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInode(v)
+		return nil
+	case nodelogtarget.FieldStatErr:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatErr(v)
+		return nil
+	case nodelogtarget.FieldCapturedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCapturedAt(v)
+		return nil
+	case nodelogtarget.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NodeLogTarget field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *NodeLogTargetMutation) AddedFields() []string {
+	var fields []string
+	if m.addsize != nil {
+		fields = append(fields, nodelogtarget.FieldSize)
+	}
+	if m.addinode != nil {
+		fields = append(fields, nodelogtarget.FieldInode)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *NodeLogTargetMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case nodelogtarget.FieldSize:
+		return m.AddedSize()
+	case nodelogtarget.FieldInode:
+		return m.AddedInode()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NodeLogTargetMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case nodelogtarget.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
+	case nodelogtarget.FieldInode:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInode(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NodeLogTarget numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *NodeLogTargetMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(nodelogtarget.FieldFormat) {
+		fields = append(fields, nodelogtarget.FieldFormat)
+	}
+	if m.FieldCleared(nodelogtarget.FieldLevel) {
+		fields = append(fields, nodelogtarget.FieldLevel)
+	}
+	if m.FieldCleared(nodelogtarget.FieldSkipReason) {
+		fields = append(fields, nodelogtarget.FieldSkipReason)
+	}
+	if m.FieldCleared(nodelogtarget.FieldStatErr) {
+		fields = append(fields, nodelogtarget.FieldStatErr)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *NodeLogTargetMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *NodeLogTargetMutation) ClearField(name string) error {
+	switch name {
+	case nodelogtarget.FieldFormat:
+		m.ClearFormat()
+		return nil
+	case nodelogtarget.FieldLevel:
+		m.ClearLevel()
+		return nil
+	case nodelogtarget.FieldSkipReason:
+		m.ClearSkipReason()
+		return nil
+	case nodelogtarget.FieldStatErr:
+		m.ClearStatErr()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeLogTarget nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *NodeLogTargetMutation) ResetField(name string) error {
+	switch name {
+	case nodelogtarget.FieldPath:
+		m.ResetPath()
+		return nil
+	case nodelogtarget.FieldType:
+		m.ResetType()
+		return nil
+	case nodelogtarget.FieldFormat:
+		m.ResetFormat()
+		return nil
+	case nodelogtarget.FieldLevel:
+		m.ResetLevel()
+		return nil
+	case nodelogtarget.FieldIsSyslog:
+		m.ResetIsSyslog()
+		return nil
+	case nodelogtarget.FieldIsOff:
+		m.ResetIsOff()
+		return nil
+	case nodelogtarget.FieldHasVariable:
+		m.ResetHasVariable()
+		return nil
+	case nodelogtarget.FieldSkipReason:
+		m.ResetSkipReason()
+		return nil
+	case nodelogtarget.FieldSize:
+		m.ResetSize()
+		return nil
+	case nodelogtarget.FieldInode:
+		m.ResetInode()
+		return nil
+	case nodelogtarget.FieldStatErr:
+		m.ResetStatErr()
+		return nil
+	case nodelogtarget.FieldCapturedAt:
+		m.ResetCapturedAt()
+		return nil
+	case nodelogtarget.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeLogTarget field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *NodeLogTargetMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.node != nil {
+		edges = append(edges, nodelogtarget.EdgeNode)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *NodeLogTargetMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case nodelogtarget.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *NodeLogTargetMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *NodeLogTargetMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *NodeLogTargetMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearednode {
+		edges = append(edges, nodelogtarget.EdgeNode)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *NodeLogTargetMutation) EdgeCleared(name string) bool {
+	switch name {
+	case nodelogtarget.EdgeNode:
+		return m.clearednode
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *NodeLogTargetMutation) ClearEdge(name string) error {
+	switch name {
+	case nodelogtarget.EdgeNode:
+		m.ClearNode()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeLogTarget unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *NodeLogTargetMutation) ResetEdge(name string) error {
+	switch name {
+	case nodelogtarget.EdgeNode:
+		m.ResetNode()
+		return nil
+	}
+	return fmt.Errorf("unknown NodeLogTarget edge %s", name)
 }
 
 // RealServerMutation represents an operation that mutates the RealServer nodes in the graph.
