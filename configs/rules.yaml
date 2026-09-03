@@ -1,0 +1,50 @@
+# NGX-CP 语义校验规则配置
+# 指令 → 需要的编译模块（与 capability 模块名一致：http_ssl / stream / nginx_upstream_check_module ...）
+module_requirements:
+  check:               nginx_upstream_check_module
+  ssl_certificate:     http_ssl
+  ssl_certificate_key: http_ssl
+  ssl:                 http_ssl
+  http2:               http_v2
+  http3:               http_v3
+  quic:                http_v3
+  brotli:              ngx_brotli
+  brotli_static:       ngx_brotli
+  real_ip_header:      http_realip
+  set_real_ip_from:    http_realip
+  stub_status:         http_stub_status
+  js_import:           njs
+  js_content:          njs
+  js_set:              njs
+  grpc_pass:           http_grpc
+  preread:             stream_ssl_preread
+  ssl_preread:         stream_ssl_preread
+
+# 规则开关：true 启用 / false 关闭。缺省视为启用。
+rules:
+  module_check:   true
+  cert_ref:       true
+  upstream_reach: true
+  port_conflict:  true
+  stream_block:   true
+  dr_port:        true
+  security:       true
+
+# 安全基线阈值
+security:
+  require_server_tokens_off: true
+  min_tls:                   TLSv1.2
+  forbid_dot_git_location:   true
+  forbidden_paths:
+    - .git
+    - .env
+    - .sql
+    - .bak
+
+# DR 模式：集群 VIP 列表（RS 不应直接 listen 这些地址）
+dr:
+  vips: []
+
+# upstream 可达性探测（默认关闭，避免控制面/测试网络抖动）
+upstream:
+  resolve_dns: false

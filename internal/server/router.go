@@ -18,7 +18,8 @@ import (
 // sessions 提供实时会话指标（时钟偏差），注入 handler 后随节点详情返回。
 // cfgStore 为 T021 配置版本化存储（与 nodeSvc 共用同一 ent 客户端）。
 // validator 为 T024 校验触发入口（*transport.Server 经心跳命令流驱动 Agent 跑 nginx -t）。
-func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator) *gin.Engine {
+// semantic 为 T025 语义校验器（复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎）。
+func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -66,7 +67,10 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 
 			// T024 配置校验：触发目标 Agent 跑 nginx -t（写类操作，需鉴权）。
 			vh := handler.NewValidateHandler(validator)
+			vh.SetSemanticChecker(semantic)
 			cs.POST("/validate", auth, vh.Validate)
+			// T025 语义校验：对节点当前配置跑规则引擎（读类分析，需鉴权）。
+			cs.POST("/semantic-check", auth, vh.SemanticCheck)
 		}
 	}
 	return r

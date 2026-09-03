@@ -11,6 +11,7 @@ import (
 	"github.com/th/ngxcp/internal/agent/transport"
 	"github.com/th/ngxcp/internal/config"
 	configstore "github.com/th/ngxcp/internal/domain/config"
+	"github.com/th/ngxcp/internal/domain/config/rules"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/logging"
@@ -83,9 +84,14 @@ func Run(cfg *config.Config) error {
 		}
 	})
 
+	// T025 语义校验器：复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎。
+	// rules.yaml 缺失时自动回退到内建默认规则，保证控制面始终可用。
+	rulesCfg, _ := rules.LoadConfig("configs/rules.yaml")
+	semantic := configstore.NewSemanticChecker(client, cfgStore, rulesCfg)
+
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv)
+	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv, semantic)
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
 }

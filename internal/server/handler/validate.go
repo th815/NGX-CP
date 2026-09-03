@@ -19,14 +19,20 @@ type ConfigValidator interface {
 	ValidateConfig(ctx context.Context, nodeID int, task *agentv1.ValidateTask) (*agentv1.ValidateResult, error)
 }
 
-// ValidateHandler 处理配置校验 HTTP 入口（T024）。
+// ValidateHandler 处理配置校验 HTTP 入口（T024 nginx -t + T025 语义校验）。
 type ValidateHandler struct {
 	validator ConfigValidator
+	semantic  *config.SemanticChecker
 }
 
 // NewValidateHandler 构造校验处理器。
 func NewValidateHandler(v ConfigValidator) *ValidateHandler {
 	return &ValidateHandler{validator: v}
+}
+
+// SetSemanticChecker 注入语义校验器（T025）。未注入时 /semantic-check 返回 5000。
+func (h *ValidateHandler) SetSemanticChecker(c *config.SemanticChecker) {
+	h.semantic = c
 }
 
 type validateFileReq struct {
@@ -94,5 +100,40 @@ func (h *ValidateHandler) Validate(c *gin.Context) {
 		"ok":     true,
 		"raw":    res.GetRaw(),
 		"errors": res.GetErrors(),
+	})
+}
+
+type semanticCheckReq struct {
+	NodeID int `json:"node_id"`
+}
+
+// SemanticCheck 对指定节点运行语义校验规则（T025），返回结构化的 Issue 列表。
+//
+//	POST /api/v1/configs/semantic-check
+//
+// 成功：200 {code:0, data:{node_id, issues:[...], count}}
+func (h *ValidateHandler) SemanticCheck(c *gin.Context) {
+	var in semanticCheckReq
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "请求体格式非法").WithDetail(err.Error()))
+		return
+	}
+	if in.NodeID <= 0 {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "node_id 必填"))
+		return
+	}
+	if h.semantic == nil {
+		response.Fail(c, apperr.New(apperr.CodeUnavailable, "语义校验器未初始化"))
+		return
+	}
+	issues, err := h.semantic.Check(c.Request.Context(), in.NodeID)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{
+		"node_id": in.NodeID,
+		"issues":  issues,
+		"count":   len(issues),
 	})
 }
