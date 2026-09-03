@@ -1,0 +1,297 @@
+// Package node 实现节点域的核心逻辑：CRUD、能力基线占位、一次性接入令牌。
+// M1 阶段 Agent 尚未常驻，能力上报（T016/T017）与心跳（T015）后续里程碑填充。
+package node
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/th/ngxcp/ent"
+	entnode "github.com/th/ngxcp/ent/node"
+	"github.com/th/ngxcp/internal/pkg/apperr"
+)
+
+// Service 持有 ent 客户端与接入令牌内存表（令牌持久化随 T014 落地）。
+type Service struct {
+	client *ent.Client
+
+	mu     sync.RWMutex
+	tokens map[string]*enrollToken
+}
+
+// New 构造节点服务。
+func New(client *ent.Client) *Service {
+	return &Service{client: client, tokens: make(map[string]*enrollToken)}
+}
+
+// enrollToken 一次性接入令牌记录（只存哈希，原文仅生成时返回一次）。
+// nodeID 用于在 T014 Agent 注册时把令牌回绑到具体节点。
+type enrollToken struct {
+	nodeID    int
+	expiresAt time.Time
+	used      bool
+}
+
+// NodeOut 是节点的对外视图（脱敏后的 DTO）。
+type NodeOut struct {
+	ID               int        `json:"id"`
+	Name             string     `json:"name"`
+	Address          string     `json:"address"`
+	Role             string     `json:"role"`
+	Status           string     `json:"status"`
+	LvsWeight        int        `json:"lvs_weight"`
+	LvsEnabled       bool       `json:"lvs_enabled"`
+	LastHeartbeatAt  *time.Time `json:"last_heartbeat_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+func toOut(n *ent.Node) *NodeOut {
+	out := &NodeOut{
+		ID:          n.ID,
+		Name:        n.Name,
+		Address:     n.Address,
+		Role:        string(n.Role),
+		Status:      string(n.Status),
+		LvsWeight:   n.LvsWeight,
+		LvsEnabled:  n.LvsEnabled,
+		CreatedAt:   n.CreatedAt,
+		UpdatedAt:   n.UpdatedAt,
+	}
+	if !n.LastHeartbeatAt.IsZero() {
+		t := n.LastHeartbeatAt
+		out.LastHeartbeatAt = &t
+	}
+	return out
+}
+
+// ListOpts 列表过滤与分页。
+type ListOpts struct {
+	Role   string
+	Status string
+	Limit  int
+	Offset int
+}
+
+// List 分页列出节点，返回本页数据与总数。
+func (s *Service) List(ctx context.Context, o ListOpts) ([]*NodeOut, int, error) {
+	q := s.client.Node.Query()
+	if o.Role != "" {
+		q = q.Where(entnode.RoleEQ(entnode.Role(o.Role)))
+	}
+	if o.Status != "" {
+		q = q.Where(entnode.StatusEQ(entnode.Status(o.Status)))
+	}
+	total, err := q.Count(ctx)
+	if err != nil {
+		return nil, 0, apperr.Wrap(apperr.CodeInternal, "统计节点数失败", err)
+	}
+	if o.Limit <= 0 || o.Limit > 200 {
+		o.Limit = 50
+	}
+	nodes, err := q.Order(ent.Asc("id")).Offset(o.Offset).Limit(o.Limit).All(ctx)
+	if err != nil {
+		return nil, 0, apperr.Wrap(apperr.CodeInternal, "列出节点失败", err)
+	}
+	out := make([]*NodeOut, 0, len(nodes))
+	for _, n := range nodes {
+		out = append(out, toOut(n))
+	}
+	return out, total, nil
+}
+
+// CreateNodeIn 创建节点入参。
+type CreateNodeIn struct {
+	Name      string `json:"name"`
+	Address   string `json:"address"`
+	Role      string `json:"role"`
+	LvsWeight *int   `json:"lvs_weight,omitempty"`
+}
+
+// Create 新建节点，初态为 enrolling / 角色 unknown（待能力上报后由 T019 识别）。
+func (s *Service) Create(ctx context.Context, in CreateNodeIn) (*NodeOut, error) {
+	if in.Name == "" {
+		return nil, apperr.New(apperr.CodeInvalid, "节点名称不能为空")
+	}
+	role := entnode.RoleUnknown
+	if in.Role != "" {
+		role = entnode.Role(in.Role)
+		if err := entnode.RoleValidator(role); err != nil {
+			return nil, apperr.New(apperr.CodeInvalid, "非法 role")
+		}
+	}
+	w := 1
+	if in.LvsWeight != nil {
+		w = *in.LvsWeight
+	}
+	n, err := s.client.Node.Create().
+		SetName(in.Name).
+		SetAddress(in.Address).
+		SetRole(role).
+		SetStatus(entnode.StatusEnrolling).
+		SetLvsWeight(w).
+		SetLvsEnabled(false).
+		Save(ctx)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "创建节点失败", err)
+	}
+	return toOut(n), nil
+}
+
+// Get 按 ID 取节点；不存在返回 CodeNotFound。
+func (s *Service) Get(ctx context.Context, id int) (*NodeOut, error) {
+	n, err := s.client.Node.Query().Where(entnode.ID(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return nil, apperr.Wrap(apperr.CodeInternal, "查询节点失败", err)
+	}
+	return toOut(n), nil
+}
+
+// UpdateNodeIn 更新节点入参（全部可选，仅更新非空字段）。
+type UpdateNodeIn struct {
+	Name       *string `json:"name,omitempty"`
+	Address    *string `json:"address,omitempty"`
+	Role       *string `json:"role,omitempty"`
+	Status     *string `json:"status,omitempty"`
+	LvsWeight  *int    `json:"lvs_weight,omitempty"`
+	LvsEnabled *bool   `json:"lvs_enabled,omitempty"`
+}
+
+// Update 局部更新节点。
+func (s *Service) Update(ctx context.Context, id int, in UpdateNodeIn) (*NodeOut, error) {
+	u := s.client.Node.UpdateOneID(id)
+	if in.Name != nil {
+		u.SetName(*in.Name)
+	}
+	if in.Address != nil {
+		u.SetAddress(*in.Address)
+	}
+	if in.Role != nil {
+		r := entnode.Role(*in.Role)
+		if err := entnode.RoleValidator(r); err != nil {
+			return nil, apperr.New(apperr.CodeInvalid, "非法 role")
+		}
+		u.SetRole(r)
+	}
+	if in.Status != nil {
+		st := entnode.Status(*in.Status)
+		if err := entnode.StatusValidator(st); err != nil {
+			return nil, apperr.New(apperr.CodeInvalid, "非法 status")
+		}
+		u.SetStatus(st)
+	}
+	if in.LvsWeight != nil {
+		u.SetLvsWeight(*in.LvsWeight)
+	}
+	if in.LvsEnabled != nil {
+		u.SetLvsEnabled(*in.LvsEnabled)
+	}
+	n, err := u.Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return nil, apperr.Wrap(apperr.CodeInternal, "更新节点失败", err)
+	}
+	return toOut(n), nil
+}
+
+// Delete 删除节点。
+func (s *Service) Delete(ctx context.Context, id int) error {
+	err := s.client.Node.DeleteOneID(id).Exec(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return apperr.Wrap(apperr.CodeInternal, "删除节点失败", err)
+	}
+	return nil
+}
+
+// IssueEnrollToken 为指定节点生成一次性接入令牌（格式 ngxcp_<24B base62>），仅返回原文一次。
+// 库中只存 SHA-256 哈希与 nodeID；默认 1h 有效。节点不存在返回 CodeNotFound。
+func (s *Service) IssueEnrollToken(ctx context.Context, id int, ttl time.Duration) (string, time.Time, error) {
+	// 令牌必须绑定到真实存在的节点，否则校验时无法回绑。
+	if _, err := s.Get(ctx, id); err != nil {
+		return "", time.Time{}, err
+	}
+	if ttl <= 0 {
+		ttl = time.Hour
+	}
+	raw, err := newToken()
+	if err != nil {
+		return "", time.Time{}, apperr.Wrap(apperr.CodeInternal, "生成令牌失败", err)
+	}
+	sum := hashToken(raw)
+	exp := time.Now().Add(ttl)
+	s.mu.Lock()
+	s.tokens[sum] = &enrollToken{nodeID: id, expiresAt: exp}
+	s.mu.Unlock()
+	return raw, exp, nil
+}
+
+// VerifyEnrollToken 校验接入令牌：存在 + 未使用 + 未过期，校验成功后标记已用（一次性）。
+// 返回令牌绑定的 nodeID，供 T014 Agent 注册流程把请求回绑到具体节点。
+func (s *Service) VerifyEnrollToken(raw string) (int, error) {
+	sum := hashToken(raw)
+	s.mu.RLock()
+	t, ok := s.tokens[sum]
+	s.mu.RUnlock()
+	if !ok {
+		return 0, apperr.New(apperr.CodeUnauthorized, "令牌无效")
+	}
+	if t.used {
+		return 0, apperr.New(apperr.CodeUnauthorized, "令牌已使用")
+	}
+	if time.Now().After(t.expiresAt) {
+		return 0, apperr.New(apperr.CodeUnauthorized, "令牌已过期")
+	}
+	s.mu.Lock()
+	t.used = true
+	s.mu.Unlock()
+	return t.nodeID, nil
+}
+
+// GetCapability 返回节点能力基线（T016/T017 接入真实上报前先返回占位）。
+func (s *Service) GetCapability(ctx context.Context, id int) (map[string]any, error) {
+	n, err := s.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"node_id": n.ID,
+		"role":    n.Role,
+		"status":  n.Status,
+		"note":    "能力上报（nginx -V / -T 解析）将在 T016/T017 落地",
+	}, nil
+}
+
+// RefreshCapability 触发一次能力刷新（T015 会话管理落地后下发指令；此处仅校验节点存在）。
+func (s *Service) RefreshCapability(ctx context.Context, id int) error {
+	if _, err := s.Get(ctx, id); err != nil {
+		return err
+	}
+	return nil
+}
+
+func newToken() (string, error) {
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "ngxcp_" + base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func hashToken(raw string) string {
+	// 轻量哈希即可：库内只存哈希，原文泄露也无法重放（配合一次性 + 有效期）。
+	sum := sha256.Sum256([]byte(raw))
+	return fmt.Sprintf("%x", sum)
+}

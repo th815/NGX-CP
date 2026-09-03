@@ -30,3 +30,9 @@ log_pretty: true              # 开发态彩色输出；生产置 false（JSON�
 
 security_totp_required: true
 security_session_secret: "change-me-in-prod"
+
+# M1 最小可用鉴权：Bearer 令牌（本地账号 + 多角色留到 M9）。
+# 留空 = 禁用所有写接口（返回 401）；开发态在此填一个值（生产务必改成随机值：openssl rand -hex 32）。
+auth_admin_token: "dev-admin-token"
+# 开发态自动建表；生产置 false 并改用 make migrate-dev。
+db_auto_migrate: true

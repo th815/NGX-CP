@@ -43,6 +43,12 @@ type Config struct {
 
 	TOTPRequired  bool   `mapstructure:"security_totp_required"`
 	SessionSecret string `mapstructure:"security_session_secret"`
+
+	// AuthAdminToken 是 M1 最小可用鉴权：Bearer 令牌（本地账号 + 多角色留到 M9）。
+	// 留空 = 禁用所有写接口（返回 401）；开发态在 config 里填一个值即可。
+	AuthAdminToken string `mapstructure:"auth_admin_token"`
+	// DBAutoMigrate 开发态自动建表；生产置 false 并改用 make migrate-dev。
+	DBAutoMigrate bool `mapstructure:"db_auto_migrate"`
 }
 
 // Load 读取配置文件（可选）并叠加环境变量覆盖。环境变量前缀 NGXCP_，. 替换为 _。
@@ -67,6 +73,8 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("clickhouse_ttl_days", 7)
 	v.SetDefault("storage_snapshots_dir", "/var/lib/ngxcp/snapshots")
 	v.SetDefault("storage_artifacts_dir", "/var/lib/ngxcp/artifacts")
+	v.SetDefault("auth_admin_token", "") // 留空 = 禁用写接口；开发态在 config 里填值
+	v.SetDefault("db_auto_migrate", true) // M1 开发态自动建表；生产置 false 并改用 make migrate-dev
 
 	if path != "" {
 		v.SetConfigFile(path)

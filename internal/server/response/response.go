@@ -1,5 +1,6 @@
-// Package server 是控制面 HTTP 层（gin）。M0 仅暴露 /health 与 /version。
-package server
+// Package response 是控制面 HTTP 层统一的响应封装（成功/列表/失败信封）。
+// 独立成包以避免 server 与 handler 之间的循环依赖。
+package response
 
 import (
 	"net/http"
