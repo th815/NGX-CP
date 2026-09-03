@@ -66,6 +66,8 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			cs.GET("", ch.ListByNode)                  // ?node_id=1 列出节点配置文件
 			cs.GET("/:id", ch.GetFile)                 // 单文件（含当前版本内容）
 			cs.GET("/:id/revisions", ch.ListRevisions) // 版本链
+			cs.GET("/:id/diff", ch.Diff)               // ?from=&to= 两版语义 diff
+			cs.POST("/:id/manual-edit", auth, ch.ManualEdit) // 编辑→保存为新版本（manual_edit）
 
 			// T024 配置校验：触发目标 Agent 跑 nginx -t（写类操作，需鉴权）。
 			vh := handler.NewValidateHandler(validator)

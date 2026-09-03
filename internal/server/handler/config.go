@@ -76,3 +76,80 @@ func parseConfigID(c *gin.Context) (int, error) {
 	}
 	return id, nil
 }
+
+// ManualEdit 把前端编辑器内容存为新版本（来源 manual_edit，T028 编辑→保存）。
+//
+//	POST /api/v1/configs/:id/manual-edit   body { "content": "...", "message": "...", "author": "..." }
+//
+// 成功：200 {code:0, data: 新版本视图}；内容为空：4001。
+// 写入后该文件 current_revision 指向新版本，且 manual_edit 作为平台期望基线，
+// 不会反过来被 T026 漂移检测判为漂移。
+func (h *ConfigHandler) ManualEdit(c *gin.Context) {
+	fileID, err := parseConfigID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	var in struct {
+		Content string `json:"content"`
+		Message string `json:"message"`
+		Author  string `json:"author"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "请求体格式非法").WithDetail(err.Error()))
+		return
+	}
+	if in.Content == "" {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "content 不可为空"))
+		return
+	}
+	author := in.Author
+	if author == "" {
+		author = "web"
+	}
+	rev, err := h.store.CreateRevision(c.Request.Context(), fileID, []byte(in.Content), config.RevisionOpts{
+		Source:  config.SourceManualEdit,
+		Author:  author,
+		Message: in.Message,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, rev)
+}
+
+// Diff 对任意两版配置做语义 diff（T022 + T028）。
+//
+//	GET /api/v1/configs/:id/diff?from=<revID>&to=<revID>
+//
+// 成功：200 {code:0, data:{from, to, stats:{added,deleted,changed}, hunks:[...]}}
+// 参数缺省/非法：4001；版本不存在：4040。
+func (h *ConfigHandler) Diff(c *gin.Context) {
+	fileID, err := parseConfigID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	from, err := strconv.Atoi(c.Query("from"))
+	if err != nil || from <= 0 {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "from 参数必填且为合法版本 ID"))
+		return
+	}
+	to, err := strconv.Atoi(c.Query("to"))
+	if err != nil || to <= 0 {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "to 参数必填且为合法版本 ID"))
+		return
+	}
+	res, err := h.store.DiffRevisions(c.Request.Context(), fileID, from, to)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{
+		"from":  res.OldRev,
+		"to":    res.NewRev,
+		"stats": res.Stats,
+		"hunks": res.Hunks,
+	})
+}

@@ -36,23 +36,27 @@ type DiffResult struct {
 
 // Hunk 是一个连续差异区块（对应 unified diff 的 @@ ... @@）。
 type Hunk struct {
-	OldStart, OldLines int
-	NewStart, NewLines int
-	Lines              []DiffLine
+	OldStart int        `json:"old_start"`
+	OldLines int        `json:"old_lines"`
+	NewStart int        `json:"new_start"`
+	NewLines int        `json:"new_lines"`
+	Lines    []DiffLine `json:"lines"`
 }
 
 // DiffLine 是 Hunk 内的一行，Type 为 "add" | "del" | "context"。
 // OldNo/NewNo 为 0 表示该行在对应版本中不存在（新增行无 OldNo，删除行无 NewNo）。
 type DiffLine struct {
-	Type    string
-	Content string
-	OldNo   int
-	NewNo   int
+	Type    string `json:"type"`
+	Content string `json:"content"`
+	OldNo   int    `json:"old_no"`
+	NewNo   int    `json:"new_no"`
 }
 
 // DiffStats 汇总增删改行数。
 type DiffStats struct {
-	Added, Deleted, Changed int
+	Added   int `json:"added"`
+	Deleted int `json:"deleted"`
+	Changed int `json:"changed"`
 }
 
 var hunkHeaderRe = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@`)
