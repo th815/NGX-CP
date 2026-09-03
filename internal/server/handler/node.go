@@ -13,12 +13,14 @@ import (
 
 // NodeHandler 节点相关处理器。
 type NodeHandler struct {
-	svc *node.Service
+	svc  *node.Service
+	// skew 返回节点与控制面的时钟偏差（秒）及是否在线记录到偏差；nil 表示无会话管理。
+	skew func(int) (float64, bool)
 }
 
-// NewNodeHandler 构造节点处理器。
-func NewNodeHandler(svc *node.Service) *NodeHandler {
-	return &NodeHandler{svc: svc}
+// NewNodeHandler 构造节点处理器。skew 可选（无会话管理时传 nil）。
+func NewNodeHandler(svc *node.Service, skew func(int) (float64, bool)) *NodeHandler {
+	return &NodeHandler{svc: svc, skew: skew}
 }
 
 // List 列出节点（支持 role / status 过滤与分页）。
@@ -48,6 +50,12 @@ func (h *NodeHandler) Get(c *gin.Context) {
 	if err != nil {
 		response.Fail(c, err)
 		return
+	}
+	// 注入实时会话指标：时钟偏差（T015）。
+	if h.skew != nil {
+		if s, ok := h.skew(id); ok {
+			out.ClockSkewSeconds = &s
+		}
 	}
 	response.OK(c, out)
 }

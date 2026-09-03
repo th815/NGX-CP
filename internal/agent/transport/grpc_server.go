@@ -11,6 +11,8 @@ import (
 	"time"
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
+	"github.com/th/ngxcp/internal/agent/session"
+	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -31,34 +33,47 @@ type EnrollBackend interface {
 // enrollCertTTL Agent 注册后签发的客户端证书有效期（默认 1 年，到期前由控制面触发续签）。
 const enrollCertTTL = 365 * 24 * time.Hour
 
-// defaultServerConfig 注册响应下发的采集/心跳配置（与 proto 默认值一致）。
-func defaultServerConfig() *agentv1.ServerConfig {
-	return &agentv1.ServerConfig{
-		HeartbeatIntervalSec: 10,
-		HeartbeatTimeoutSec:  30,
-		ClockSkewWarnSec:     1,
-	}
-}
-
 // Server 实现 agentv1.AgentServiceServer。
 type Server struct {
 	agentv1.UnimplementedAgentServiceServer
 	log          *slog.Logger
 	ca           *pki.CA
 	enroll       EnrollBackend
+	nodeSvc      *node.Service      // 心跳落库 / 状态机（T015）
+	sessions     *session.SessionManager // 会话管理（T015）
+	hbCfg        session.HeartbeatConfig  // 心跳参数（T015）
 	serverConfig *agentv1.ServerConfig
 }
 
-// NewServer 构造 gRPC 服务端。ca 用于签发 Agent 客户端证书；enroll 用于校验接入令牌并回绑节点。
-func NewServer(log *slog.Logger, ca *pki.CA, enroll EnrollBackend) *Server {
+// NewServer 构造 gRPC 服务端。
+// ca 用于签发 Agent 客户端证书；enroll 用于校验接入令牌并回绑节点；
+// nodeSvc / sessions / hbCfg 为 T015 心跳与会话管理所需（可传 nil 以满足纯注册单测）。
+func NewServer(log *slog.Logger, ca *pki.CA, enroll EnrollBackend, nodeSvc *node.Service, sessions *session.SessionManager, hbCfg session.HeartbeatConfig) *Server {
 	if log == nil {
 		log = slog.Default()
+	}
+	sc := &agentv1.ServerConfig{
+		HeartbeatIntervalSec: 10,
+		HeartbeatTimeoutSec:  30,
+		ClockSkewWarnSec:     1,
+	}
+	if hbCfg.Interval > 0 {
+		sc.HeartbeatIntervalSec = int64(hbCfg.Interval.Seconds())
+	}
+	if hbCfg.Timeout > 0 {
+		sc.HeartbeatTimeoutSec = int64(hbCfg.Timeout.Seconds())
+	}
+	if hbCfg.ClockSkewWarn > 0 {
+		sc.ClockSkewWarnSec = int64(hbCfg.ClockSkewWarn.Seconds())
 	}
 	return &Server{
 		log:          log,
 		ca:           ca,
 		enroll:       enroll,
-		serverConfig: defaultServerConfig(),
+		nodeSvc:      nodeSvc,
+		sessions:     sessions,
+		hbCfg:        hbCfg,
+		serverConfig: sc,
 	}
 }
 
@@ -102,14 +117,116 @@ func (s *Server) Register(ctx context.Context, req *agentv1.RegisterRequest) (*a
 	}, nil
 }
 
-// ReportCapability 能力上报落库（T015 落地）。
-func (s *Server) ReportCapability(_ context.Context, _ *agentv1.CapabilityReport) (*agentv1.Ack, error) {
-	return nil, status.Error(codes.Unimplemented, "能力上报落库将在 T015 接入")
+// ReportCapability 能力上报落库（T016/T017 解析结果经 Agent 采集后入库）。
+// 身份来自 mTLS 证书 Serial（NodeIDFromContext），proto 里的 node_id 不可信，直接忽略。
+// 上报成功后按 FSM 将 enrolling → online。
+func (s *Server) ReportCapability(ctx context.Context, req *agentv1.CapabilityReport) (*agentv1.Ack, error) {
+	nodeID, err := NodeIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cap := req.GetCapability()
+	if cap == nil {
+		return nil, status.Error(codes.InvalidArgument, "缺少 capability")
+	}
+	if s.nodeSvc == nil {
+		return nil, status.Error(codes.Internal, "节点服务未注入")
+	}
+	in := node.CapabilityIn{
+		Hostname:      cap.GetHostname(),
+		OS:            cap.GetOs(),
+		Kernel:        cap.GetKernel(),
+		HasKeepalived: cap.GetHasKeepalived(),
+		HasIPVS:       cap.GetHasIpvsadm(),
+	}
+	if ng := cap.GetNginx(); ng != nil {
+		in.NginxVersion = ng.GetVersion()
+		in.NginxPrefix = ng.GetPrefix()
+		in.NginxConfPath = ng.GetConfPath()
+		in.NginxSbinPath = ng.GetSbinPath()
+		in.NginxModules = ng.GetStaticModules()
+		in.NginxRawArgs = ng.GetConfigureArgs()
+		in.ConfigHash = ng.GetConfigHash()
+	}
+	if err := s.nodeSvc.SaveCapability(ctx, nodeID, in); err != nil {
+		return nil, status.Error(codes.Internal, "落库能力基线失败: "+err.Error())
+	}
+	s.log.Info("capability reported", "node_id", nodeID, "has_nginx", cap.GetNginx() != nil)
+	return &agentv1.Ack{Ok: true}, nil
 }
 
-// Heartbeat 双向流会话管理（T015 落地）。
-func (s *Server) Heartbeat(_ agentv1.AgentService_HeartbeatServer) error {
-	return status.Error(codes.Unimplemented, "心跳会话管理将在 T015 接入")
+// Heartbeat 双向流：Agent 周期上报，控制面可随时经 CmdCh 下发指令（刷新能力 / 跑合规）。
+//
+// 并发与资源陷阱处理（见 docs/tasks/M1-skeleton.md T015）：
+//   - 单写 goroutine 消费 CmdCh → stream.Send，杜绝 SendMsg 并发调用。
+//   - 写入 goroutine 在 stream.Context().Done()（流断开）或 CmdCh 关闭时退出，无 goroutine 泄漏。
+//   - 读循环 Recv 出错即 return，defer Unregister 清理会话，与写入 goroutine 解耦。
+//   - 时钟偏差由控制面本地 now 与 Agent 上报 timestamp 之差计算，心跳超时同样用控制面本地时间。
+func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
+	nodeID, err := NodeIDFromContext(stream.Context())
+	if err != nil {
+		return err
+	}
+	if s.sessions == nil {
+		return status.Error(codes.Internal, "会话管理器未注入")
+	}
+
+	sess := &session.Session{
+		NodeID:   nodeID,
+		LastSeen: time.Now(),
+		CmdCh:    make(chan *agentv1.HeartbeatResponse, 16),
+	}
+	s.sessions.Register(nodeID, sess)
+	defer s.sessions.Unregister(nodeID)
+
+	// 首跳即证明 Agent 存活：刷新心跳时间并翻转 enrolling/offline → online。
+	if s.nodeSvc != nil {
+		if err := s.nodeSvc.TouchHeartbeat(stream.Context(), nodeID); err != nil {
+			s.log.Warn("heartbeat touch failed", "node_id", nodeID, "err", err)
+		}
+	}
+
+	// 单写 goroutine：把会话指令下发到 Agent。
+	go func() {
+		for {
+			select {
+			case <-stream.Context().Done():
+				return
+			case cmd, ok := <-sess.CmdCh:
+				if !ok {
+					return
+				}
+				if err := stream.Send(cmd); err != nil {
+					s.log.Debug("heartbeat command send failed", "node_id", nodeID, "err", err)
+					return
+				}
+			}
+		}
+	}()
+
+	// 读循环：接收心跳，刷新 LastSeen 与时钟偏差。
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			return err // 断开 → defer 清理会话
+		}
+		now := time.Now()
+		s.sessions.UpdateLastSeen(nodeID, now)
+
+		if ts := req.GetTimestamp(); ts > 0 {
+			skew := now.Sub(time.Unix(ts, 0))
+			s.sessions.SetClockSkew(nodeID, skew)
+			if s.hbCfg.ClockSkewWarn > 0 && skew.Abs() > s.hbCfg.ClockSkewWarn {
+				s.log.Warn("agent clock skew exceeds threshold",
+					"node_id", nodeID, "skew_seconds", skew.Seconds())
+				// TODO(T018): 产生一条 WARN 审计/告警事件供监控汇聚。
+			}
+		}
+
+		if s.nodeSvc != nil {
+			_ = s.nodeSvc.TouchHeartbeat(stream.Context(), nodeID)
+		}
+	}
 }
 
 // NodeIDFromContext 从已验证的 mTLS 对端证书 Serial 反查 nodeID。
@@ -142,13 +259,15 @@ func (s *Server) UnaryAuth(ctx context.Context, req any, info *grpc.UnaryServerI
 }
 
 // StreamAuth 流式拦截器：当前仅 Heartbeat；强制 mTLS 客户端证书。
-func (s *Server) StreamAuth(_ any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+// 注意：handler 的第一个参数必须是 gRPC 框架传入的 service 实现（srv），传 nil 会在
+// 生成的 _Handler 里做接口断言时 panic。
+func (s *Server) StreamAuth(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	if info.FullMethod == "/agent.v1.AgentService/Heartbeat" {
 		if _, err := NodeIDFromContext(ss.Context()); err != nil {
 			return err
 		}
 	}
-	return handler(nil, ss)
+	return handler(srv, ss)
 }
 
 // Attach 将本服务注册到 grpc.Server。

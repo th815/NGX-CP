@@ -7,12 +7,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/th/ngxcp/ent"
 	entnode "github.com/th/ngxcp/ent/node"
+	entnodecap "github.com/th/ngxcp/ent/nodecapability"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 )
 
@@ -50,6 +52,7 @@ type NodeOut struct {
 	LvsWeight        int        `json:"lvs_weight"`
 	LvsEnabled       bool       `json:"lvs_enabled"`
 	LastHeartbeatAt  *time.Time `json:"last_heartbeat_at,omitempty"`
+	ClockSkewSeconds *float64   `json:"clock_skew_seconds,omitempty"` // T015：仅在线且上报过时间戳时存在
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -278,6 +281,141 @@ func (s *Service) MarkEnrolled(ctx context.Context, id int) error {
 		return apperr.Wrap(apperr.CodeInternal, "标记节点已注册失败", err)
 	}
 	return nil
+}
+
+// ---- T015：心跳与会话状态机 ----
+
+// TouchHeartbeat 处理一次心跳到达：刷新 last_heartbeat_at，并把 enrolling/offline 拉回 online。
+// 状态转移遵循 FSM：enrolling --(首跳)--> online；offline --(重连)--> online。
+// 仅校验节点存在（不存在返回 CodeNotFound），超时判定由 SessionManager 扫描器负责（用控制面本地时间）。
+func (s *Service) TouchHeartbeat(ctx context.Context, id int) error {
+	now := time.Now()
+	if _, err := s.client.Node.UpdateOneID(id).
+		SetLastHeartbeatAt(now).
+		Save(ctx); err != nil {
+		if ent.IsNotFound(err) {
+			return apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return apperr.Wrap(apperr.CodeInternal, "更新心跳时间失败", err)
+	}
+	// 仅在确需翻转时才发第二句 UPDATE，避免无谓写放大。
+	if _, err := s.client.Node.UpdateOneID(id).
+		Where(entnode.StatusIn(entnode.StatusEnrolling, entnode.StatusOffline)).
+		SetStatus(entnode.StatusOnline).
+		Save(ctx); err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "翻转节点在线态失败", err)
+	}
+	return nil
+}
+
+// MarkOffline 将节点从 online 标记为 offline（T015 扫描器在超时无心跳时调用）。
+// 仅当节点当前为 online 才翻转，避免把 enrolling/degraded 误置为 offline。
+func (s *Service) MarkOffline(ctx context.Context, id int) error {
+	_, err := s.client.Node.UpdateOneID(id).
+		Where(entnode.StatusEQ(entnode.StatusOnline)).
+		SetStatus(entnode.StatusOffline).
+		Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return apperr.New(apperr.CodeNotFound, "节点不存在")
+		}
+		return apperr.Wrap(apperr.CodeInternal, "标记节点离线失败", err)
+	}
+	return nil
+}
+
+// CapabilityIn 是 Agent 上报的能力基线入参（由传输层从 proto 映射，避免域层依赖 gRPC 契约）。
+type CapabilityIn struct {
+	Hostname      string
+	OS            string
+	Kernel        string
+	HasKeepalived bool
+	HasIPVS       bool
+	NginxVersion  string
+	NginxPrefix   string
+	NginxConfPath string
+	NginxSbinPath string
+	NginxModules  []string
+	NginxRawArgs  string
+	ConfigHash    string
+}
+
+// SaveCapability 落库节点能力基线（T016/T017 解析结果）。按 nodeID upsert 到 node_capabilities，
+// 并计算整份画像的 checksum 便于双机一致性 diff。能力上报成功后按 FSM 将 enrolling 拉到 online。
+func (s *Service) SaveCapability(ctx context.Context, id int, in CapabilityIn) error {
+	// 节点必须存在。
+	if _, err := s.Get(ctx, id); err != nil {
+		return err
+	}
+	modules := in.NginxModules
+	if modules == nil {
+		modules = []string{}
+	}
+	checksum := capabilityChecksum(in)
+
+	existing, err := s.client.NodeCapability.Query().
+		Where(entnodecap.HasNodeWith(entnode.ID(id))).
+		Exist(ctx)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "查询已有能力基线失败", err)
+	}
+
+	if existing {
+		_, err = s.client.NodeCapability.Update().
+			Where(entnodecap.HasNodeWith(entnode.ID(id))).
+			SetVersion(in.NginxVersion).
+			SetPrefix(in.NginxPrefix).
+			SetConfPath(in.NginxConfPath).
+			SetSbinPath(in.NginxSbinPath).
+			SetModules(modules).
+			SetRawArgs(in.NginxRawArgs).
+			SetChecksum(checksum).
+			SetCapturedAt(time.Now()).
+			Save(ctx)
+	} else {
+		_, err = s.client.NodeCapability.Create().
+			SetNodeID(id).
+			SetVersion(in.NginxVersion).
+			SetPrefix(in.NginxPrefix).
+			SetConfPath(in.NginxConfPath).
+			SetSbinPath(in.NginxSbinPath).
+			SetModules(modules).
+			SetRawArgs(in.NginxRawArgs).
+			SetChecksum(checksum).
+			SetCapturedAt(time.Now()).
+			Save(ctx)
+	}
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "落库能力基线失败", err)
+	}
+
+	// 能力上报成功：enrolling --(capability)--> online。
+	if _, err := s.client.Node.UpdateOneID(id).
+		Where(entnode.StatusEQ(entnode.StatusEnrolling)).
+		SetStatus(entnode.StatusOnline).
+		Save(ctx); err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "翻转节点在线态失败", err)
+	}
+	return nil
+}
+
+// capabilityChecksum 对能力画像做内容寻址哈希（双机一致性 diff 用）。
+func capabilityChecksum(in CapabilityIn) string {
+	modules := in.NginxModules
+	if modules == nil {
+		modules = []string{}
+	}
+	h := sha256.New()
+	_, _ = h.Write([]byte(in.NginxVersion + "\x00"))
+	_, _ = h.Write([]byte(in.NginxPrefix + "\x00"))
+	_, _ = h.Write([]byte(in.NginxConfPath + "\x00"))
+	_, _ = h.Write([]byte(in.NginxSbinPath + "\x00"))
+	for _, m := range modules {
+		_, _ = h.Write([]byte(m + "\x00"))
+	}
+	_, _ = h.Write([]byte(in.NginxRawArgs + "\x00"))
+	_, _ = h.Write([]byte(in.ConfigHash + "\x00"))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // GetCapability 返回节点能力基线（真实解析器已在 internal/agent/capability 落地：

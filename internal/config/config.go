@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -48,6 +49,13 @@ type Config struct {
 	AuthAdminToken string `mapstructure:"auth_admin_token"`
 	// DBAutoMigrate 开发态自动建表；生产置 false 并改用 make migrate-dev。
 	DBAutoMigrate bool `mapstructure:"db_auto_migrate"`
+
+	// 心跳 / 会话管理（T015）。Agent 注册后常驻，周期上报心跳维持长连接。
+	AgentHeartbeatInterval time.Duration `mapstructure:"agent_heartbeat_interval"` // 期望上报间隔，默认 10s
+	AgentHeartbeatTimeout  time.Duration `mapstructure:"agent_heartbeat_timeout"`  // 超过未心跳 → offline，默认 30s
+	AgentReconnectBase     time.Duration `mapstructure:"agent_reconnect_base"`     // 重连指数退避基数，默认 1s
+	AgentReconnectMax      time.Duration `mapstructure:"agent_reconnect_max"`      // 重连退避上限，默认 60s
+	AgentClockSkewWarn     time.Duration `mapstructure:"agent_clock_skew_warn"`    // 时钟偏差告警阈值，默认 1s
 }
 
 // Load 读取配置文件（可选）并叠加环境变量覆盖。环境变量前缀 NGXCP_，. 替换为 _。
@@ -74,6 +82,13 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("storage_artifacts_dir", "/var/lib/ngxcp/artifacts")
 	v.SetDefault("auth_admin_token", "") // 留空 = 禁用写接口；开发态在 config 里填值
 	v.SetDefault("db_auto_migrate", true) // M1 开发态自动建表；生产置 false 并改用 make migrate-dev
+
+	// T015 心跳 / 会话默认值（与 proto ServerConfig 一致）。
+	v.SetDefault("agent_heartbeat_interval", 10*time.Second)
+	v.SetDefault("agent_heartbeat_timeout", 30*time.Second)
+	v.SetDefault("agent_reconnect_base", 1*time.Second)
+	v.SetDefault("agent_reconnect_max", 60*time.Second)
+	v.SetDefault("agent_clock_skew_warn", 1*time.Second)
 
 	if path != "" {
 		v.SetConfigFile(path)

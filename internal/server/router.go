@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/config"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/server/handler"
@@ -13,7 +14,8 @@ import (
 // buildRouter 构建 gin 引擎：中间件 + 路由（M1 节点域）。
 // 鉴权策略（M1 最小可用）：只读接口放开，写接口与接入令牌需 Bearer 令牌。
 // nodeSvc 必须与 Agent gRPC 服务共用同一实例——接入令牌的内存表在两处共享（HTTP 签发 / gRPC 校验）。
-func buildRouter(cfg *config.Config, nodeSvc *node.Service) *gin.Engine {
+// sessions 提供实时会话指标（时钟偏差），注入 handler 后随节点详情返回。
+func buildRouter(cfg *config.Config, nodeSvc *node.Service, sessions *session.SessionManager) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -30,7 +32,7 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service) *gin.Engine {
 			response.OK(c, gin.H{"version": version.String()})
 		})
 
-		nh := handler.NewNodeHandler(nodeSvc)
+		nh := handler.NewNodeHandler(nodeSvc, sessions.ClockSkewSeconds)
 		ns := v1.Group("/nodes")
 		{
 			// 只读

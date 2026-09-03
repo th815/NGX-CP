@@ -16,7 +16,13 @@ import (
 	"time"
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
+	"github.com/th/ngxcp/ent"
+	entnode "github.com/th/ngxcp/ent/node"
+	entnodecap "github.com/th/ngxcp/ent/nodecapability"
+	"github.com/th/ngxcp/internal/agent/session"
+	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/pki"
+	"github.com/th/ngxcp/internal/repo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -60,13 +66,14 @@ func genCSRPEM(t *testing.T, hostname string, key *ecdsa.PrivateKey) []byte {
 }
 
 // startTestServer 起一个用 CA 的 GRPCServerTLSConfig 的 gRPC 服务，返回地址与停止函数。
+// 用于纯注册单测：心跳/落库相关依赖传 nil / 零值即可（Register 不触碰它们）。
 func startTestServer(t *testing.T, ca *pki.CA, enroll EnrollBackend) (string, func()) {
 	t.Helper()
 	tlsCfg, err := ca.GRPCServerTLSConfig()
 	if err != nil {
 		t.Fatalf("grpc tls config: %v", err)
 	}
-	srv := NewServer(slog.Default(), ca, enroll)
+	srv := NewServer(slog.Default(), ca, enroll, nil, nil, session.HeartbeatConfig{})
 	g := srv.BuildGRPCServer(tlsCfg)
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -206,5 +213,188 @@ func TestHeartbeatRequiresMTLSCert(t *testing.T) {
 	_, err := cli.ReportCapability(context.Background(), &agentv1.CapabilityReport{NodeId: 7})
 	if status.Code(err) != codes.Unauthenticated {
 		t.Fatalf("期望 Unauthenticated, 实际 %v (拦截器未生效)", err)
+	}
+}
+
+// ---- T015：心跳与会话管理 ----
+
+// pemKey 把 ECDSA 私钥编码为 PEM（供客户端 mTLS 凭证使用）。
+func pemKey(t *testing.T, key *ecdsa.PrivateKey) []byte {
+	t.Helper()
+	b, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: b})
+}
+
+// clientCredsForNode 用控制面 CA 为指定 nodeID 签发客户端证书，构造 mTLS 客户端凭证。
+func clientCredsForNode(t *testing.T, ca *pki.CA, nodeID int, hostname string, key *ecdsa.PrivateKey) credentials.TransportCredentials {
+	t.Helper()
+	csrPEM := genCSRPEM(t, hostname, key)
+	_, certPEM, err := ca.IssueAgentCert(csrPEM, nodeID, hostname, time.Hour)
+	if err != nil {
+		t.Fatalf("签发客户端证书: %v", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(ca.CACertPEM()) {
+		t.Fatal("无法将 CA 加入信任池")
+	}
+	return credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{{Certificate: [][]byte{mustDecode(t, certPEM)}, PrivateKey: key}},
+		RootCAs:      pool,
+		ServerName:   pki.ServerCommonName(),
+	})
+}
+
+func mustDecode(t *testing.T, pemBytes []byte) []byte {
+	t.Helper()
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		t.Fatal("无法 PEM 解码证书")
+	}
+	return block.Bytes
+}
+
+// TestHeartbeatStream 验证：持客户端证书的 Agent 可建立心跳双向流；
+// 控制面正确记录会话在线、时钟偏差，并在流断开后注销会话。
+func TestHeartbeatStream(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	sessions := session.NewSessionManager(slog.Default())
+	// nodeSvc 传 nil：本测试只验证传输层 + 会话生命周期，不落库。
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nil, sessions,
+		session.HeartbeatConfig{Timeout: 30 * time.Second, ClockSkewWarn: 1 * time.Second})
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	const nodeID = 9
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+
+	hc, err := cli.Heartbeat(context.Background())
+	if err != nil {
+		t.Fatalf("打开心跳流: %v", err)
+	}
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type:      agentv1.HeartbeatRequest_PING,
+		Timestamp: time.Now().Unix(),
+	}); err != nil {
+		t.Fatalf("发送 PING: %v", err)
+	}
+
+	// 会话应在短时间内注册为在线。
+	waitUntil(t, 2*time.Second, func() bool { return sessions.IsOnline(nodeID) })
+	if sk, ok := sessions.ClockSkewSeconds(nodeID); !ok || sk > 2 || sk < -2 {
+		t.Errorf("时钟偏差 = %v (ok=%v)，期望在 ±2s 内", sk, ok)
+	}
+
+	// 关闭流 → 会话应注销。
+	_ = hc.CloseSend()
+	waitUntil(t, 2*time.Second, func() bool { return !sessions.IsOnline(nodeID) })
+}
+
+// TestReportCapabilityPersists 验证：持 mTLS 证书的 Agent 上报能力基线后，
+// 控制面落库到 node_capabilities 并按 FSM 将 enrolling → online。
+func TestReportCapabilityPersists(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	client, nodeID := newTestNode(t)
+	defer client.Close()
+	nodeSvc := node.New(client)
+	sessions := session.NewSessionManager(slog.Default())
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+
+	_, err = cli.ReportCapability(context.Background(), &agentv1.CapabilityReport{
+		Capability: &agentv1.Capability{
+			Hostname: "rs-09",
+			Nginx: &agentv1.NginxInfo{
+				Version:       "1.30.0",
+				Prefix:        "/etc/nginx",
+				ConfPath:      "/etc/nginx/nginx.conf",
+				SbinPath:      "/usr/sbin/nginx",
+				StaticModules: []string{"http_ssl", "stream", "http_v2"},
+				ConfigureArgs: "--prefix=/etc/nginx --with-http_v3_module",
+				ConfigHash:    "deadbeef",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ReportCapability: %v", err)
+	}
+
+	// 能力基线已落库。
+	got, err := client.NodeCapability.Query().
+		Where(entnodecap.HasNodeWith(entnode.ID(nodeID))).Only(context.Background())
+	if err != nil {
+		t.Fatalf("查询能力基线: %v", err)
+	}
+	if got.Version != "1.30.0" {
+		t.Errorf("Version = %q, want 1.30.0", got.Version)
+	}
+	if len(got.Modules) != 3 || got.Modules[0] != "http_ssl" {
+		t.Errorf("Modules = %v, want [http_ssl stream http_v2]", got.Modules)
+	}
+
+	// 节点由 enrolling 翻为 online。
+	n, err := client.Node.Get(context.Background(), nodeID)
+	if err != nil {
+		t.Fatalf("查询节点: %v", err)
+	}
+	if n.Status != entnode.StatusOnline {
+		t.Errorf("节点状态 = %q, want online", n.Status)
+	}
+}
+
+// newTestNode 起一个内存 sqlite + 自动建表，并创建一个 enrolling 态节点，返回 client 与节点 ID。
+func newTestNode(t *testing.T) (*ent.Client, int) {
+	t.Helper()
+	client, err := repo.Open("sqlite", "file:ngxcp_t015?mode=memory&cache=shared&_fk=1")
+	if err != nil {
+		t.Fatalf("打开测试库: %v", err)
+	}
+	if err := client.Schema.Create(context.Background()); err != nil {
+		t.Fatalf("建表: %v", err)
+	}
+	n, err := client.Node.Create().
+		SetName("rs-09").
+		SetAddress("10.0.0.9").
+		SetRole(entnode.RoleRealServer).
+		SetStatus(entnode.StatusEnrolling).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("创建节点: %v", err)
+	}
+	return client, n.ID
+}
+
+// waitUntil 轮询 cond 直到为真或超时。
+func waitUntil(t *testing.T, timeout time.Duration, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatal("等待条件超时")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
