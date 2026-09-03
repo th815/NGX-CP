@@ -12,11 +12,11 @@ package executor
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/th/ngxcp/internal/agent/probe"
 	"github.com/th/ngxcp/internal/domain/backup"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/atomicfile"
@@ -58,39 +58,11 @@ type DeployResult struct {
 	Restored     bool   // 是否触发了从快照恢复（探活/切换/reload 失败回滚）
 }
 
-// Prober 判断变更后的节点是否健康（T032 内置最小 HTTP 实现；T033 会替换为复合探活）。
+// Prober 判断变更后的节点是否健康。DeployExecutor 通过它做步骤⑧ 探活（失败则回滚）。
+// T033 的复合探活（HTTP/TCP/日志增量/外部）经 executor.probeAdapter 接入本接口；
+// 调用方也可直接 SetProber 注入自定义实现，或用 SetProbeConfigs 配置复合探活。
 type Prober interface {
 	Probe(ctx context.Context) (ok bool, detail string, err error)
-}
-
-// HTTPProber 是最简单的探活：GET 一个 URL，<500 即认为健康。
-type HTTPProber struct {
-	URL     string
-	Timeout time.Duration
-	Client  *http.Client
-}
-
-// Probe 执行一次 HTTP 探活。
-func (p *HTTPProber) Probe(ctx context.Context) (bool, string, error) {
-	timeout := p.Timeout
-	if timeout <= 0 {
-		timeout = 5 * time.Second
-	}
-	client := p.Client
-	if client == nil {
-		client = &http.Client{Timeout: timeout}
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.URL, nil)
-	if err != nil {
-		return false, "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, err.Error(), nil
-	}
-	defer resp.Body.Close()
-	ok := resp.StatusCode < 500
-	return ok, fmt.Sprintf("HTTP %d", resp.StatusCode), nil
 }
 
 // DeployExecutor 在节点上执行 9 步原子落盘。
@@ -140,7 +112,7 @@ func (e *DeployExecutor) Deploy(ctx context.Context, req DeployRequest, progress
 	}
 	prober := e.prober
 	if prober == nil && req.ProbeURL != "" {
-		prober = &HTTPProber{URL: req.ProbeURL, Timeout: req.ProbeTimeout}
+		prober = probeAdapter{probe.NewHTTPProbe(req.ProbeURL, 0, req.ProbeTimeout)}
 	}
 
 	staging := req.StagingDir

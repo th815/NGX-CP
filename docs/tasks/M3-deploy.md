@@ -311,7 +311,7 @@ make e2e
 
 ---
 
-## T033 · 探活器
+## T033 · 探活器 ✅ 已完成（2026-09-04）
 
 **目标**：判断变更后的节点是否真的健康。
 
@@ -319,13 +319,22 @@ make e2e
 
 **涉及文件**：
 ```
-internal/agent/probe/probe.go
-internal/agent/probe/http.go
-internal/agent/probe/tcp.go
-internal/agent/probe/log.go
-internal/agent/probe/composite.go
-internal/agent/probe/probe_test.go
+internal/agent/probe/probe.go          # 核心类型（ProbeType/ProbeConfig/ProbeResult/Prober）+ New 工厂
+internal/agent/probe/http.go            # HTTPProbe（GET URL，<500 或 ExpectCode 即健康）
+internal/agent/probe/tcp.go             # TCPProbe（端口连通）
+internal/agent/probe/log.go             # LogErrorProbe（reload 后观测窗口内错误日志增量）
+internal/agent/probe/composite.go       # CompositeProbe（全部通过才健康，AND 语义）
+internal/agent/probe/probe_test.go      # HTTP/TCP/日志/复合 11 例
+internal/agent/executor/probe_adapter.go # probe.Prober → executor.Prober 适配器 + SetProbeConfigs
+internal/agent/executor/deploy.go        # 删内置 HTTPProber，默认经 adapter 构造 HTTP 探活
 ```
+
+**实现说明（与原任务注释的偏差）**：
+- 复合探活独立成 `internal/agent/probe` 包（不放在 executor 包内），executor 内旧的 `HTTPProber` 已删除以避免重复实现；executor 经 `probeAdapter` 接入 `DeployExecutor.SetProber`/`SetProbeConfigs`，原有 `Prober` 接口签名不变（保证 T032 的 `fakeProber` 测试契约稳定）。
+- `external` 探活复用 `HTTPProbe`（访问 VIP/外部端点），`tcp` 用 `TCPProbe`，`log_error` 用 `LogErrorProbe`（默认窗口 30s、上限 3 条；reload 之后才记录 offset，避免把历史错误算入）。
+- 探活器统一 `Probe(ctx) (*ProbeResult, error)`，受 `context.WithTimeout` 约束（陷阱：不用 http.Client 默认无超时），连接超时在 Timeout 内返回不卡死。
+- 端到端接线（Agent 经 Heartbeat 命令触发探活、控制面从外部探活 VIP）随 M3 集成验收（T037 SSE + 集成）一并落地。
+
 
 **契约**：
 
