@@ -40,6 +40,10 @@ type Service struct {
 	mu     sync.RWMutex
 	tokens map[string]*enrollToken
 
+	// joinTokens 是自注册 Join Token 内存表（与 tokens 同源：持久化随 T014 落地）。
+	// 与 enrollToken 的区别：不绑定具体节点，仅授权「可加入」，注册时由控制面按令牌内嵌角色自动建节点。
+	joinTokens map[string]*joinToken
+
 	// compMu / compReports 缓存各节点最近一次合规自检报告（M1 内存态，无独立表；
 	// 与 clock_skew 同理，真实持久化随 T018/T019 后续里程碑）。
 	compMu      sync.RWMutex
@@ -56,6 +60,7 @@ func New(client *ent.Client, cfgStore *config.ConfigStore) *Service {
 		client:      client,
 		cfgStore:    cfgStore,
 		tokens:      make(map[string]*enrollToken),
+		joinTokens:  make(map[string]*joinToken),
 		compReports: make(map[int]*agentv1.ComplianceReport),
 		fsReports:   make(map[int]*agentv1.FsProbeReport),
 	}
@@ -75,6 +80,14 @@ type enrollToken struct {
 	nodeID    int
 	expiresAt time.Time
 	used      bool
+}
+
+// joinToken 自注册令牌记录（只存哈希，原文仅生成时返回一次）。
+// role 内嵌在令牌中，Agent 持令牌自注册时控制面按此角色自动建节点。
+type joinToken struct {
+	role       string
+	expiresAt  time.Time
+	used       bool
 }
 
 // NodeOut 是节点的对外视图（脱敏后的 DTO）。
@@ -399,6 +412,52 @@ func (s *Service) MarkEnrolled(ctx context.Context, id int) error {
 		return apperr.Wrap(apperr.CodeInternal, "标记节点已注册失败", err)
 	}
 	return nil
+}
+
+// IssueJoinToken 生成一次性自注册令牌（格式 ngxcp_<24B base62>），仅返回原文一次。
+// 库内只存 SHA-256 哈希与内嵌角色；默认 1h 有效。role 非法返回 CodeInvalid。
+// 与 IssueEnrollToken 不同：Join Token 不绑定节点，注册时由控制面自动建节点。
+func (s *Service) IssueJoinToken(ctx context.Context, role string, ttl time.Duration) (string, time.Time, error) {
+	r := entnode.Role(role)
+	if err := entnode.RoleValidator(r); err != nil {
+		return "", time.Time{}, apperr.New(apperr.CodeInvalid, "非法 role: "+role)
+	}
+	if ttl <= 0 {
+		ttl = time.Hour
+	}
+	raw, err := newToken()
+	if err != nil {
+		return "", time.Time{}, apperr.Wrap(apperr.CodeInternal, "生成令牌失败", err)
+	}
+	sum := hashToken(raw)
+	exp := time.Now().Add(ttl)
+	s.mu.Lock()
+	s.joinTokens[sum] = &joinToken{role: role, expiresAt: exp}
+	s.mu.Unlock()
+	return raw, exp, nil
+}
+
+// VerifyJoinToken 校验自注册令牌：存在 + 未使用 + 未过期，成功后标记已用（一次性）。
+// 返回令牌内嵌角色，供 T014 自注册流程按角色自动建节点。
+// 接受 ctx 以便后续令牌持久化（落库）时传递超时/取消。
+func (s *Service) VerifyJoinToken(ctx context.Context, raw string) (string, error) {
+	sum := hashToken(raw)
+	s.mu.RLock()
+	t, ok := s.joinTokens[sum]
+	s.mu.RUnlock()
+	if !ok {
+		return "", apperr.New(apperr.CodeUnauthorized, "令牌无效")
+	}
+	if t.used {
+		return "", apperr.New(apperr.CodeUnauthorized, "令牌已使用")
+	}
+	if time.Now().After(t.expiresAt) {
+		return "", apperr.New(apperr.CodeUnauthorized, "令牌已过期")
+	}
+	s.mu.Lock()
+	t.used = true
+	s.mu.Unlock()
+	return t.role, nil
 }
 
 // ---- T015：心跳与会话状态机 ----

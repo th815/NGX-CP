@@ -7,6 +7,7 @@ import (
 	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/domain/node"
+	"github.com/th/ngxcp/internal/pkg/pki"
 	"github.com/th/ngxcp/internal/pkg/version"
 	"github.com/th/ngxcp/internal/server/handler"
 	"github.com/th/ngxcp/internal/server/middleware"
@@ -23,7 +24,7 @@ import (
 // semantic 为 T025 语义校验器（复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎）。
 // drift 为 T026 漂移检测器（复用 cfgStore + ent 客户端，在配置树上报时即时检测 + 定时巡检）。
 // tmplSvc 为 T027 模板与三级变量服务（复用 ent 客户端，提供配置模板渲染与变量解析）。
-func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub) *gin.Engine {
+func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -34,14 +35,14 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 		response.OK(c, gin.H{"status": "ok"})
 	})
 
+	// 写操作与接入令牌统一需 Bearer 鉴权（M1 最小可用安全策略）。
+	auth := middleware.RequireAuth(cfg.AuthAdminToken)
+
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/version", func(c *gin.Context) {
 			response.OK(c, gin.H{"version": version.String()})
 		})
-
-		// 写操作与接入令牌统一需 Bearer 鉴权（M1 最小可用安全策略）。
-		auth := middleware.RequireAuth(cfg.AuthAdminToken)
 
 		nh := handler.NewNodeHandler(nodeSvc, sessions.ClockSkewSeconds)
 		ns := v1.Group("/nodes")
@@ -125,5 +126,8 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 
 	// T039 内嵌前端（仅 webui 构建生效；非 webui 构建为空操作）。
 	web.RegisterWebUI(r)
+
+	// T040 节点自注册分发：安装脚本 / 引导 CA / 二进制下载 / web 接入控制台 / Join Token 签发。
+	registerAgentDistribution(r, ca, cfg.AgentDistDir, cfg.AgentGRPC, nodeSvc, auth)
 	return r
 }

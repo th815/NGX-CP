@@ -54,6 +54,10 @@ func (f *fakeEnroll) MarkEnrolled(_ context.Context, id int) error {
 	return f.markErr
 }
 
+func (f *fakeEnroll) VerifyJoinToken(_ context.Context, _ string) (string, error) {
+	return "", fmt.Errorf("令牌无效")
+}
+
 // genCSRPEM 用给定私钥生成 CSR 的 PEM（Agent 本地生成密钥，私钥永不出节点）。
 func genCSRPEM(t *testing.T, hostname string, key *ecdsa.PrivateKey) []byte {
 	t.Helper()

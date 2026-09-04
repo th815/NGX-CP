@@ -20,7 +20,8 @@ func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
 	controlPlane := flag.String("control-plane", envOr("NGXCP_AGENT_CONTROL_PLANE", ""), "控制面 gRPC 地址，如 10.0.0.5:8443")
 	caCert := flag.String("ca-cert", envOr("NGXCP_AGENT_CA_CERT", ""), "引导期 CA 证书路径（注册握手信任用）")
-	enrollToken := flag.String("enroll-token", envOr("NGXCP_AGENT_ENROLL_TOKEN", ""), "一次性接入令牌（控制面生成，与节点绑定）")
+	enrollToken := flag.String("enroll-token", envOr("NGXCP_AGENT_ENROLL_TOKEN", ""), "一次性接入令牌（控制面生成，与节点绑定）。与 join-token 互斥")
+	joinToken := flag.String("join-token", envOr("NGXCP_AGENT_JOIN_TOKEN", ""), "自注册 Join Token（控制面生成，未绑定节点）。节点自注册时自动建节点")
 	serverName := flag.String("server-name", envOr("NGXCP_AGENT_SERVER_NAME", ""), "mTLS ServerName，默认取控制面地址的 host")
 	hostname := flag.String("hostname", envOr("NGXCP_AGENT_HOSTNAME", ""), "本机 hostname（证书 SAN + 控制面展示）")
 	dataDir := flag.String("data-dir", envOr("NGXCP_AGENT_DATA_DIR", "/var/lib/ngxcp"), "数据目录（证书/快照）")
@@ -43,6 +44,7 @@ func main() {
 		ServerName:       *serverName,
 		CACertPath:       *caCert,
 		EnrollToken:      *enrollToken,
+		JoinToken:        *joinToken,
 		Hostname:         *hostname,
 		DataDir:          *dataDir,
 		NginxPrefix:      *nginxPrefix,
@@ -50,9 +52,9 @@ func main() {
 		ConfPath:         *confPath,
 		ProbeURL:         *probeURL,
 	}
-	if cfg.ControlPlaneAddr == "" || cfg.CACertPath == "" || cfg.EnrollToken == "" {
-		slog.Error("缺少必填参数", "control_plane", cfg.ControlPlaneAddr, "ca_cert", cfg.CACertPath, "enroll_token", cfg.EnrollToken == "")
-		fmt.Fprintln(os.Stderr, "用法: ngxcp-agent -control-plane <addr> -ca-cert <path> -enroll-token <token>")
+	if cfg.ControlPlaneAddr == "" || cfg.CACertPath == "" || (cfg.EnrollToken == "" && cfg.JoinToken == "") {
+		slog.Error("缺少必填参数", "control_plane", cfg.ControlPlaneAddr, "ca_cert", cfg.CACertPath, "enroll_or_join_token", cfg.EnrollToken == "" && cfg.JoinToken == "")
+		fmt.Fprintln(os.Stderr, "用法: ngxcp-agent -control-plane <addr> -ca-cert <path> -enroll-token <token>  (或 -join-token <token>)")
 		os.Exit(2)
 	}
 

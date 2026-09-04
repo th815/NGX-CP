@@ -36,7 +36,8 @@ type Config struct {
 	ControlPlaneAddr string // 控制面 gRPC 地址，如 10.0.0.5:8443
 	ServerName       string // mTLS ServerName，默认取 ControlPlaneAddr 的 host
 	CACertPath       string // 引导期 CA 证书（注册握手信任用），持久化后改用 DataDir/ca.crt
-	EnrollToken      string // 一次性接入令牌（控制面生成，与节点绑定）
+	EnrollToken      string // 一次性接入令牌（控制面生成，与节点绑定）。与 JoinToken 互斥。
+	JoinToken        string // 自注册 Join Token（控制面生成，未绑定节点）。节点自注册时自动建节点。
 	Hostname         string // 本机 hostname（证书 SAN + 控制面展示）
 	DataDir          string // 数据目录（证书/快照），默认 /var/lib/ngxcp
 	NginxPrefix      string // nginx prefix，默认 /etc/nginx
@@ -163,6 +164,7 @@ func bootstrapCert(ctx context.Context, cfg Config, serverName string, log *slog
 	}
 	resp, rerr := regClient.Register(ctx, &agentv1.RegisterRequest{
 		EnrollToken: cfg.EnrollToken,
+		JoinToken:   cfg.JoinToken,
 		Hostname:    cfg.Hostname,
 		Csr:         csrPEM,
 	})

@@ -44,8 +44,8 @@ Agent 常驻在每台 Nginx / Keepalived 节点上，**主动外连**控制面�
 ### 6.1 前置
 
 1. 控制面已部署，且 `agent_grpc` 端口（默认 `:9443`）可从节点访问。
-2. 已在控制面为**每个节点**生成一次性接入令牌（令牌与 nodeID 绑定，用后即焚）。
-3. 已取得控制面 CA 证书（`ca.crt`），用于引导期信任。
+2. 两种接入路径：**Web 一键自注册（6.6，推荐）** 无需预建节点；**推送部署（6.2）** 需先为每节点生成一次性接入令牌并取 CA。
+3. 控制面 CA 证书（`ca.crt`）由 `/agent/ca.crt` 公开提供，引导期信任用，无需手工分发。
 
 ### 6.2 部署（`scripts/deploy-agent.sh`）
 
@@ -92,3 +92,26 @@ bash scripts/deploy-agent.sh
 - 虚拟化环境前置（vCenter，Agent 运行时不感知，属部署清单强制项）：
   Director 端口组须开「混杂模式 + MAC 地址更改 + 伪传输」；Keepalived VRRP 必须 unicast；
   必须关闭 VMware Tools 时间同步并启用 chrony —— 详见 `docs/DECISIONS.md`。
+
+### 6.6 Web 一键自注册（推荐）
+
+生产环境首选：无需预先在控制面建节点，也无需手工拉令牌 / CA。
+
+1. 浏览器打开控制面 `https://<控制面>/agent/`，填管理员 Bearer 令牌（与 API 写接口同一令牌）。
+2. 选节点角色（`real_server` / `director` / `director_and_rs`）→「生成接入令牌」。
+   控制面返回一次性 **Join Token**（内嵌角色，默认 1h 有效，用后即焚）。
+3. 复制给出的单行命令，到目标节点以 root 执行：
+
+   ```bash
+   curl -fsSL https://<控制面>/agent/install.sh | sudo bash -s -- \
+     --cp https://<控制面> --grpc <控制面:9443> --token <JOIN_TOKEN>
+   ```
+
+   脚本会：拉取引导 CA → 按架构（amd64 / arm64）下载 Agent 二进制 → 写 systemd 单元
+   （机密走 `/etc/ngxcp-agent.env`，`chmod 600`，不进 unit、不出现在 `ps`）→ `enable --now`。
+4. Agent 启动后用 Join Token + 本地生成的 CSR 自注册，控制面**自动建节点**（名称 = hostname、角色取令牌）
+   并签发客户端证书，节点随即上线，出现在「节点」列表。
+
+前置：`make dist` 已把 Agent 二进制放入 `dist/agent/`（控制面在 `/agent/bin/` 提供下载）；
+`agent_dist_dir` 为空则禁用二进制下载（此时改用 6.2 推送或手动分发）。
+Join Token 与 enroll token 同生命周期（当前为内存态，控制面重启即失效，持久化随 T014 落地）。

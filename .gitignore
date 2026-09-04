@@ -55,3 +55,6 @@ node_modules/
 
 # Frontend build output
 web/dist/
+
+# 节点自注册分发的预编译 Agent 二进制（make dist 生成，勿入版本库）
+dist/

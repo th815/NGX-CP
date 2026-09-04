@@ -28,6 +28,11 @@ type Config struct {
 	// 由 `ngxcp-pki init --out DIR` 生成；缺失时控制面启动会尝试自动创建（仅限开发）。
 	PKIDir string `mapstructure:"pki_dir"`
 
+	// AgentDistDir 是「节点自注册分发目录」：存放供节点下载的 Agent 二进制
+	// （ngxcp-agent-linux-amd64 / ngxcp-agent-linux-arm64），由 `make dist` 填充。
+	// 控制面在 /agent/bin/:file 提供下载；留空则禁用二进制下载（仅文档/手动分发）。
+	AgentDistDir string `mapstructure:"agent_dist_dir"`
+
 	SnapDir     string `mapstructure:"storage_snapshots_dir"`
 	ArtifactDir string `mapstructure:"storage_artifacts_dir"`
 
@@ -88,6 +93,7 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("db_max_open_conns", 20)
 	v.SetDefault("db_max_idle_conns", 10)
 	v.SetDefault("pki_dir", "./pki")
+	v.SetDefault("agent_dist_dir", "dist/agent")
 	v.SetDefault("clickhouse_max_memory_usage", "6G")
 	v.SetDefault("clickhouse_ttl_days", 7)
 	v.SetDefault("storage_snapshots_dir", "/var/lib/ngxcp/snapshots")

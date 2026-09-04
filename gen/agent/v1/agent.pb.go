@@ -165,10 +165,13 @@ func (HeartbeatResponse_Command) EnumDescriptor() ([]byte, []int) {
 }
 
 type RegisterRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EnrollToken   string                 `protobuf:"bytes,1,opt,name=enroll_token,json=enrollToken,proto3" json:"enroll_token,omitempty"` // 控制面下发的一次性令牌（仅原文返回一次，库内仅存 SHA256）
-	Hostname      string                 `protobuf:"bytes,2,opt,name=hostname,proto3" json:"hostname,omitempty"`
-	Csr           []byte                 `protobuf:"bytes,3,opt,name=csr,proto3" json:"csr,omitempty"` // Agent 本地生成的私钥签名请求；私钥永不出节点
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	EnrollToken string                 `protobuf:"bytes,1,opt,name=enroll_token,json=enrollToken,proto3" json:"enroll_token,omitempty"` // 控制面下发的一次性令牌（仅原文返回一次，库内仅存 SHA256）
+	Hostname    string                 `protobuf:"bytes,2,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	Csr         []byte                 `protobuf:"bytes,3,opt,name=csr,proto3" json:"csr,omitempty"` // Agent 本地生成的私钥签名请求；私钥永不出节点
+	// 自注册 Join Token：未绑定具体节点，仅授权「可加入」。控制面据此自动建节点（名称=hostname，
+	// 角色取令牌内嵌角色），签发证书并上线。与 enroll_token 互斥：二者必有其一。
+	JoinToken     string `protobuf:"bytes,4,opt,name=join_token,json=joinToken,proto3" json:"join_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -222,6 +225,13 @@ func (x *RegisterRequest) GetCsr() []byte {
 		return x.Csr
 	}
 	return nil
+}
+
+func (x *RegisterRequest) GetJoinToken() string {
+	if x != nil {
+		return x.JoinToken
+	}
+	return ""
 }
 
 type RegisterResponse struct {
@@ -2654,11 +2664,13 @@ var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x14agent/v1/agent.proto\x12\bagent.v1\"b\n" +
+	"\x14agent/v1/agent.proto\x12\bagent.v1\"\x81\x01\n" +
 	"\x0fRegisterRequest\x12!\n" +
 	"\fenroll_token\x18\x01 \x01(\tR\venrollToken\x12\x1a\n" +
 	"\bhostname\x18\x02 \x01(\tR\bhostname\x12\x10\n" +
-	"\x03csr\x18\x03 \x01(\fR\x03csr\"\xbd\x01\n" +
+	"\x03csr\x18\x03 \x01(\fR\x03csr\x12\x1d\n" +
+	"\n" +
+	"join_token\x18\x04 \x01(\tR\tjoinToken\"\xbd\x01\n" +
 	"\x10RegisterResponse\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\x03R\x06nodeId\x12\x1f\n" +
 	"\vclient_cert\x18\x02 \x01(\fR\n" +

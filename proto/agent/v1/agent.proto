@@ -23,6 +23,9 @@ message RegisterRequest {
   string enroll_token = 1; // 控制面下发的一次性令牌（仅原文返回一次，库内仅存 SHA256）
   string hostname = 2;
   bytes csr = 3;          // Agent 本地生成的私钥签名请求；私钥永不出节点
+  // 自注册 Join Token：未绑定具体节点，仅授权「可加入」。控制面据此自动建节点（名称=hostname，
+  // 角色取令牌内嵌角色），签发证书并上线。与 enroll_token 互斥：二者必有其一。
+  string join_token = 4;
 }
 
 message RegisterResponse {

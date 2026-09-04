@@ -10,7 +10,7 @@ LDFLAGS := -X $(PKG)/internal/pkg/version.Version=$(VERSION) \
            -X $(PKG)/internal/pkg/version.Commit=$(COMMIT) \
            -X $(PKG)/internal/pkg/version.BuildTime=$(BUILD_T)
 
-.PHONY: help dev build test lint fmt proto ent migrate-dev e2e backup clean
+.PHONY: help dev build dist test lint fmt proto ent migrate-dev e2e backup clean
 
 help: ## 列出所有 target
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n",$$1,$$2}'
@@ -21,6 +21,12 @@ dev: ## 起全套依赖 + 控制面（开发态）
 build: ## 编译控制面 + Agent（静态，CGO_ENABLED=0）
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(BINARY_SERVER) ./cmd/ngxcp-server
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(BINARY_AGENT)  ./cmd/ngxcp-agent
+
+dist: ## 准备节点自注册分发目录：交叉编译 Agent 二进制到 dist/agent（控制面 /agent/bin 提供下载）
+	@mkdir -p dist/agent
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/agent/ngxcp-agent-linux-amd64 ./cmd/ngxcp-agent
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/agent/ngxcp-agent-linux-arm64 ./cmd/ngxcp-agent
+	@echo "agent 二进制已就绪：dist/agent/ngxcp-agent-linux-{amd64,arm64}"
 
 test: ## 运行全部测试
 	go test ./...
