@@ -49,6 +49,17 @@ type HeartbeatCallbacks struct {
 	ReportLogTargets func(ctx context.Context) (*agentv1.LogTargetsReport, error)
 	// ValidateConfig 在本地跑 nginx -t 校验（T024），经心跳流 CONFIG_VALIDATE 回传结果。
 	ValidateConfig func(ctx context.Context, task *agentv1.ValidateTask) (*agentv1.ValidateResult, error)
+
+	// ── T031–T035：控制面经心跳命令通道下发的执行型任务（Agent 主动外连，无入站端口）──
+	// DeployConfig 跑 9 步原子落盘（T032）；onProgress 透传每步进度（含终态），控制面据此驱动 UI。
+	DeployConfig func(ctx context.Context, task *agentv1.SyncConfigTask, onProgress func(*agentv1.DeployProgress)) error
+	// RollbackConfig 跑回滚流水线（T034）。
+	RollbackConfig func(ctx context.Context, task *agentv1.RollbackTask, onProgress func(*agentv1.DeployProgress)) error
+	// CreateSnapshot / RestoreSnapshot 抓/恢复配置快照（T031）。
+	CreateSnapshot  func(ctx context.Context, task *agentv1.SnapshotCreateTask) (*agentv1.SnapshotResult, error)
+	RestoreSnapshot func(ctx context.Context, task *agentv1.SnapshotRestoreTask) (*agentv1.SnapshotResult, error)
+	// SetRSWeight 在 LVS Director 上调整 RS 权重（T035，灰度摘除）。
+	SetRSWeight func(ctx context.Context, task *agentv1.SetRealServerWeightTask) (*agentv1.SetRealServerWeightResult, error)
 }
 
 // Heartbeater 管理一条到控制面的心跳长连接。
@@ -61,6 +72,11 @@ type Heartbeater struct {
 	// configTreeTrigger 由文件监听器（T029）在检测到配置变更时触发，立即经心跳流上报一次配置树，
 	// 控制面据此做漂移检测。非阻塞、可丢弃（缓冲 1，满则丢弃最旧）。
 	configTreeTrigger chan struct{}
+
+	// 下发任务结果汇集通道（命令处理 goroutine → 主循环统一发送，保证单写者约束）。
+	deployOut   chan *agentv1.DeployProgress             // DEPLOY_CONFIG / ROLLBACK_CONFIG 进度与终态
+	snapshotOut chan *agentv1.SnapshotResult             // CREATE_SNAPSHOT / RESTORE_SNAPSHOT 结果
+	rsWeightOut chan *agentv1.SetRealServerWeightResult  // SET_RS_WEIGHT 结果
 }
 
 // NewHeartbeater 构造心跳客户端。
@@ -80,7 +96,12 @@ func NewHeartbeater(cli agentv1.AgentServiceClient, cfg HeartbeatConfig, cb Hear
 	if cfg.FsProbeInterval <= 0 {
 		cfg.FsProbeInterval = 6 * cfg.Interval
 	}
-	return &Heartbeater{cli: cli, cfg: cfg, cb: cb, log: log, configTreeTrigger: make(chan struct{}, 1)}
+	return &Heartbeater{cli: cli, cfg: cfg, cb: cb, log: log,
+		configTreeTrigger: make(chan struct{}, 1),
+		deployOut:         make(chan *agentv1.DeployProgress, 1),
+		snapshotOut:       make(chan *agentv1.SnapshotResult, 1),
+		rsWeightOut:       make(chan *agentv1.SetRealServerWeightResult, 1),
+	}
 }
 
 // TriggerConfigTreePush 由文件监听器（T029）在检测到配置变更后调用，触发一次即时配置树上报。
@@ -303,6 +324,18 @@ func (h *Heartbeater) session(ctx context.Context) error {
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CONFIG_VALIDATE, rep); serr != nil {
 				return serr
 			}
+		case rep := <-h.deployOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_DEPLOY, rep); serr != nil {
+				return serr
+			}
+		case rep := <-h.snapshotOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_SNAPSHOT, rep); serr != nil {
+				return serr
+			}
+		case rep := <-h.rsWeightOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_RS_WEIGHT, rep); serr != nil {
+				return serr
+			}
 		}
 	}
 }
@@ -341,6 +374,108 @@ func (h *Heartbeater) handleCommand(ctx context.Context, resp *agentv1.Heartbeat
 			}
 			select {
 			case validateOut <- res:
+			default:
+			}
+		}()
+	case agentv1.HeartbeatResponse_DEPLOY_CONFIG:
+		task := resp.GetSyncConfig()
+		if task == nil || h.cb.DeployConfig == nil {
+			return
+		}
+		h.log.Info("control-plane requested config deploy", "task_id", task.GetTaskId(), "files", len(task.GetFiles()))
+		go func() {
+			err := h.cb.DeployConfig(ctx, task, func(p *agentv1.DeployProgress) {
+				if p == nil {
+					return
+				}
+				p.TaskId = task.GetTaskId()
+				select {
+				case h.deployOut <- p:
+				default:
+				}
+			})
+			fin := &agentv1.DeployProgress{TaskId: task.GetTaskId(), Step: "report", Status: "success", Message: "执行完成"}
+			if err != nil {
+				fin.Status = "failed"
+				fin.Message = err.Error()
+			}
+			select {
+			case h.deployOut <- fin:
+			default:
+			}
+		}()
+	case agentv1.HeartbeatResponse_ROLLBACK_CONFIG:
+		task := resp.GetRollbackTask()
+		if task == nil || h.cb.RollbackConfig == nil {
+			return
+		}
+		h.log.Info("control-plane requested config rollback", "task_id", task.GetTaskId())
+		go func() {
+			err := h.cb.RollbackConfig(ctx, task, func(p *agentv1.DeployProgress) {
+				if p == nil {
+					return
+				}
+				p.TaskId = task.GetTaskId()
+				select {
+				case h.deployOut <- p:
+				default:
+				}
+			})
+			fin := &agentv1.DeployProgress{TaskId: task.GetTaskId(), Step: "rollback", Status: "success", Message: "回滚完成"}
+			if err != nil {
+				fin.Status = "failed"
+				fin.Message = err.Error()
+			}
+			select {
+			case h.deployOut <- fin:
+			default:
+			}
+		}()
+	case agentv1.HeartbeatResponse_CREATE_SNAPSHOT:
+		task := resp.GetSnapshotCreate()
+		if task == nil || h.cb.CreateSnapshot == nil {
+			return
+		}
+		h.log.Info("control-plane requested snapshot create", "task_id", task.GetTaskId())
+		go func() {
+			res, rerr := h.cb.CreateSnapshot(ctx, task)
+			if rerr != nil {
+				res = &agentv1.SnapshotResult{TaskId: task.GetTaskId(), Ok: false, Error: rerr.Error()}
+			}
+			select {
+			case h.snapshotOut <- res:
+			default:
+			}
+		}()
+	case agentv1.HeartbeatResponse_RESTORE_SNAPSHOT:
+		task := resp.GetSnapshotRestore()
+		if task == nil || h.cb.RestoreSnapshot == nil {
+			return
+		}
+		h.log.Info("control-plane requested snapshot restore", "task_id", task.GetTaskId())
+		go func() {
+			res, rerr := h.cb.RestoreSnapshot(ctx, task)
+			if rerr != nil {
+				res = &agentv1.SnapshotResult{TaskId: task.GetTaskId(), Ok: false, Error: rerr.Error()}
+			}
+			select {
+			case h.snapshotOut <- res:
+			default:
+			}
+		}()
+	case agentv1.HeartbeatResponse_SET_RS_WEIGHT:
+		task := resp.GetSetRsWeight()
+		if task == nil || h.cb.SetRSWeight == nil {
+			return
+		}
+		h.log.Info("control-plane requested rs weight set", "task_id", task.GetTaskId(), "weight", task.GetWeight())
+		go func() {
+			res, rerr := h.cb.SetRSWeight(ctx, task)
+			if rerr != nil {
+				res = &agentv1.SetRealServerWeightResult{TaskId: task.GetTaskId(), Ok: false, Error: rerr.Error()}
+			}
+			select {
+			case h.rsWeightOut <- res:
 			default:
 			}
 		}()
@@ -393,6 +528,12 @@ func (h *Heartbeater) sendReport(stream agentv1.AgentService_HeartbeatClient, ty
 		req.LogTargets = payload.(*agentv1.LogTargetsReport)
 	case agentv1.HeartbeatRequest_CONFIG_VALIDATE:
 		req.ValidateResult = payload.(*agentv1.ValidateResult)
+	case agentv1.HeartbeatRequest_DEPLOY:
+		req.DeployProgress = payload.(*agentv1.DeployProgress)
+	case agentv1.HeartbeatRequest_SNAPSHOT:
+		req.SnapshotResult = payload.(*agentv1.SnapshotResult)
+	case agentv1.HeartbeatRequest_RS_WEIGHT:
+		req.SetRsWeightResult = payload.(*agentv1.SetRealServerWeightResult)
 	}
 	return stream.Send(req)
 }

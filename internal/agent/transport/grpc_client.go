@@ -33,6 +33,9 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// API 暴露底层 gRPC 客户端（供心跳与注册共用同一条连接）。
+func (c *Client) API() agentv1.AgentServiceClient { return c.api }
+
 // Register 调用注册 RPC。
 func (c *Client) Register(ctx context.Context, req *agentv1.RegisterRequest) (*agentv1.RegisterResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

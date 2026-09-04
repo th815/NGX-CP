@@ -1,20 +1,73 @@
 // Command ngxcp-agent 是部署在每台 Nginx/Keepalived 节点上的常驻代理。
-// M0 阶段为占位 main，仅打印版本；M1 实现 gRPC 注册 / 心跳 / mTLS 外连。
+// 注册（mTLS 引导）→ 重连心跳 → 响应控制面经心跳下发的执行型任务（校验/快照/落盘/回滚/LVS 权重）。
+// 配置优先取环境变量，缺失时回落到 flag 默认值（见 runtime.Config）。
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/th/ngxcp/internal/agent/runtime"
 	"github.com/th/ngxcp/internal/pkg/version"
 )
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
+	controlPlane := flag.String("control-plane", envOr("NGXCP_AGENT_CONTROL_PLANE", ""), "控制面 gRPC 地址，如 10.0.0.5:8443")
+	caCert := flag.String("ca-cert", envOr("NGXCP_AGENT_CA_CERT", ""), "引导期 CA 证书路径（注册握手信任用）")
+	enrollToken := flag.String("enroll-token", envOr("NGXCP_AGENT_ENROLL_TOKEN", ""), "一次性接入令牌（控制面生成，与节点绑定）")
+	serverName := flag.String("server-name", envOr("NGXCP_AGENT_SERVER_NAME", ""), "mTLS ServerName，默认取控制面地址的 host")
+	hostname := flag.String("hostname", envOr("NGXCP_AGENT_HOSTNAME", ""), "本机 hostname（证书 SAN + 控制面展示）")
+	dataDir := flag.String("data-dir", envOr("NGXCP_AGENT_DATA_DIR", "/var/lib/ngxcp"), "数据目录（证书/快照）")
+	nginxPrefix := flag.String("nginx-prefix", envOr("NGXCP_AGENT_NGINX_PREFIX", "/etc/nginx"), "nginx prefix")
+	nginxPath := flag.String("nginx-path", envOr("NGXCP_AGENT_NGINX_PATH", "/usr/sbin/nginx"), "nginx 二进制路径")
+	confPath := flag.String("conf-path", envOr("NGXCP_AGENT_CONF_PATH", "nginx.conf"), "主配置相对 prefix")
+	probeURL := flag.String("probe-url", envOr("NGXCP_AGENT_PROBE_URL", ""), "默认探活 URL（变更单可覆盖）")
 	flag.Parse()
+
 	if *showVersion {
 		fmt.Println(version.String())
 		return
 	}
-	fmt.Println("ngxcp-agent: M0 skeleton (gRPC client lands in M1)")
+	if *hostname == "" {
+		*hostname, _ = os.Hostname()
+	}
+
+	cfg := runtime.Config{
+		ControlPlaneAddr: *controlPlane,
+		ServerName:       *serverName,
+		CACertPath:       *caCert,
+		EnrollToken:      *enrollToken,
+		Hostname:         *hostname,
+		DataDir:          *dataDir,
+		NginxPrefix:      *nginxPrefix,
+		NginxPath:        *nginxPath,
+		ConfPath:         *confPath,
+		ProbeURL:         *probeURL,
+	}
+	if cfg.ControlPlaneAddr == "" || cfg.CACertPath == "" || cfg.EnrollToken == "" {
+		slog.Error("缺少必填参数", "control_plane", cfg.ControlPlaneAddr, "ca_cert", cfg.CACertPath, "enroll_token", cfg.EnrollToken == "")
+		fmt.Fprintln(os.Stderr, "用法: ngxcp-agent -control-plane <addr> -ca-cert <path> -enroll-token <token>")
+		os.Exit(2)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	if err := runtime.Run(ctx, cfg); err != nil {
+		slog.Error("agent exited", "err", err)
+		os.Exit(1)
+	}
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }
