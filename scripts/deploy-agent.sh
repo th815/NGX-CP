@@ -107,8 +107,8 @@ for HOST in $HOSTS; do
   scp $SSH_OPTS "$CA_CERT" "$HOST:$ENV_DIR/ca.crt" >/dev/null
 
   echo "[3/5] 写入环境文件（仅首次；enroll token 一次性，绝不覆盖已有凭据）..."
-  if ssh $SSH_OPTS "$HOST" "test -f $ENV_DIR/agent.env"; then
-    echo "  保留现有 $ENV_DIR/agent.env（Agent 已用持久化客户端证书，无需重新注册）"
+  if ssh $SSH_OPTS "$HOST" "test -f $ENV_DIR/agent.conf"; then
+    echo "  保留现有 $ENV_DIR/agent.conf（Agent 已用持久化客户端证书，无需重新注册）"
   else
     TMPENV="$(mktemp)"
     {
@@ -117,10 +117,10 @@ for HOST in $HOSTS; do
       printf 'NGXCP_AGENT_ENROLL_TOKEN=%s\n' "$TOKEN"
       printf 'NGXCP_AGENT_DATA_DIR=/var/lib/ngxcp\n'
     } > "$TMPENV"
-    scp $SSH_OPTS "$TMPENV" "$HOST:$ENV_DIR/agent.env" >/dev/null
-    ssh $SSH_OPTS "$HOST" "chmod 600 $ENV_DIR/agent.env"
+    scp $SSH_OPTS "$TMPENV" "$HOST:$ENV_DIR/agent.conf" >/dev/null
+    ssh $SSH_OPTS "$HOST" "chmod 600 $ENV_DIR/agent.conf"
     rm -f "$TMPENV"
-    echo "  已写入 $ENV_DIR/agent.env（600）"
+    echo "  已写入 $ENV_DIR/agent.conf（600）"
   fi
 
   echo "[4/5] 安装：备份旧二进制 → stop → 落位 → start ..."
