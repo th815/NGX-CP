@@ -32,6 +32,8 @@ type Tx struct {
 	ConfigTemplate *ConfigTemplateClient
 	// ConfigVariable is the client for interacting with the ConfigVariable builders.
 	ConfigVariable *ConfigVariableClient
+	// DeployNodeLock is the client for interacting with the DeployNodeLock builders.
+	DeployNodeLock *DeployNodeLockClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
 	// Node is the client for interacting with the Node builders.
@@ -185,6 +187,7 @@ func (tx *Tx) init() {
 	tx.ConfigSnapshot = NewConfigSnapshotClient(tx.config)
 	tx.ConfigTemplate = NewConfigTemplateClient(tx.config)
 	tx.ConfigVariable = NewConfigVariableClient(tx.config)
+	tx.DeployNodeLock = NewDeployNodeLockClient(tx.config)
 	tx.DeployTask = NewDeployTaskClient(tx.config)
 	tx.Node = NewNodeClient(tx.config)
 	tx.NodeCapability = NewNodeCapabilityClient(tx.config)

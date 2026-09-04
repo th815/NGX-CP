@@ -129,6 +129,18 @@ func (f ConfigVariableFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ConfigVariableMutation", m)
 }
 
+// The DeployNodeLockFunc type is an adapter to allow the use of ordinary
+// function as DeployNodeLock mutator.
+type DeployNodeLockFunc func(context.Context, *ent.DeployNodeLockMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeployNodeLockFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeployNodeLockMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeployNodeLockMutation", m)
+}
+
 // The DeployTaskFunc type is an adapter to allow the use of ordinary
 // function as DeployTask mutator.
 type DeployTaskFunc func(context.Context, *ent.DeployTaskMutation) (ent.Value, error)

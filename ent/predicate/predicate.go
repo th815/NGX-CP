@@ -36,6 +36,9 @@ type ConfigTemplate func(*sql.Selector)
 // ConfigVariable is the predicate function for configvariable builders.
 type ConfigVariable func(*sql.Selector)
 
+// DeployNodeLock is the predicate function for deploynodelock builders.
+type DeployNodeLock func(*sql.Selector)
+
 // DeployTask is the predicate function for deploytask builders.
 type DeployTask func(*sql.Selector)
 

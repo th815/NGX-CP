@@ -813,7 +813,7 @@ go test ./internal/server/... -run TestHub -race -v
 
 ---
 
-## T038 · 并发控制与任务队列
+## T038 · 并发控制与任务队列 ✅ 已完成（2026-09-04）
 
 **目标**：防止多个人同时改同一批节点。
 
@@ -821,10 +821,26 @@ go test ./internal/server/... -run TestHub -race -v
 
 **涉及文件**：
 ```
-internal/domain/deploy/queue.go
-internal/domain/deploy/lock.go
-internal/domain/deploy/worker.go
-internal/domain/deploy/queue_test.go
+ent/schema/deploy_node_lock.go          # 节点锁持久化行（node_id 唯一）
+ent/deploynodelock*/ent/deploynodelock/*# ent 生成
+internal/domain/deploy/lock.go          # LockManager：Acquire/Release/Refresh/HeldBy/CleanExpired
+internal/domain/deploy/queue.go         # Queue：TryDequeue（PG SKIP LOCKED 的可移植等价）
+internal/domain/deploy/worker.go        # Worker：轮询调度 + 锁生命周期 + 注入式 Runner
+internal/domain/deploy/queue_test.go    # 锁互斥/过期复用/释放/队列串行/全局并行守卫 6 例
+internal/domain/deploy/worker_test.go   # Worker 执行 + 锁释放 2 例
+```
+
+**实现说明（与原任务注释的偏差）**：
+- 新增 `deploy_node_lock` ent 实体（node_id 唯一 + order_id + locked_at + expires_at），节点锁即数据库行。**单节点串行**由 `node_id` 唯一约束天然保证，跨进程互斥由「事务内先清过期再插入 + 唯一冲突」实现，SQLite（事务）与 PG 行为一致，**无需 SKIP LOCKED 即可保证正确性**。
+- `LockManager.Acquire` 在 `client.Tx` 内：先 `DELETE ... WHERE node_id=? AND expires_at<now`（清本节点过期锁），再 `CREATE`（唯一冲突→已被占用→返回 false）。`CleanExpired` 由控制面启动/定时 worker 调用，兜底崩溃遗留锁。
+- `Queue.TryDequeue` 是 **PG `FOR UPDATE SKIP LOCKED` 的可移植等价**：单控制面进程下逐个尝试 pending 单的节点锁，抢不到全部节点锁的单子跳过看下一个；`MaxConcurrentOrders` 作为「全局并行上限守卫」（按 running 计数）。PG 生产环境如需更优吞吐可改 `SELECT ... FOR UPDATE SKIP LOCKED`，接口与行为不变。
+- `Worker` 轮询 `TryDequeue` → `Service.Start(pending→running)` → 注入的 `Runner.Run` → `ReleaseByOrder` 释放全部节点锁；`Runner` 接口（T039 经 Agent 接 9 步流水线实现）未实现前 `nil` 安全（不翻状态、不执行）。worker 自身是单 goroutine 串行调度，天然单并发；多 worker/更高并行靠 `MaxConcurrentOrders` 守卫 + 锁。
+- **刻意未做（推 T039）**：① Worker 的实际 `Runner`（经 Agent 执行 9 步 + 状态流转到 success/failed/rolling_back）；② 控制面启动 worker + 接入 `QueuePollInterval` 配置；③ PG 专属 `SKIP LOCKED` 快路径（接口稳定，性能优化项）。
+
+**验收命令**：
+```bash
+go test ./internal/domain/deploy/... -run 'TestLockManager|TestQueue|TestWorker' -race -v
+# 覆盖：同节点互斥 / 过期锁清理后复用 / 释放 / 同节点两单只取一把 / 全局并行上限 / worker 执行并释放锁
 ```
 
 **契约**：

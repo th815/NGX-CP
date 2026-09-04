@@ -15,6 +15,7 @@ import (
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/configtemplate"
 	"github.com/th/ngxcp/ent/configvariable"
+	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -140,6 +141,12 @@ func init() {
 	configvariable.DefaultUpdatedAt = configvariableDescUpdatedAt.Default.(func() time.Time)
 	// configvariable.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	configvariable.UpdateDefaultUpdatedAt = configvariableDescUpdatedAt.UpdateDefault.(func() time.Time)
+	deploynodelockFields := schema.DeployNodeLock{}.Fields()
+	_ = deploynodelockFields
+	// deploynodelockDescLockedAt is the schema descriptor for locked_at field.
+	deploynodelockDescLockedAt := deploynodelockFields[2].Descriptor()
+	// deploynodelock.DefaultLockedAt holds the default value on creation for the locked_at field.
+	deploynodelock.DefaultLockedAt = deploynodelockDescLockedAt.Default.(func() time.Time)
 	deploytaskFields := schema.DeployTask{}.Fields()
 	_ = deploytaskFields
 	// deploytaskDescAttempts is the schema descriptor for attempts field.

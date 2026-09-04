@@ -25,6 +25,7 @@ import (
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/configtemplate"
 	"github.com/th/ngxcp/ent/configvariable"
+	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -58,6 +59,8 @@ type Client struct {
 	ConfigTemplate *ConfigTemplateClient
 	// ConfigVariable is the client for interacting with the ConfigVariable builders.
 	ConfigVariable *ConfigVariableClient
+	// DeployNodeLock is the client for interacting with the DeployNodeLock builders.
+	DeployNodeLock *DeployNodeLockClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
 	// Node is the client for interacting with the Node builders.
@@ -91,6 +94,7 @@ func (c *Client) init() {
 	c.ConfigSnapshot = NewConfigSnapshotClient(c.config)
 	c.ConfigTemplate = NewConfigTemplateClient(c.config)
 	c.ConfigVariable = NewConfigVariableClient(c.config)
+	c.DeployNodeLock = NewDeployNodeLockClient(c.config)
 	c.DeployTask = NewDeployTaskClient(c.config)
 	c.Node = NewNodeClient(c.config)
 	c.NodeCapability = NewNodeCapabilityClient(c.config)
@@ -199,6 +203,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ConfigSnapshot: NewConfigSnapshotClient(cfg),
 		ConfigTemplate: NewConfigTemplateClient(cfg),
 		ConfigVariable: NewConfigVariableClient(cfg),
+		DeployNodeLock: NewDeployNodeLockClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
@@ -234,6 +239,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ConfigSnapshot: NewConfigSnapshotClient(cfg),
 		ConfigTemplate: NewConfigTemplateClient(cfg),
 		ConfigVariable: NewConfigVariableClient(cfg),
+		DeployNodeLock: NewDeployNodeLockClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
@@ -271,8 +277,8 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Approval, c.AuditLog, c.ChangeOrder, c.Cluster, c.ConfigBlob, c.ConfigFile,
 		c.ConfigRevision, c.ConfigSnapshot, c.ConfigTemplate, c.ConfigVariable,
-		c.DeployTask, c.Node, c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget,
-		c.RealServer,
+		c.DeployNodeLock, c.DeployTask, c.Node, c.NodeCapability, c.NodeConfigFile,
+		c.NodeLogTarget, c.RealServer,
 	} {
 		n.Use(hooks...)
 	}
@@ -284,8 +290,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Approval, c.AuditLog, c.ChangeOrder, c.Cluster, c.ConfigBlob, c.ConfigFile,
 		c.ConfigRevision, c.ConfigSnapshot, c.ConfigTemplate, c.ConfigVariable,
-		c.DeployTask, c.Node, c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget,
-		c.RealServer,
+		c.DeployNodeLock, c.DeployTask, c.Node, c.NodeCapability, c.NodeConfigFile,
+		c.NodeLogTarget, c.RealServer,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -314,6 +320,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ConfigTemplate.mutate(ctx, m)
 	case *ConfigVariableMutation:
 		return c.ConfigVariable.mutate(ctx, m)
+	case *DeployNodeLockMutation:
+		return c.DeployNodeLock.mutate(ctx, m)
 	case *DeployTaskMutation:
 		return c.DeployTask.mutate(ctx, m)
 	case *NodeMutation:
@@ -1773,6 +1781,139 @@ func (c *ConfigVariableClient) mutate(ctx context.Context, m *ConfigVariableMuta
 	}
 }
 
+// DeployNodeLockClient is a client for the DeployNodeLock schema.
+type DeployNodeLockClient struct {
+	config
+}
+
+// NewDeployNodeLockClient returns a client for the DeployNodeLock from the given config.
+func NewDeployNodeLockClient(c config) *DeployNodeLockClient {
+	return &DeployNodeLockClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `deploynodelock.Hooks(f(g(h())))`.
+func (c *DeployNodeLockClient) Use(hooks ...Hook) {
+	c.hooks.DeployNodeLock = append(c.hooks.DeployNodeLock, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `deploynodelock.Intercept(f(g(h())))`.
+func (c *DeployNodeLockClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeployNodeLock = append(c.inters.DeployNodeLock, interceptors...)
+}
+
+// Create returns a builder for creating a DeployNodeLock entity.
+func (c *DeployNodeLockClient) Create() *DeployNodeLockCreate {
+	mutation := newDeployNodeLockMutation(c.config, OpCreate)
+	return &DeployNodeLockCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeployNodeLock entities.
+func (c *DeployNodeLockClient) CreateBulk(builders ...*DeployNodeLockCreate) *DeployNodeLockCreateBulk {
+	return &DeployNodeLockCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeployNodeLockClient) MapCreateBulk(slice any, setFunc func(*DeployNodeLockCreate, int)) *DeployNodeLockCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeployNodeLockCreateBulk{err: fmt.Errorf("calling to DeployNodeLockClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeployNodeLockCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeployNodeLockCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeployNodeLock.
+func (c *DeployNodeLockClient) Update() *DeployNodeLockUpdate {
+	mutation := newDeployNodeLockMutation(c.config, OpUpdate)
+	return &DeployNodeLockUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeployNodeLockClient) UpdateOne(_m *DeployNodeLock) *DeployNodeLockUpdateOne {
+	mutation := newDeployNodeLockMutation(c.config, OpUpdateOne, withDeployNodeLock(_m))
+	return &DeployNodeLockUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeployNodeLockClient) UpdateOneID(id int) *DeployNodeLockUpdateOne {
+	mutation := newDeployNodeLockMutation(c.config, OpUpdateOne, withDeployNodeLockID(id))
+	return &DeployNodeLockUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeployNodeLock.
+func (c *DeployNodeLockClient) Delete() *DeployNodeLockDelete {
+	mutation := newDeployNodeLockMutation(c.config, OpDelete)
+	return &DeployNodeLockDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeployNodeLockClient) DeleteOne(_m *DeployNodeLock) *DeployNodeLockDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeployNodeLockClient) DeleteOneID(id int) *DeployNodeLockDeleteOne {
+	builder := c.Delete().Where(deploynodelock.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeployNodeLockDeleteOne{builder}
+}
+
+// Query returns a query builder for DeployNodeLock.
+func (c *DeployNodeLockClient) Query() *DeployNodeLockQuery {
+	return &DeployNodeLockQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeployNodeLock},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeployNodeLock entity by its id.
+func (c *DeployNodeLockClient) Get(ctx context.Context, id int) (*DeployNodeLock, error) {
+	return c.Query().Where(deploynodelock.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeployNodeLockClient) GetX(ctx context.Context, id int) *DeployNodeLock {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeployNodeLockClient) Hooks() []Hook {
+	return c.hooks.DeployNodeLock
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeployNodeLockClient) Interceptors() []Interceptor {
+	return c.inters.DeployNodeLock
+}
+
+func (c *DeployNodeLockClient) mutate(ctx context.Context, m *DeployNodeLockMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeployNodeLockCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeployNodeLockUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeployNodeLockUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeployNodeLockDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeployNodeLock mutation op: %q", m.Op())
+	}
+}
+
 // DeployTaskClient is a client for the DeployTask schema.
 type DeployTaskClient struct {
 	config
@@ -2783,13 +2924,14 @@ func (c *RealServerClient) mutate(ctx context.Context, m *RealServerMutation) (V
 type (
 	hooks struct {
 		Approval, AuditLog, ChangeOrder, Cluster, ConfigBlob, ConfigFile,
-		ConfigRevision, ConfigSnapshot, ConfigTemplate, ConfigVariable, DeployTask,
-		Node, NodeCapability, NodeConfigFile, NodeLogTarget, RealServer []ent.Hook
+		ConfigRevision, ConfigSnapshot, ConfigTemplate, ConfigVariable, DeployNodeLock,
+		DeployTask, Node, NodeCapability, NodeConfigFile, NodeLogTarget,
+		RealServer []ent.Hook
 	}
 	inters struct {
 		Approval, AuditLog, ChangeOrder, Cluster, ConfigBlob, ConfigFile,
-		ConfigRevision, ConfigSnapshot, ConfigTemplate, ConfigVariable, DeployTask,
-		Node, NodeCapability, NodeConfigFile, NodeLogTarget,
+		ConfigRevision, ConfigSnapshot, ConfigTemplate, ConfigVariable, DeployNodeLock,
+		DeployTask, Node, NodeCapability, NodeConfigFile, NodeLogTarget,
 		RealServer []ent.Interceptor
 	}
 )

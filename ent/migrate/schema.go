@@ -229,6 +229,32 @@ var (
 			},
 		},
 	}
+	// DeployNodeLocksColumns holds the columns for the "deploy_node_locks" table.
+	DeployNodeLocksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "node_id", Type: field.TypeInt, Unique: true},
+		{Name: "order_id", Type: field.TypeInt},
+		{Name: "locked_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+	}
+	// DeployNodeLocksTable holds the schema information for the "deploy_node_locks" table.
+	DeployNodeLocksTable = &schema.Table{
+		Name:       "deploy_node_locks",
+		Columns:    DeployNodeLocksColumns,
+		PrimaryKey: []*schema.Column{DeployNodeLocksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "deploynodelock_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{DeployNodeLocksColumns[4]},
+			},
+			{
+				Name:    "deploynodelock_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{DeployNodeLocksColumns[2]},
+			},
+		},
+	}
 	// DeployTasksColumns holds the columns for the "deploy_tasks" table.
 	DeployTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -444,6 +470,7 @@ var (
 		ConfigSnapshotsTable,
 		ConfigTemplatesTable,
 		ConfigVariablesTable,
+		DeployNodeLocksTable,
 		DeployTasksTable,
 		NodesTable,
 		NodeCapabilitiesTable,
