@@ -39,7 +39,7 @@
 - 🌐 **节点自注册（web 一键，推荐）**：控制面提供 `/agent/` 控制台 —— 填节点名 + 选角色「新建节点并生成接入命令」，
   签发**节点绑定 Join Token**（服务端 `join_tokens` 表，可单独吊销），显示 `curl … | bash` 一行命令；
   节点自拉二进制 + CA、装 systemd、用 Join Token + 本地 CSR 自注册，**复用既有节点**无审批直接上线
-  （令牌持久化于 Agent 侧 `/etc/ngxcp/agent.conf`）。`POST /api/v1/nodes` 新建并签发，`POST /api/v1/nodes/:id/join-token` 轮换（吊销旧令牌）。
+  （令牌持久化于 Agent 侧 `/etc/ngxcp/agent.conf`）。`POST /api/v1/nodes` 新建并签发，`POST /api/v1/nodes/:id/join-token` 轮换（吊销旧令牌），亦可经 `POST /api/v1/nodes/:id/join-token/revoke` 独立吊销（只吊销不签发，安全事件响应）。
   另保留**预建节点一次性 Enroll Token**路径（`POST /api/v1/nodes/:id/enroll-token`，可经 `POST /api/v1/nodes/:id/enroll-token/revoke` 主动吊销），
   同样入库 `enroll_tokens` 表、**持久化（重启不丢）且可主动吊销**。两类令牌控制面都只存 SHA-256 哈希 + 绑定节点 + 过期 + 吊销/已用标志，原文仅签发时返回一次。
   旧的手工 `enroll-agent.sh` 已移除（那套「先建节点再逐台发令牌」不是自注册）。

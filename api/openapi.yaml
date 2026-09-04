@@ -238,6 +238,64 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/nodes/{id}/join-token:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Cluster]
+      summary: 为指定节点轮换（重新签发）Join Token（写接口，需鉴权）
+      description: >
+        令牌过期或需吊销旧令牌时调用。先吊销该节点所有未吊销的 Join Token（即时生效），
+        再签发新令牌；与 /join-token/revoke（只吊销不签发）互补。
+      operationId: rotateJoinToken
+      parameters:
+        - name: ttl
+          in: query
+          description: 新令牌有效期，Go duration 格式（如 24h），默认 24h
+          schema: { type: string }
+      responses:
+        '200':
+          description: 已轮换；返回新令牌（仅此返回一次）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/nodes/{id}/join-token/revoke:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Cluster]
+      summary: 吊销该节点所有尚未吊销的 Join Token（写接口，需鉴权）
+      description: >
+        与 rotateJoinToken 互补，仅吊销不签发。用于令牌疑似泄漏或节点下线等安全事件响应；
+        吊销即时生效，Agent 持已被吊销令牌注册将被拒绝（CodeUnauthorized）。
+      operationId: revokeJoinToken
+      responses:
+        '200':
+          description: 已吊销该节点的全部活跃 Join Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+              example:
+                code: 0
+                message: ok
+                data:
+                  revoked: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/nodes/{id}/capability:
     parameters:
       - name: id

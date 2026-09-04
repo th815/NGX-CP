@@ -121,7 +121,8 @@ bash scripts/deploy-agent.sh
 （systemd EnvironmentFile），控制面服务端**两张表**按哈希反查节点，均支持**单独吊销**（即时生效、无需等过期）：
 
 - **Join Token（`join_tokens` 表）**：节点绑定、可复用。`POST /api/v1/nodes/:id/join-token` 轮换即
-  吊销旧令牌；已纳管节点可凭同一令牌**重建客户端证书**（证书丢失场景）。
+  吊销旧令牌；亦可经 `POST /api/v1/nodes/:id/join-token/revoke` **独立吊销**（只吊销不签发，
+  用于令牌泄漏 / 节点下线安全响应）；已纳管节点可凭同一令牌**重建客户端证书**（证书丢失场景）。
 - **Enroll Token（`enroll_tokens` 表）**：预建节点场景下的一次性令牌（首次注册后即作废），
   入库持久化（**重启不丢**）；经 `POST /api/v1/nodes/:id/enroll-token/revoke` 可主动吊销
   （吊销即时生效，无需等过期）。

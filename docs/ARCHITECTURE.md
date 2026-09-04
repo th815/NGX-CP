@@ -798,7 +798,7 @@ GET    /api/v1/clusters/:id                PUT    /api/v1/clusters/:id      DELE
 GET    /api/v1/nodes                       POST   /api/v1/nodes                       # 新建节点并签发 Join Token
 GET    /api/v1/nodes/:id                   PUT    /api/v1/nodes/:id         DELETE /api/v1/nodes/:id
 POST   /api/v1/nodes/:id/enroll-token     POST   /api/v1/nodes/:id/enroll-token/revoke  # 一次性令牌 / 吊销
-POST   /api/v1/nodes/:id/join-token        # 轮换 Join Token（吊销旧令牌，即时生效）
+POST   /api/v1/nodes/:id/join-token        POST   /api/v1/nodes/:id/join-token/revoke   # 轮换 / 独立吊销（均即时生效）
 POST   /api/v1/nodes/:id/actions           # test|reload|restart|stop|drcheck
 POST   /api/v1/nodes/batch-actions
 

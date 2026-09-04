@@ -43,6 +43,8 @@ func registerAgentDistribution(r *gin.Engine, ca *pki.CA, distDir, grpcListen st
 	r.POST("/api/v1/nodes", auth, ad.createNodeWithToken)
 	// 为已存在节点重新签发 Join Token（令牌过期 / 需吊销旧令牌时）。
 	r.POST("/api/v1/nodes/:id/join-token", auth, ad.rotateJoinToken)
+	// 独立吊销节点 Join Token（只吊销、不签发；令牌泄漏 / 节点下线安全响应）。
+	r.POST("/api/v1/nodes/:id/join-token/revoke", auth, ad.revokeJoinToken)
 }
 
 // serveInstallScript 提供节点侧自安装脚本（公开，引导用）。
@@ -145,8 +147,8 @@ func (ad *agentDist) createNodeWithToken(c *gin.Context) {
 }
 
 // rotateJoinToken 为已存在节点重新签发节点绑定 Join Token（令牌过期 / 需吊销旧令牌时）。
-// 查询参数 ttl 指定新有效期（默认 24h）。旧令牌随即失效（签名绑定到新 nodeID 会话，
-// 但控制面无状态，实际由「重新注册需新令牌」语义保证——运营商轮换即等于吊销旧令牌）。
+// 查询参数 ttl 指定新有效期（默认 24h）。轮换即显式吊销旧令牌（RevokeNodeJoinTokens 置
+// revoked，即时生效），再签发新令牌——与「只吊销不签发」的 revokeJoinToken 端点互补。
 func (ad *agentDist) rotateJoinToken(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -175,6 +177,26 @@ func (ad *agentDist) rotateJoinToken(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": tok, "expires_at": exp}})
+}
+
+// revokeJoinToken 吊销该节点所有尚未吊销的 Join Token（只吊销、不签发）。
+// 与 rotateJoinToken（吊销旧 + 签发新）互补，用于安全事件响应：令牌疑似泄漏或节点
+// 下线时，吊销后旧令牌立即失效（revoked 即时生效），Agent 持旧令牌注册将被拒。
+func (ad *agentDist) revokeJoinToken(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "非法节点 ID"}})
+		return
+	}
+	if _, err := ad.nodeSvc.Get(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "节点不存在"}})
+		return
+	}
+	if err := ad.nodeSvc.RevokeNodeJoinTokens(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"revoked": id}})
 }
 
 // publicOrigin 还原请求的公网来源（兼容反向代理的 X-Forwarded-* 头）。
