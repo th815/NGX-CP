@@ -1,4 +1,4 @@
-# 部署控制面（ngxcp-server）
+# 部署指南（控制面 + 节点 Agent）
 
 > 本文档为**环境无关**的通用部署指南，不绑定任何具体主机 / IP / 内网信息。
 > 主机相关的具体部署记录（目标地址、token 保管、回滚时间点等）请写在本地任务日志（`.workbuddy/memory/`，已被 gitignore，**不入库**），不要提交到仓库或写入根 README。
@@ -31,4 +31,64 @@
 ## 5. 已知注意
 
 - `enable --now` 不会重启**已在运行**的服务；脚本已改用显式 `restart`。
-- 真实执行（Agent 经 gRPC 落盘配置/证书）需在生产节点安装 Agent 后，由发布引擎 `Runner` 接线；在此之前变更单停留在「等待执行器接入」。
+- 发布引擎 `Runner`（`internal/server/agent_runner.go`）**已接线**：控制面经 Agent 心跳命令通道下发
+  部署 / 回滚 / 快照 / 调权指令，变更单会收敛到真实 `success` / `failed`。
+  前提是**目标节点已安装并注册 Agent** —— 节点未接入时下单会明确失败（Agent 未在线），
+  而不是静默停留在 running。节点部署见下一节。
+
+## 6. 部署节点 Agent（ngxcp-agent）
+
+Agent 常驻在每台 Nginx / Keepalived 节点上，**主动外连**控制面（gRPC + mTLS），
+节点无需开放任何入站端口。
+
+### 6.1 前置
+
+1. 控制面已部署，且 `agent_grpc` 端口（默认 `:9443`）可从节点访问。
+2. 已在控制面为**每个节点**生成一次性接入令牌（令牌与 nodeID 绑定，用后即焚）。
+3. 已取得控制面 CA 证书（`ca.crt`），用于引导期信任。
+
+### 6.2 部署（`scripts/deploy-agent.sh`）
+
+先准备令牌文件（**含机密，已列入 `.gitignore`，切勿入库**），每行一条 `<ssh目标>=<一次性令牌>`：
+
+```bash
+# .agent-tokens
+root@rs1=<token-1>
+root@rs2=<token-2>
+```
+
+再执行 —— 主机、控制面地址、CA 路径全部由环境变量提供，脚本不含任何内置环境信息：
+
+```bash
+NGXCP_AGENT_HOSTS="root@rs1 root@rs2" \
+NGXCP_AGENT_CONTROL_PLANE="cp.internal:9443" \
+NGXCP_AGENT_CA_CERT="./pki/ca.crt" \
+NGXCP_AGENT_TOKENS_FILE="./.agent-tokens" \
+bash scripts/deploy-agent.sh
+```
+
+流程：交叉编译 → 传二进制 / unit / CA → 备份旧二进制 → `stop` → 落位 → `start` → 健康校验。
+**任一节点校验失败即自动回滚该节点并中止**，不会把坏版本继续推向后续节点（灰度场景请一台一台推）。
+
+### 6.3 机密管理
+
+- 环境文件 `/etc/ngxcp/agent.env`（`chmod 600`）承载控制面地址与 enroll token，
+  不落进 systemd unit，也不会出现在 `ps` 输出里。
+- **enroll token 是一次性的**：首次注册后 Agent 会把客户端证书持久化到 `data-dir`（默认 `/var/lib/ngxcp`）。
+  因此重复部署**只创建、绝不覆盖**已有 `agent.env` —— 否则会用已失效的令牌覆盖掉有效凭据。
+- 令牌文件与 CA 私钥均不入库；`.gitignore` 已增列 `.agent-tokens` / `*.tokens`。
+
+### 6.4 回滚
+
+- 每次部署前自动备份旧二进制到 `/opt/ngxcp/backups/ngxcp-agent.<时间戳>`。
+- 单独回滚：`NGXCP_AGENT_HOSTS="root@rs1" NGXCP_AGENT_ROLLBACK=1 bash scripts/deploy-agent.sh`。
+
+### 6.5 systemd 加固（`scripts/ngxcp-agent.service`）
+
+- `ProtectSystem=full` + `ReadWritePaths=/etc/nginx /etc/keepalived /var/lib/ngxcp /var/log/nginx`：
+  Agent 必须能改 nginx / keepalived 配置、抓快照、跑 `nginx -t` 与 `reload`，其余路径只读。
+- `AmbientCapabilities=CAP_NET_ADMIN`：LVS Director 上 `ipvsadm` 调整 RS 权重所需；纯 RS 节点保留亦无副作用。
+- `MemoryMax=256M`：避免 Agent 失控影响同机 nginx。
+- 虚拟化环境前置（vCenter，Agent 运行时不感知，属部署清单强制项）：
+  Director 端口组须开「混杂模式 + MAC 地址更改 + 伪传输」；Keepalived VRRP 必须 unicast；
+  必须关闭 VMware Tools 时间同步并启用 chrony —— 详见 `docs/DECISIONS.md`。
