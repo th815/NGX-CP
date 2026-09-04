@@ -33,6 +33,30 @@ func (f AuditLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditLogMutation", m)
 }
 
+// The CertDeploymentFunc type is an adapter to allow the use of ordinary
+// function as CertDeployment mutator.
+type CertDeploymentFunc func(context.Context, *ent.CertDeploymentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CertDeploymentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CertDeploymentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CertDeploymentMutation", m)
+}
+
+// The CertificateFunc type is an adapter to allow the use of ordinary
+// function as Certificate mutator.
+type CertificateFunc func(context.Context, *ent.CertificateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CertificateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CertificateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CertificateMutation", m)
+}
+
 // The ChangeOrderFunc type is an adapter to allow the use of ordinary
 // function as ChangeOrder mutator.
 type ChangeOrderFunc func(context.Context, *ent.ChangeOrderMutation) (ent.Value, error)

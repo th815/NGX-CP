@@ -14,6 +14,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/th/ngxcp/ent/approval"
 	"github.com/th/ngxcp/ent/auditlog"
+	"github.com/th/ngxcp/ent/certdeployment"
+	"github.com/th/ngxcp/ent/certificate"
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configblob"
@@ -91,6 +93,8 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			approval.Table:       approval.ValidColumn,
 			auditlog.Table:       auditlog.ValidColumn,
+			certdeployment.Table: certdeployment.ValidColumn,
+			certificate.Table:    certificate.ValidColumn,
 			changeorder.Table:    changeorder.ValidColumn,
 			cluster.Table:        cluster.ValidColumn,
 			configblob.Table:     configblob.ValidColumn,

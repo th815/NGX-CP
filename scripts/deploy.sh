@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# deploy-5.50.sh —— 将 ngxcp-server（含内嵌前端 SPA）部署到 192.168.5.50（Rocky Linux 9, systemd）。
+# deploy.sh —— 将 ngxcp-server（含内嵌前端 SPA）部署到目标主机（由环境变量 NGXCP_DEPLOY_HOST 指定）。
 #
-# 前置：能用 root 密钥 SSH 到 192.168.5.50（ssh root@192.168.5.50 免密）。
+# 前置：能用 root 密钥 SSH 到 $NGXCP_DEPLOY_HOST（建议 ssh 免密）。
 # 用途：构建前端 → 交叉编译(内嵌 webui) → 传输 → 备份旧二进制 → 落位 →
 #       首次生成配置(机密不入库) → 启服务 → 冒烟测试。
 # 回滚：保留 /opt/ngxcp/backups/ngxcp-server.<时间戳>，必要时 stop + 换回 + restart 即可。
+# 安全：本脚本不硬编码任何目标主机/IP，部署目标完全由本地环境变量决定，可安全入库。
 #
-# 用法： bash scripts/deploy-5.50.sh
+# 用法： NGXCP_DEPLOY_HOST=root@your-host bash scripts/deploy.sh
 set -euo pipefail
 
-HOST="root@192.168.5.50"
+HOST="${NGXCP_DEPLOY_HOST:?请设置环境变量 NGXCP_DEPLOY_HOST（目标主机，如 root@your-host）}"
 REMOTE_DIR="/opt/ngxcp"
 SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -69,7 +70,6 @@ if [ ! -f /opt/ngxcp/config.yaml ]; then
   cat > /opt/ngxcp/config.yaml <<YAML
 listen: ":8080"
 agent_grpc: ":9443"
-base_url: "http://192.168.5.50:8080"
 db_driver: "sqlite"
 db_dsn: "file:/var/lib/ngxcp/ngxcp.db?cache=shared&_fk=1"
 db_auto_migrate: true

@@ -10,6 +10,9 @@
 
 ## T040 · 证书数据模型与加密存储
 
+> **状态：✅ 已完成**
+> 交付：`ent/schema/certificate.go`（证书实体，元数据与私钥分离，`enc_private_key`/`enc_full_chain` 为信封加密 blob，API 永不回传私钥）、`ent/schema/cert_deployment.go`（逐节点分发状态，外键 `certificate` Unique+Required）；`internal/crypto/kms.go` 信封加密（AES-256-GCM，随机 DEK + KEK 包装，主密钥取 `NGXCP_MASTER_KEY` 或 `/etc/ngxcp/master.key` hex，绝硬编码）+ `kms_test.go`（round-trip/错误密钥失败/nonce 唯一/非法长度拒绝/环境变量载入 共 5 例）。`go generate ./ent` 已重新生成运行时；`go vet`/`go test ./internal/crypto/...`/全仓 `go build` 通过。
+
 **目标**：定义证书实体，私钥与元数据分离存储，密钥信封加密。
 
 **依赖**：T006

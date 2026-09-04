@@ -16,6 +16,10 @@ type Tx struct {
 	Approval *ApprovalClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
+	// CertDeployment is the client for interacting with the CertDeployment builders.
+	CertDeployment *CertDeploymentClient
+	// Certificate is the client for interacting with the Certificate builders.
+	Certificate *CertificateClient
 	// ChangeOrder is the client for interacting with the ChangeOrder builders.
 	ChangeOrder *ChangeOrderClient
 	// Cluster is the client for interacting with the Cluster builders.
@@ -179,6 +183,8 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Approval = NewApprovalClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
+	tx.CertDeployment = NewCertDeploymentClient(tx.config)
+	tx.Certificate = NewCertificateClient(tx.config)
 	tx.ChangeOrder = NewChangeOrderClient(tx.config)
 	tx.Cluster = NewClusterClient(tx.config)
 	tx.ConfigBlob = NewConfigBlobClient(tx.config)

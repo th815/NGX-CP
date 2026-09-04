@@ -51,6 +51,53 @@ var (
 		Columns:    AuditLogsColumns,
 		PrimaryKey: []*schema.Column{AuditLogsColumns[0]},
 	}
+	// CertDeploymentsColumns holds the columns for the "cert_deployments" table.
+	CertDeploymentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "deployed", "failed"}, Default: "pending"},
+		{Name: "deployed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "error", Type: field.TypeString, Nullable: true},
+		{Name: "certificate_deployments", Type: field.TypeInt},
+	}
+	// CertDeploymentsTable holds the schema information for the "cert_deployments" table.
+	CertDeploymentsTable = &schema.Table{
+		Name:       "cert_deployments",
+		Columns:    CertDeploymentsColumns,
+		PrimaryKey: []*schema.Column{CertDeploymentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "cert_deployments_certificates_deployments",
+				Columns:    []*schema.Column{CertDeploymentsColumns[5]},
+				RefColumns: []*schema.Column{CertificatesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// CertificatesColumns holds the columns for the "certificates" table.
+	CertificatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "domain", Type: field.TypeString},
+		{Name: "san", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb", "sqlite": "json"}},
+		{Name: "issuer", Type: field.TypeString},
+		{Name: "serial_number", Type: field.TypeString, Unique: true},
+		{Name: "fingerprint_sha", Type: field.TypeString},
+		{Name: "not_before", Type: field.TypeTime},
+		{Name: "not_after", Type: field.TypeTime},
+		{Name: "key_alg", Type: field.TypeString},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"acme", "upload"}, Default: "upload"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"valid", "expired", "revoked", "error"}, Default: "valid"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "enc_private_key", Type: field.TypeBytes, Nullable: true},
+		{Name: "enc_full_chain", Type: field.TypeBytes, Nullable: true},
+	}
+	// CertificatesTable holds the schema information for the "certificates" table.
+	CertificatesTable = &schema.Table{
+		Name:       "certificates",
+		Columns:    CertificatesColumns,
+		PrimaryKey: []*schema.Column{CertificatesColumns[0]},
+	}
 	// ChangeOrdersColumns holds the columns for the "change_orders" table.
 	ChangeOrdersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -462,6 +509,8 @@ var (
 	Tables = []*schema.Table{
 		ApprovalsTable,
 		AuditLogsTable,
+		CertDeploymentsTable,
+		CertificatesTable,
 		ChangeOrdersTable,
 		ClustersTable,
 		ConfigBlobsTable,
@@ -481,6 +530,7 @@ var (
 )
 
 func init() {
+	CertDeploymentsTable.ForeignKeys[0].RefTable = CertificatesTable
 	ConfigRevisionsTable.ForeignKeys[0].RefTable = ConfigBlobsTable
 	ConfigRevisionsTable.ForeignKeys[1].RefTable = ConfigRevisionsTable
 	ConfigSnapshotsTable.ForeignKeys[0].RefTable = NodesTable

@@ -7,6 +7,7 @@ import (
 
 	"github.com/th/ngxcp/ent/approval"
 	"github.com/th/ngxcp/ent/auditlog"
+	"github.com/th/ngxcp/ent/certificate"
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configblob"
@@ -47,6 +48,40 @@ func init() {
 	auditlogDescCreatedAt := auditlogFields[6].Descriptor()
 	// auditlog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	auditlog.DefaultCreatedAt = auditlogDescCreatedAt.Default.(func() time.Time)
+	certdeploymentFields := schema.CertDeployment{}.Fields()
+	_ = certdeploymentFields
+	certificateFields := schema.Certificate{}.Fields()
+	_ = certificateFields
+	// certificateDescDomain is the schema descriptor for domain field.
+	certificateDescDomain := certificateFields[0].Descriptor()
+	// certificate.DomainValidator is a validator for the "domain" field. It is called by the builders before save.
+	certificate.DomainValidator = certificateDescDomain.Validators[0].(func(string) error)
+	// certificateDescIssuer is the schema descriptor for issuer field.
+	certificateDescIssuer := certificateFields[2].Descriptor()
+	// certificate.IssuerValidator is a validator for the "issuer" field. It is called by the builders before save.
+	certificate.IssuerValidator = certificateDescIssuer.Validators[0].(func(string) error)
+	// certificateDescSerialNumber is the schema descriptor for serial_number field.
+	certificateDescSerialNumber := certificateFields[3].Descriptor()
+	// certificate.SerialNumberValidator is a validator for the "serial_number" field. It is called by the builders before save.
+	certificate.SerialNumberValidator = certificateDescSerialNumber.Validators[0].(func(string) error)
+	// certificateDescFingerprintSha is the schema descriptor for fingerprint_sha field.
+	certificateDescFingerprintSha := certificateFields[4].Descriptor()
+	// certificate.FingerprintShaValidator is a validator for the "fingerprint_sha" field. It is called by the builders before save.
+	certificate.FingerprintShaValidator = certificateDescFingerprintSha.Validators[0].(func(string) error)
+	// certificateDescKeyAlg is the schema descriptor for key_alg field.
+	certificateDescKeyAlg := certificateFields[7].Descriptor()
+	// certificate.KeyAlgValidator is a validator for the "key_alg" field. It is called by the builders before save.
+	certificate.KeyAlgValidator = certificateDescKeyAlg.Validators[0].(func(string) error)
+	// certificateDescCreatedAt is the schema descriptor for created_at field.
+	certificateDescCreatedAt := certificateFields[10].Descriptor()
+	// certificate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	certificate.DefaultCreatedAt = certificateDescCreatedAt.Default.(func() time.Time)
+	// certificateDescUpdatedAt is the schema descriptor for updated_at field.
+	certificateDescUpdatedAt := certificateFields[11].Descriptor()
+	// certificate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	certificate.DefaultUpdatedAt = certificateDescUpdatedAt.Default.(func() time.Time)
+	// certificate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	certificate.UpdateDefaultUpdatedAt = certificateDescUpdatedAt.UpdateDefault.(func() time.Time)
 	changeorderFields := schema.ChangeOrder{}.Fields()
 	_ = changeorderFields
 	// changeorderDescCreatedAt is the schema descriptor for created_at field.

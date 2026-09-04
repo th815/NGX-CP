@@ -12,6 +12,12 @@ type Approval func(*sql.Selector)
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 
+// CertDeployment is the predicate function for certdeployment builders.
+type CertDeployment func(*sql.Selector)
+
+// Certificate is the predicate function for certificate builders.
+type Certificate func(*sql.Selector)
+
 // ChangeOrder is the predicate function for changeorder builders.
 type ChangeOrder func(*sql.Selector)
 
