@@ -34,6 +34,8 @@
 - ✅ **Agent 执行闭环接线**：控制面经心跳命令通道下发 部署/回滚/快照/调权 指令（transport 层），
   AgentRunner 实现 `deploy.Runner` 并接入 worker —— 变更单从「等待执行器接入」收敛为真实 success/failed，
   不再假装成功。附带修复 watcher 注册竞态（监听生效前的配置变更会被永久丢弃）。
+  落地工具：`scripts/deploy-agent.sh`（rollback-safe：备份→stop→落位→start→校验，
+  失败自动回滚；主机/IP/令牌全部由环境变量与令牌文件提供，无内置环境信息）+ systemd 单元。
 - 🟡 **M4 证书管理**：进行中 —— T040 证书数据模型与加密存储 已完成；T041 DNS Provider / T042 ACME / T043 手动上传+6 项校验 / T044 分发 / T045 自动续期 / T046 UI 待做。
 - ⬜ **M5–M9**：LVS 管理 / 日志与安全 / 监控 / 构建升级 / 备份运维（增值模块，可边用边做）。
 

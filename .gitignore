@@ -32,6 +32,10 @@ configs/*.local.yaml
 .env.*
 *.local.yaml
 
+# Agent 一次性接入令牌（deploy-agent.sh 的 NGXCP_AGENT_TOKENS_FILE，含机密）
+.agent-tokens
+*.tokens
+
 # Certificates / PKI material
 *.pem
 *.p12

@@ -1,0 +1,34 @@
+[Unit]
+Description=NGX-CP Node Agent (ngxcp-agent)
+Documentation=https://github.com/th815/NGX-CP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+# 机密走 EnvironmentFile（600），不落进 unit、也不出现在命令行 / ps 输出里
+EnvironmentFile=/etc/ngxcp/agent.env
+ExecStart=/opt/ngxcp/ngxcp-agent
+Restart=always
+RestartSec=5
+
+# 文件系统加固：整机只读，仅显式放行 Agent 必须写入的路径。
+# Agent 要改 nginx/keepalived 配置、抓快照、跑 nginx -t / reload，故这几处必须可写。
+ProtectSystem=full
+ReadWritePaths=/etc/nginx /etc/keepalived /var/lib/ngxcp /var/log/nginx
+PrivateTmp=true
+NoNewPrivileges=yes
+# LVS Director 上 ipvsadm 调整 RS 权重需要 NET_ADMIN；纯 RS 节点保留亦无副作用
+AmbientCapabilities=CAP_NET_ADMIN
+
+# 节点 Agent 极轻：限制内存上限，避免失控影响同机 nginx
+MemoryMax=256M
+LimitNOFILE=65536
+# JSON 结构化日志经 journald 收集
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ngxcp-agent
+
+[Install]
+WantedBy=multi-user.target
