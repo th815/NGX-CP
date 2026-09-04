@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/th/ngxcp/ent/approval"
 	"github.com/th/ngxcp/ent/auditlog"
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/cluster"
@@ -27,6 +28,18 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	approvalFields := schema.Approval{}.Fields()
+	_ = approvalFields
+	// approvalDescCreatedAt is the schema descriptor for created_at field.
+	approvalDescCreatedAt := approvalFields[7].Descriptor()
+	// approval.DefaultCreatedAt holds the default value on creation for the created_at field.
+	approval.DefaultCreatedAt = approvalDescCreatedAt.Default.(func() time.Time)
+	// approvalDescUpdatedAt is the schema descriptor for updated_at field.
+	approvalDescUpdatedAt := approvalFields[8].Descriptor()
+	// approval.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	approval.DefaultUpdatedAt = approvalDescUpdatedAt.Default.(func() time.Time)
+	// approval.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	approval.UpdateDefaultUpdatedAt = approvalDescUpdatedAt.UpdateDefault.(func() time.Time)
 	auditlogFields := schema.AuditLog{}.Fields()
 	_ = auditlogFields
 	// auditlogDescCreatedAt is the schema descriptor for created_at field.

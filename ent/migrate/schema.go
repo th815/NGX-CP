@@ -8,6 +8,32 @@ import (
 )
 
 var (
+	// ApprovalsColumns holds the columns for the "approvals" table.
+	ApprovalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "order_id", Type: field.TypeInt, Unique: true},
+		{Name: "required_by", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "expired"}, Default: "pending"},
+		{Name: "approver", Type: field.TypeString, Nullable: true},
+		{Name: "comment", Type: field.TypeString, Nullable: true},
+		{Name: "decided_at", Type: field.TypeTime, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ApprovalsTable holds the schema information for the "approvals" table.
+	ApprovalsTable = &schema.Table{
+		Name:       "approvals",
+		Columns:    ApprovalsColumns,
+		PrimaryKey: []*schema.Column{ApprovalsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "approval_status",
+				Unique:  false,
+				Columns: []*schema.Column{ApprovalsColumns[3]},
+			},
+		},
+	}
 	// AuditLogsColumns holds the columns for the "audit_logs" table.
 	AuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -408,6 +434,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		ApprovalsTable,
 		AuditLogsTable,
 		ChangeOrdersTable,
 		ClustersTable,

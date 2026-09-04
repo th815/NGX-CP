@@ -99,6 +99,7 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 
 		// T030 发布引擎：变更单生命周期（创建/列表/详情 + 提交/批准/拒绝/取消）。
 		dh := handler.NewDeployHandler(deploySvc)
+		ah := handler.NewApprovalHandler(deploySvc) // T036 审批记录查询
 		do := v1.Group("/change-orders")
 		{
 			do.POST("", auth, dh.Create)
@@ -108,6 +109,13 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			do.POST("/:id/approve", auth, dh.Approve)
 			do.POST("/:id/reject", auth, dh.Reject)
 			do.POST("/:id/cancel", auth, dh.Cancel)
+			do.GET("/:id/approval", ah.GetForOrder) // T036 取该变更单的审批记录
+		}
+
+		// T036 审批流：审批记录查询（列表按状态过滤）。
+		as := v1.Group("/approvals")
+		{
+			as.GET("", ah.List)
 		}
 	}
 	return r

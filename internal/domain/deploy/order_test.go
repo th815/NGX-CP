@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/th/ngxcp/ent"
+	"github.com/th/ngxcp/ent/schema"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/repo"
 )
@@ -111,7 +112,11 @@ func TestTransition_RecoveryAfterRestart(t *testing.T) {
 	client, dsn := newDeployClient(t, true)
 	svc := New(client)
 
-	co, err := svc.CreateDraft(ctx, CreateInput{Title: "recover", Type: "config"})
+	co, err := svc.CreateDraft(ctx, CreateInput{
+		Title:    "recover",
+		Type:     "config",
+		Strategy: schema.DeployStrategy{ApprovalRequired: true}, // 强制走审批路径
+	})
 	require.NoError(t, err)
 	require.NoError(t, svc.Submit(ctx, co.ID))
 	require.NoError(t, svc.Approve(ctx, co.ID, "admin"))

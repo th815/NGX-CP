@@ -9,6 +9,18 @@ import (
 	"github.com/th/ngxcp/ent"
 )
 
+// The ApprovalFunc type is an adapter to allow the use of ordinary
+// function as Approval mutator.
+type ApprovalFunc func(context.Context, *ent.ApprovalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ApprovalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ApprovalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ApprovalMutation", m)
+}
+
 // The AuditLogFunc type is an adapter to allow the use of ordinary
 // function as AuditLog mutator.
 type AuditLogFunc func(context.Context, *ent.AuditLogMutation) (ent.Value, error)

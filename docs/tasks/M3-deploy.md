@@ -628,7 +628,7 @@ watch -n 1 "ipvsadm -Ln | grep -A2 '10.0.1.11'"
 
 ---
 
-## T036 · 审批流（可选开关）
+## T036 · 审批流（可选开关）✅ 已完成（2026-09-04）
 
 **目标**：高风险变更需要人工确认。
 
@@ -636,11 +636,26 @@ watch -n 1 "ipvsadm -Ln | grep -A2 '10.0.1.11'"
 
 **涉及文件**：
 ```
-ent/schema/approval.go
-internal/domain/deploy/approval.go
-internal/server/handler/approval.go
-web/src/components/deploy/ApprovalPanel.vue
+ent/schema/approval.go                 # 审批实体（order_id Unique / status 枚举 / expires_at）
+ent/approval/  (ent 生成：approval.go, _create/_update/_query/_delete.go)
+internal/domain/deploy/approval.go     # 规则引擎 + 自审批拦截 + 超时过期 + 审计查询
+internal/domain/deploy/order.go        # Submit 审批感知；Approve 自审批拦截；Reject 记录
+internal/domain/deploy/state.go        # StatusDraft 增加 →pending 直达迁移
+internal/server/handler/approval.go    # GET /api/v1/approvals、GET /api/v1/change-orders/:id/approval
+internal/server/handler/deploy.go      # Submit 响应返回 approval_required + required_by
+internal/server/router.go              # 挂载审批路由
+internal/domain/deploy/approval_test.go# 9 例（规则/提交/审批/拒绝/过期/列表）
+web/src/components/deploy/ApprovalPanel.vue   # ★ 前端面板推到 T039 与发布页一起落地
 ```
+
+**实现说明（与原任务注释的偏差）**：
+- 原注释用 CEL 表达式 `condition: "cluster == 'prod-web' && node_count >= 2"` 描述规则。本项目**不设表达式引擎依赖**，改为结构化字段 `ApprovalRule{Name, Enabled, Types, Sources, MinNodes}` 等价表达（Types 空=任意类型、MinNodes=0 不限制节点数），由 `ruleMatches` 做与运算匹配——后续如需「路径 / 集群标签」等更复杂条件可扩展结构体字段，无需引入 CEL。
+- `Approval` 实体用字符串 `approver`（与变更单 `created_by` 同源，均为账号标识）而非原契约的 `approver_id *int`——本系统身份是账号字符串，无整数 user 表，避免引入无用的关联。
+- `Submit` 落库逻辑：命中规则（或 `Strategy.ApprovalRequired` 显式声明）即 `createApproval` + 转入 `pending_approval`；免审批直接 `draft → pending`（故 `StatusDraft` 出边新增 `pending`，状态机仍闭合）。
+- **自审批硬约束**：`AllowSelfApproval=false`（默认）且 `approver==created_by` 时 `Approve` 返回 `CodeInvalid`；配置开启后允许。
+- **超时过期**：`createApproval` 写入 `expires_at=now+Timeout`；`ExpireApprovals` 由控制面定时 worker 调用，超时 pending → `expired` 且变更单自动 `rejected`。
+- **证书自动续期豁免**：`Source=="auto_renew"` 一律免审批（不触发人工）。
+- 端到端接线（Agent 执行、前端审批面板）随 M3 集成验收（T037 + T039）一并落地。
 
 **契约**：
 

@@ -104,11 +104,17 @@ func (h *DeployHandler) Get(c *gin.Context) {
 	response.OK(c, co)
 }
 
-// Submit 提交 draft → pending_approval（进入审批）。
+// Submit 提交：按审批规则决定 draft → pending_approval 或直达 pending。
 //
 //	POST /api/v1/change-orders/:id/submit
+//	响应含 approval_required / required_by，便于前端决定展示审批入口。
 func (h *DeployHandler) Submit(c *gin.Context) {
 	id, err := parseDeployID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	need, rule, err := h.svc.EvaluateApproval(c.Request.Context(), id)
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -117,7 +123,17 @@ func (h *DeployHandler) Submit(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, gin.H{"id": id, "status": string(deploy.StatusPendingApproval)})
+	got, err := h.svc.Get(c.Request.Context(), id)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{
+		"id":                id,
+		"status":            string(got.Status),
+		"approval_required": need,
+		"required_by":       rule,
+	})
 }
 
 // Approve 批准 pending_approval → pending，并记录审批人。

@@ -59,7 +59,7 @@ func TestStateMachine_Terminal(t *testing.T) {
 // TestStateMachine_Allowed：AllowedTransitions 返回完整出边集合。
 func TestStateMachine_Allowed(t *testing.T) {
 	got := AllowedTransitions(StatusDraft)
-	assert.ElementsMatch(t, []OrderStatus{StatusPendingApproval, StatusCanceled}, got)
+	assert.ElementsMatch(t, []OrderStatus{StatusPendingApproval, StatusPending, StatusCanceled}, got)
 
 	got = AllowedTransitions(StatusRunning)
 	assert.ElementsMatch(t, []OrderStatus{

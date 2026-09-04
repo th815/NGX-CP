@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/th/ngxcp/ent/approval"
 	"github.com/th/ngxcp/ent/auditlog"
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/cluster"
@@ -87,6 +88,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			approval.Table:       approval.ValidColumn,
 			auditlog.Table:       auditlog.ValidColumn,
 			changeorder.Table:    changeorder.ValidColumn,
 			cluster.Table:        cluster.ValidColumn,

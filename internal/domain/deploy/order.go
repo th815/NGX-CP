@@ -25,9 +25,10 @@ type updateFunc func(*ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate
 //   - rbClient：触发某节点执行回滚（控制面经 Agent 接线，单测用 fake）
 //   - alert：   告警出口，rollback_failed 必发 CRITICAL
 type Service struct {
-	client   *ent.Client
-	rbClient NodeRollbackClient
-	alert    AlertSink
+	client      *ent.Client
+	rbClient    NodeRollbackClient
+	alert       AlertSink
+	approvalCfg *ApprovalConfig // 审批配置；nil 时用 DefaultApprovalConfig()
 }
 
 // New 构造发布服务。
@@ -139,19 +140,46 @@ func (s *Service) ListByStatus(ctx context.Context, status string) ([]*ent.Chang
 
 // —— 语义化状态转换（供 handler / 后续 worker 调用）——
 
-// Submit draft → pending_approval（提交审批）。
+// Submit draft → 按审批规则决定进入 pending_approval 或直达 pending。
+// 命中规则（或显式声明需审批）：落一条待审 Approval 记录后转入 pending_approval。
+// 免审批：直接 draft → pending，不创建审批记录。
 func (s *Service) Submit(ctx context.Context, orderID int) error {
+	co, err := s.Get(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	need, rule := s.cfg().RequiresApproval(co)
+	if !need {
+		return s.Transition(ctx, orderID, string(StatusDraft), string(StatusPending))
+	}
+	if err := s.createApproval(ctx, orderID, rule); err != nil {
+		return err
+	}
 	return s.Transition(ctx, orderID, string(StatusDraft), string(StatusPendingApproval))
 }
 
-// Approve pending_approval → pending，并记录审批人。
+// Approve pending_approval → pending，做自审批拦截并记录审批人。
+// 当 allow_self_approval=false 且审批人与提交人相同时拒绝（审计合规硬约束）。
 func (s *Service) Approve(ctx context.Context, orderID int, approver string) error {
+	co, err := s.Get(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if !s.cfg().AllowSelfApproval && approver != "" && co.CreatedBy != "" && approver == co.CreatedBy {
+		return apperr.New(apperr.CodeInvalid, "不允许审批人审批自己提交的变更单")
+	}
+	if err := s.markApproval(ctx, orderID, "approved", approver, ""); err != nil {
+		return err
+	}
 	return s.Transition(ctx, orderID, string(StatusPendingApproval), string(StatusPending),
 		func(u *ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate { return u.SetApprovedBy(approver) })
 }
 
-// Reject pending_approval → rejected。
+// Reject pending_approval → rejected，并记录拒绝动作。
 func (s *Service) Reject(ctx context.Context, orderID int) error {
+	if err := s.markApproval(ctx, orderID, "rejected", "", ""); err != nil {
+		return err
+	}
 	return s.Transition(ctx, orderID, string(StatusPendingApproval), string(StatusRejected))
 }
 

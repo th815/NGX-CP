@@ -28,7 +28,7 @@ const (
 // transitions 定义合法的（from → to）迁移集合。
 // 这是状态机的唯一事实来源，Service.Transition 据此做合法性校验。
 var transitions = map[OrderStatus][]OrderStatus{
-	StatusDraft:           {StatusPendingApproval, StatusCanceled},
+	StatusDraft:           {StatusPendingApproval, StatusPending, StatusCanceled},
 	StatusPendingApproval: {StatusPending, StatusRejected, StatusCanceled},
 	StatusPending:         {StatusRunning, StatusCanceled},
 	StatusRunning:         {StatusSuccess, StatusFailed, StatusPartialSuccess, StatusRollingBack, StatusCanceled},
