@@ -14,11 +14,13 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/ent"
 	entnode "github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/internal/domain/node"
+	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/repo"
 	"github.com/gin-gonic/gin"
 )
@@ -139,5 +141,41 @@ func TestNodeHandlerCapabilityAndTargets(t *testing.T) {
 	}
 	if lt, _ := decodeBody(t, w3)["data"].([]any); len(lt) != 2 {
 		t.Errorf("log-targets 返回 %d 条, want 2", len(lt))
+	}
+}
+
+// TestNodeHandlerEnrollTokenIssueAndRevoke 验证 Enroll Token 的 HTTP 端点端到端行为：
+//   - IssueEnrollToken 签发后，VerifyEnrollToken 成功回绑节点；
+//   - RevokeEnrollToken 吊销后，验签立即失败（令牌已吊销，revoked 即时生效）。
+func TestNodeHandlerEnrollTokenIssueAndRevoke(t *testing.T) {
+	client, id := setupNode(t)
+	defer client.Close()
+	svc := node.New(client, nil)
+	h := NewNodeHandler(svc, nil)
+	ctx := context.Background()
+
+	// 签发一次性 Enroll Token。
+	tok, _, err := svc.IssueEnrollToken(ctx, id, time.Hour)
+	if err != nil {
+		t.Fatalf("IssueEnrollToken: %v", err)
+	}
+	gotID, err := svc.VerifyEnrollToken(ctx, tok)
+	if err != nil {
+		t.Fatalf("签发后验签应成功: %v", err)
+	}
+	if gotID != id {
+		t.Fatalf("验签 nodeID = %d, want %d", gotID, id)
+	}
+
+	// 吊销端点：200，且库内该令牌置 revoked。
+	wr := httptest.NewRecorder()
+	h.RevokeEnrollToken(ginCtx(wr, id))
+	if wr.Code != http.StatusOK {
+		t.Fatalf("RevokeEnrollToken status = %d, want 200\nbody=%s", wr.Code, wr.Body.String())
+	}
+
+	// 吊销后验签立即失败（即使令牌明文仍在、未过期）。
+	if _, err := svc.VerifyEnrollToken(ctx, tok); apperr.CodeOf(err) != apperr.CodeUnauthorized {
+		t.Fatalf("吊销后验签错误 = %v, want CodeUnauthorized（令牌已吊销）", err)
 	}
 }

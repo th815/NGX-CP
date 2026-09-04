@@ -123,6 +123,7 @@ bash scripts/deploy-agent.sh
 - **Join Token（`join_tokens` 表）**：节点绑定、可复用。`POST /api/v1/nodes/:id/join-token` 轮换即
   吊销旧令牌；已纳管节点可凭同一令牌**重建客户端证书**（证书丢失场景）。
 - **Enroll Token（`enroll_tokens` 表）**：预建节点场景下的一次性令牌（首次注册后即作废），
-  入库持久化（**重启不丢**），同样可主动吊销。
+  入库持久化（**重启不丢**）；经 `POST /api/v1/nodes/:id/enroll-token/revoke` 可主动吊销
+  （吊销即时生效，无需等过期）。
 
 两种令牌控制面都**只存 SHA-256 哈希 + 绑定节点 + 过期 + 吊销/已用标志**，原文仅在签发时返回一次。

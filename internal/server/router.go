@@ -17,7 +17,8 @@ import (
 
 // buildRouter 构建 gin 引擎：中间件 + 路由（M1 节点域 + T021/T024 配置中心）。
 // 鉴权策略（M1 最小可用）：只读接口放开，写接口与接入令牌需 Bearer 令牌。
-// nodeSvc 必须与 Agent gRPC 服务共用同一实例——接入令牌的内存表在两处共享（HTTP 签发 / gRPC 校验）。
+// nodeSvc 必须与 Agent gRPC 服务共用同一实例——接入令牌（join_tokens / enroll_tokens 表）的
+// 签发（HTTP）与校验（gRPC 注册）走同一 ent 客户端与库。
 // sessions 提供实时会话指标（时钟偏差），注入 handler 后随节点详情返回。
 // cfgStore 为 T021 配置版本化存储（与 nodeSvc 共用同一 ent 客户端）。
 // validator 为 T024 校验触发入口（*transport.Server 经心跳命令流驱动 Agent 跑 nginx -t）。
@@ -57,6 +58,7 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 			// 写操作：需鉴权
 			ns.POST("", auth, nh.Create)
 			ns.POST("/:id/enroll-token", auth, nh.IssueEnrollToken)
+			ns.POST("/:id/enroll-token/revoke", auth, nh.RevokeEnrollToken)
 			ns.PATCH("/:id", auth, nh.Update)
 			ns.DELETE("/:id", auth, nh.Delete)
 			ns.POST("/:id/refresh", auth, nh.RefreshCapability)

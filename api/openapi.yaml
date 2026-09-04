@@ -209,6 +209,35 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/nodes/{id}/enroll-token/revoke:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Cluster]
+      summary: 吊销该节点所有尚未吊销的 Enroll Token（写接口，需鉴权）
+      description: >
+        用于令牌疑似泄漏或轮换场景。吊销即时生效，无需等过期；
+        Agent 持已被吊销令牌注册将被拒绝（CodeUnauthorized）。
+      operationId: revokeEnrollToken
+      responses:
+        '200':
+          description: 已吊销该节点的全部活跃 Enroll Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+              example:
+                code: 0
+                message: ok
+                data:
+                  revoked: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/nodes/{id}/capability:
     parameters:
       - name: id

@@ -150,6 +150,21 @@ func (h *NodeHandler) IssueEnrollToken(c *gin.Context) {
 	response.OK(c, gin.H{"token": tok, "node_id": id, "expires_at": exp})
 }
 
+// RevokeEnrollToken 吊销该节点所有尚未吊销的 Enroll Token（一次性接入令牌）。
+// 用于令牌疑似泄漏或轮换场景——吊销即时生效，无需等过期。
+func (h *NodeHandler) RevokeEnrollToken(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	if err := h.svc.RevokeNodeEnrollTokens(c.Request.Context(), id); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"revoked": id})
+}
+
 // GetCapability 查看节点能力基线（真实视图：nginx 画像 + 系统信息 + 配置树 + 日志目标）。
 func (h *NodeHandler) GetCapability(c *gin.Context) {
 	id, err := parseID(c)
