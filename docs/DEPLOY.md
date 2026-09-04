@@ -128,3 +128,20 @@ bash scripts/deploy-agent.sh
   （吊销即时生效，无需等过期）。
 
 两种令牌控制面都**只存 SHA-256 哈希 + 绑定节点 + 过期 + 吊销/已用标志**，原文仅在签发时返回一次。
+
+## 7. 本地验证（上机前必跑）
+
+稳定第一：推真实裸金属前，先在本地 docker 沙箱把整条链路跑通，避免「上线才发现控制面起不来」。
+
+```bash
+make build                                   # 交叉编译 linux/amd64 静态二进制到 bin/
+bash scripts/verify-local.sh                # 起控制面 + Agent，验证到节点 online 自动清理
+# bash scripts/verify-local.sh --keep        # 保留容器，便于 docker logs 排查
+```
+
+脚本复刻生产 Web 一键自注册流程：**控制面自举 CA → `POST /api/v1/nodes` 建节点 → `POST /:id/join-token` 签 Join Token → `GET /agent/ca.crt` 取 CA → 起 Agent → 轮询节点 `online`**。
+跑通即证明部署包（镜像 / 路由 / mTLS / 自注册）端到端可用；此后才可执行 `scripts/deploy.sh` 与 `scripts/deploy-agent.sh` 推真实机。
+
+> 注：`Dockerfile.server` / `Dockerfile.agent` 仅把 `make build` 产物 COPY 进 alpine 镜像，供验证用，
+> 不承载生产编排（生产按 §2 / §6 走 `scripts/deploy*.sh`）。`configs/server.local.yaml` 为本地验证专属
+> 配置（sqlite + 固定令牌），已 gitignore，不会进入仓库。

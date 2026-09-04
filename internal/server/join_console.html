@@ -90,16 +90,24 @@ $("gen").onclick = async () => {
   const ttl = encodeURIComponent($("ttl").value.trim() || "24h");
   $("err").textContent = ""; $("gen").disabled = true;
   try {
-    const r = await fetch(`${ORIGIN}/api/v1/nodes?ttl=${ttl}`, {
+    const r = await fetch(`${ORIGIN}/api/v1/nodes`, {
       method: "POST",
       headers: { Authorization: "Bearer " + auth, "Content-Type": "application/json" },
       body: JSON.stringify({ name, role })
     });
     const j = await r.json();
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
-    const cmd = `curl -fsSL ${ORIGIN}/agent/install.sh | sudo bash -s -- --cp ${ORIGIN} --grpc ${GRPC} --token ${j.data.token}`;
+    const nodeId = j.data.id;
+    const r2 = await fetch(`${ORIGIN}/api/v1/nodes/${nodeId}/join-token?ttl=${ttl}`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + auth }
+    });
+    const j2 = await r2.json();
+    if (!r2.ok) throw new Error((j2.error && j2.error.message) || ("HTTP " + r2.status));
+    const token = j2.data.token;
+    const cmd = `curl -fsSL ${ORIGIN}/agent/install.sh | sudo bash -s -- --cp ${ORIGIN} --grpc ${GRPC} --token ${token}`;
     $("cmd").textContent = cmd;
-    $("exp").textContent = `节点 #${j.data.node_id}（${j.data.name}）已登记；Token 过期时间：${new Date(j.data.expires_at).toLocaleString()}。该 Token 绑定本节点，无审批、执行即上线；纳管后若客户端证书丢失，可凭此 Token 重建。`;
+    $("exp").textContent = `节点 #${nodeId}（${name}）已登记；Token 过期时间：${new Date(j2.data.expires_at).toLocaleString()}。该 Token 绑定本节点，无审批、执行即上线；纳管后若客户端证书丢失，可凭此 Token 重建。`;
     $("out").classList.add("show");
     const sc = await fetch(`${ORIGIN}/agent/install.sh`);
     $("script").textContent = await sc.text();

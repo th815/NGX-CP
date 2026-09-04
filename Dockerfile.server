@@ -1,0 +1,8 @@
+# 本地验证用镜像：基于已交叉编译的 linux/amd64 静态二进制。
+# 注意：bin/ngxcp-server 由 `make build` 生成（gitignore，不入库）。
+FROM alpine:3.20
+RUN mkdir -p /opt/ngxcp /var/lib/ngxcp /etc/ngxcp
+COPY bin/ngxcp-server /opt/ngxcp/ngxcp-server
+RUN chmod +x /opt/ngxcp/ngxcp-server
+EXPOSE 8080 9443
+ENTRYPOINT ["/opt/ngxcp/ngxcp-server"]
