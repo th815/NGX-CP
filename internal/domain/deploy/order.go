@@ -251,3 +251,44 @@ func (s *Service) Start(ctx context.Context, orderID int) error {
 	s.emit(DeployEvent{OrderID: orderID, Step: "start", Status: string(StatusRunning), Message: "开始执行"})
 	return nil
 }
+
+// Complete 由执行器（worker）在流水线结束后调用：running → success / failed。
+// 写 finished_at 并发出终态事件，使发布闭环收敛到可观测的终止态。
+func (s *Service) Complete(ctx context.Context, orderID int, success bool, detail string) error {
+	to := StatusSuccess
+	msg := "执行成功"
+	if !success {
+		to = StatusFailed
+		msg = "执行失败"
+	}
+	if detail != "" {
+		msg = msg + "：" + detail
+	}
+	now := time.Now()
+	if err := s.Transition(ctx, orderID, string(StatusRunning), string(to),
+		func(u *ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate { return u.SetFinishedAt(now) }); err != nil {
+		return err
+	}
+	s.emit(DeployEvent{OrderID: orderID, Step: "complete", Status: string(to), Message: msg})
+	return nil
+}
+
+// StartRollback 发起回滚：running/failed/partial_success → rolling_back。
+// 实际回滚执行（快照恢复 + 原子落盘）由 Agent 执行器后续接线；此处只负责状态收敛。
+func (s *Service) StartRollback(ctx context.Context, orderID int) error {
+	co, err := s.Get(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	switch co.Status {
+	case changeorder.StatusRunning, changeorder.StatusFailed, changeorder.StatusPartialSuccess:
+		// 合法起点
+	default:
+		return apperr.New(apperr.CodeInvalid, fmt.Sprintf("当前状态 %s 不可发起回滚", co.Status))
+	}
+	if err := s.Transition(ctx, orderID, string(co.Status), string(StatusRollingBack)); err != nil {
+		return err
+	}
+	s.emit(DeployEvent{OrderID: orderID, Step: "rollback", Status: string(StatusRollingBack), Message: "已发起回滚"})
+	return nil
+}

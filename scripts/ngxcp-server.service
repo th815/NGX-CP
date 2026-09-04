@@ -1,0 +1,23 @@
+[Unit]
+Description=NGX-CP Control Plane (ngxcp-server)
+Documentation=https://github.com/th815/NGX-CP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/ngxcp/ngxcp-server --config /opt/ngxcp/config.yaml
+WorkingDirectory=/opt/ngxcp
+User=root
+Restart=on-failure
+RestartSec=5
+# 控制面轻量，虚拟化宿主上限制资源，避免失控
+MemoryMax=1G
+LimitNOFILE=65536
+# JSON 结构化日志经 journald 收集
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ngxcp-server
+
+[Install]
+WantedBy=multi-user.target

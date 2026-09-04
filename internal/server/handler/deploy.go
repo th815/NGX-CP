@@ -190,6 +190,22 @@ func (h *DeployHandler) Cancel(c *gin.Context) {
 	response.OK(c, gin.H{"id": id, "status": string(deploy.StatusCanceled)})
 }
 
+// Rollback 发起回滚：running/failed/partial_success → rolling_back。
+//
+//	POST /api/v1/change-orders/:id/rollback
+func (h *DeployHandler) Rollback(c *gin.Context) {
+	id, err := parseDeployID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	if err := h.svc.StartRollback(c.Request.Context(), id); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"id": id, "status": string(deploy.StatusRollingBack)})
+}
+
 // parseDeployID 解析变更单的 :id 路径参数。
 func parseDeployID(c *gin.Context) (int, error) {
 	id, err := strconv.Atoi(c.Param("id"))

@@ -11,6 +11,7 @@ import (
 	"github.com/th/ngxcp/internal/server/handler"
 	"github.com/th/ngxcp/internal/server/middleware"
 	"github.com/th/ngxcp/internal/server/response"
+	"github.com/th/ngxcp/web"
 )
 
 // buildRouter 构建 gin 引擎：中间件 + 路由（M1 节点域 + T021/T024 配置中心）。
@@ -110,8 +111,9 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			do.POST("/:id/approve", auth, dh.Approve)
 			do.POST("/:id/reject", auth, dh.Reject)
 			do.POST("/:id/cancel", auth, dh.Cancel)
-			do.GET("/:id/approval", ah.GetForOrder) // T036 取该变更单的审批记录
-			do.GET("/:id/stream", sh.Stream)        // T037 SSE 实时进度
+			do.POST("/:id/rollback", auth, dh.Rollback) // T039 发起回滚（执行随 Agent 落地）
+			do.GET("/:id/approval", ah.GetForOrder)      // T036 取该变更单的审批记录
+			do.GET("/:id/stream", sh.Stream)             // T037 SSE 实时进度
 		}
 
 		// T036 审批流：审批记录查询（列表按状态过滤）。
@@ -120,5 +122,8 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			as.GET("", ah.List)
 		}
 	}
+
+	// T039 内嵌前端（仅 webui 构建生效；非 webui 构建为空操作）。
+	web.RegisterWebUI(r)
 	return r
 }

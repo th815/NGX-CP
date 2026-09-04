@@ -898,6 +898,10 @@ curl -s http://localhost:8080/api/v1/change-orders?status=running | jq '.data.to
 
 ## T039 · 发布页面与集成验收
 
+> **状态：✅ 已完成（M3 收口，最小可用闭环达成）**
+> 交付：前端 `web/src/views/Deploy.vue`（列表 + 新建弹窗 + 详情抽屉 + SSE 实时时间线 + 状态机操作按钮）、`web/src/api/deploy.ts`；后端 `web/embed.go`(webui)/`embed_stub.go`(非 webui)、`Service.Complete`/`StartRollback`、Worker 接入服务启动、`Rollback` 接口；闭环集成测试 `closedloop_test.go`；正式部署至 192.168.5.50 并端到端验收（见 `docs/DEPLOY-192.168.5.50.md`）。
+> **与原始 spec 的差异（如实）**：① 新建发布用「单弹窗」而非 4 步向导（文件树勾选/策略可视化/diff 摘要需配置与模板模块接入，留待使用时迭代）；② 详情的 9 步任务时间线以「生命周期事件时间线」呈现（submit/start/complete/rollback/worker「等待执行器接入」），逐节点 9 步流水线随 Agent 部署（Runner 接线）后由域层在 7 步流水线中各发一步；③ 未单独拆分 `ProgressPanel`/`RollbackDialog` 组件，回滚以抽屉内按钮 + 状态机门控实现。以上均为「先跑通闭环、再迭代富化」的合理裁剪。
+
 **目标**：发布任务的可视化与操作入口。
 
 **依赖**：T037, T035, T036

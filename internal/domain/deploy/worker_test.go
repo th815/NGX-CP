@@ -59,10 +59,10 @@ func TestWorker_ExecutesDequeuedOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, held, "执行完成后节点锁应释放")
 
-	// 状态应已翻到 running（真实 runner 在 T039 负责 success/failed 流转）。
+	// 闭环应已收敛到 success（fake runner 成功；真实 runner 在 T039 经 Agent 接线）。
 	got, err := svc.Get(ctx, co.ID)
 	require.NoError(t, err)
-	assert.Equal(t, string(StatusRunning), string(got.Status))
+	assert.Equal(t, string(StatusSuccess), string(got.Status))
 }
 
 // TestWorker_NoRunnerIdle runner 为 nil 时 worker 不会真正执行（占位安全，不翻状态）。

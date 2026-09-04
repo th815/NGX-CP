@@ -71,7 +71,7 @@ func (w *Worker) wait(ctx context.Context) bool {
 	}
 }
 
-// process 执行单条变更单：Start → Runner → 释放节点锁。
+// process 执行单条变更单：Start → Runner → 收敛终态 → 释放节点锁。
 func (w *Worker) process(ctx context.Context, co *ent.ChangeOrder) {
 	if err := w.svc.Start(ctx, co.ID); err != nil {
 		// 已被并发 worker 启动或状态变化 → 释放锁，不重复执行。
@@ -80,10 +80,14 @@ func (w *Worker) process(ctx context.Context, co *ent.ChangeOrder) {
 	}
 	if w.runner != nil {
 		if err := w.runner.Run(ctx, co.ID); err != nil {
-			w.svc.emit(DeployEvent{OrderID: co.ID, Step: "worker", Status: "failed", Message: err.Error()})
+			_ = w.svc.Complete(ctx, co.ID, false, err.Error())
 		} else {
-			w.svc.emit(DeployEvent{OrderID: co.ID, Step: "worker", Status: "success", Message: "执行完成"})
+			_ = w.svc.Complete(ctx, co.ID, true, "执行完成")
 		}
+	} else {
+		// 未注入执行器（生产态 Agent 尚未接入）：仅标记运行，不收敛终态，
+		// 避免「假装成功」。真实执行随 Agent 部署落地。
+		w.svc.emit(DeployEvent{OrderID: co.ID, Step: "worker", Status: string(StatusRunning), Message: "等待执行器接入"})
 	}
 	// 无论 Runner 成败，释放节点锁，避免锁泄漏。
 	_ = w.q.locks.ReleaseByOrder(ctx, co.ID)

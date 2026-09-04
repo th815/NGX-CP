@@ -118,6 +118,15 @@ func Run(cfg *config.Config) error {
 	hub := NewHub(256)
 	deploySvc.SetEventSink(hub)
 
+	// T039 发布执行闭环：启动 worker 轮询 pending 单并驱动状态机收敛。
+	// runner 为 nil（生产态 Agent 尚未接入）→ 订单进入 running 后等待执行器接入，
+	// 不假装成功；真实执行随 Agent 部署落地。ctx 取消即退出（与进程同生命周期）。
+	lockCfg := deploy.DefaultLockConfig()
+	locks := deploy.NewLockManager(client, lockCfg)
+	queue := deploy.NewQueue(deploySvc, locks, lockCfg)
+	deployWorker := deploy.NewWorker(queue, deploySvc, nil, lockCfg)
+	go deployWorker.Start(ctx)
+
 	// T026 漂移定时巡检：ctx 取消即退出（与进程同生命周期）。
 	go func() {
 		if err := driftDetector.RunWorker(ctx, driftCfg.CheckInterval); err != nil && ctx.Err() == nil {
