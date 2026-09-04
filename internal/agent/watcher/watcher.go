@@ -81,6 +81,11 @@ type Watcher struct {
 	pending map[string]*pendingEntry // 路径 → 待触发事件（防抖窗口内累积）
 	timer   *time.Timer
 	stopped bool
+
+	// ready 在底层监听注册完成后关闭（见 Ready 与 markReady）。
+	// fsnotify 只上报已 Add 的目录上的事件：若在注册完成前发生变更，该次事件会被
+	// 永久丢弃，漂移检测只能等到下一轮周期扫描才发现。等待此信号可消除该竞态。
+	ready chan struct{}
 }
 
 // pendingEntry 记录防抖窗口内某路径累积的变更（取最近一次操作与最新时间）。
@@ -115,6 +120,7 @@ func NewWatcher(paths []string, handler Handler, opts ...Option) (*Watcher, erro
 		pollInterval: 30 * time.Second,
 		log:          slog.Default(),
 		pending:      make(map[string]*pendingEntry),
+		ready:        make(chan struct{}),
 	}
 	for _, o := range opts {
 		o(w)
@@ -223,4 +229,21 @@ func (w *Watcher) Stop() {
 		w.timer = nil
 	}
 	w.pending = make(map[string]*pendingEntry)
+	w.markReady() // 解除 Ready 上的等待方，避免其永久阻塞
+}
+
+// markReady 关闭 ready 通道（幂等，故可在持锁路径安全调用）。
+func (w *Watcher) markReady() {
+	select {
+	case <-w.ready:
+	default:
+		close(w.ready)
+	}
+}
+
+// Ready 返回「监听已生效」信号通道：底层 watch 注册完成后关闭。
+// 调用方应在制造被测变更（写文件）前等待此信号，否则变更可能发生在注册之前而永久丢失。
+// 监听器停止或启动失败时同样关闭，保证等待方不会永久挂起。
+func (w *Watcher) Ready() <-chan struct{} {
+	return w.ready
 }

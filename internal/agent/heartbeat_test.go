@@ -425,7 +425,10 @@ func TestHeartbeater_WatchConfigChanges(t *testing.T) {
 	// 在监听目录内新建配置文件，应经防抖触发即时上报
 	mustWriteTmp(t, dir+"/api.conf", "server { listen 80; }")
 
-	deadline := time.After(4 * time.Second)
+	// 超时须显著高于 watcher 的 3s 防抖窗口：链路为
+	// 写文件 → FSEvents → 防抖 3s → flush → 主循环发送，
+	// 留 1s 余量（原 4s）在机器繁忙时会稳定超时（表现为「随机失败」）。
+	deadline := time.After(10 * time.Second)
 	got := 1
 	for got < 2 {
 		select {

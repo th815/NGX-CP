@@ -37,6 +37,7 @@ func (w *Watcher) Start(ctx context.Context) error {
 		w.log.Warn("inotify watch limit reached, falling back to polling", "err", fsErr)
 		return w.runPolling(ctx)
 	}
+	w.markReady() // 致命错误：解除等待方阻塞，由调用方处理该错误
 	return fsErr
 }
 
@@ -53,6 +54,8 @@ func (w *Watcher) runFsnotify(ctx context.Context) error {
 			return aerr // ENOSPC 会冒泡触发降级
 		}
 	}
+	// 注册完成：此后发生的变更才会被 fsnotify 捕获，此刻方可放行等待方。
+	w.markReady()
 
 	for {
 		select {
@@ -134,6 +137,8 @@ type fileSig struct {
 func (w *Watcher) runPolling(ctx context.Context) error {
 	sig := make(map[string]fileSig)
 	w.scanTree(sig)
+	// 基线扫描完成即视为监听生效（后续变更由轮询 diff 发现）。
+	w.markReady()
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
 	for {

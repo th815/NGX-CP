@@ -55,6 +55,14 @@ type Server struct {
 	// Agent 经心跳流回传 CONFIG_VALIDATE 结果后由 Heartbeat 循环投递到此通道。
 	validateMu    sync.Mutex
 	validateChans map[string]chan *agentv1.ValidateResult
+
+	// cmdMu / *Chans 是 T031–T035 执行型任务结果回传的协调结构：
+	// 控制面下发 DEPLOY/ROLLBACK/SNAPSHOT/RS_WEIGHT 命令时注册按 task_id 匹配的接收通道，
+	// Agent 经同一心跳流回传结果后由 Heartbeat 循环投递到此通道（与 validate 机制同源）。
+	cmdMu         sync.Mutex
+	deployChans   map[string]chan *agentv1.DeployProgress            // DEPLOY_CONFIG / ROLLBACK_CONFIG
+	snapshotChans map[string]chan *agentv1.SnapshotResult            // CREATE_SNAPSHOT / RESTORE_SNAPSHOT
+	rsWeightChans map[string]chan *agentv1.SetRealServerWeightResult // SET_RS_WEIGHT
 }
 
 // NewServer 构造 gRPC 服务端。
@@ -88,6 +96,10 @@ func NewServer(log *slog.Logger, ca *pki.CA, enroll EnrollBackend, nodeSvc *node
 		serverConfig: sc,
 
 		validateChans: make(map[string]chan *agentv1.ValidateResult),
+
+		deployChans:   make(map[string]chan *agentv1.DeployProgress),
+		snapshotChans: make(map[string]chan *agentv1.SnapshotResult),
+		rsWeightChans: make(map[string]chan *agentv1.SetRealServerWeightResult),
 	}
 }
 
@@ -283,6 +295,17 @@ func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
 		// 配置校验结果上报（T024）：按 task_id 投递给等待中的校验请求。
 		if vr := req.GetValidateResult(); vr != nil {
 			s.deliverValidateResult(vr.GetTaskId(), vr)
+		}
+
+		// 执行型任务结果上报（T031–T035）：按 task_id 投递给等待中的请求。
+		if dp := req.GetDeployProgress(); dp != nil {
+			s.deliverDeployResult(dp.GetTaskId(), dp)
+		}
+		if sr := req.GetSnapshotResult(); sr != nil {
+			s.deliverSnapshotResult(sr.GetTaskId(), sr)
+		}
+		if rw := req.GetSetRsWeightResult(); rw != nil {
+			s.deliverRSWeightResult(rw.GetTaskId(), rw)
 		}
 
 		if s.nodeSvc != nil {

@@ -500,6 +500,12 @@ func (h *Heartbeater) WatchConfigChanges(ctx context.Context, paths []string) (*
 			h.log.Warn("config watcher exited with error", "err", werr)
 		}
 	}()
+	// 等到监听真正注册完成再返回：否则调用方可能在 watch 生效前改动文件，
+	// 该次变更会被永久丢弃，漂移检测只能等下一轮周期扫描才发现。
+	select {
+	case <-w.Ready():
+	case <-ctx.Done():
+	}
 	return w, nil
 }
 
