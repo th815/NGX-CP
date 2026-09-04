@@ -36,7 +36,7 @@ type AgentServiceClient interface {
 	// Register：用一次性 enroll token 换取 mTLS 客户端证书。
 	// 此时 Agent 尚无客户端证书，故该 RPC 通过 TLS + token 鉴权（拦截器跳过客户端证书校验）。
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
-	// Heartbeat：双向流。Agent 周期上报；控制面可随时下发指令（刷新能力 / 跑合规）。
+	// Heartbeat：双向流。Agent 周期上报；控制面可随时下发指令（刷新能力 / 跑合规 / 校验 / 快照）。
 	Heartbeat(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[HeartbeatRequest, HeartbeatResponse], error)
 	// ReportCapability：Agent 主动上报完整能力基线（注册后首次 / 定时 / 配置变更）。
 	ReportCapability(ctx context.Context, in *CapabilityReport, opts ...grpc.CallOption) (*Ack, error)
@@ -92,7 +92,7 @@ type AgentServiceServer interface {
 	// Register：用一次性 enroll token 换取 mTLS 客户端证书。
 	// 此时 Agent 尚无客户端证书，故该 RPC 通过 TLS + token 鉴权（拦截器跳过客户端证书校验）。
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
-	// Heartbeat：双向流。Agent 周期上报；控制面可随时下发指令（刷新能力 / 跑合规）。
+	// Heartbeat：双向流。Agent 周期上报；控制面可随时下发指令（刷新能力 / 跑合规 / 校验 / 快照）。
 	Heartbeat(grpc.BidiStreamingServer[HeartbeatRequest, HeartbeatResponse]) error
 	// ReportCapability：Agent 主动上报完整能力基线（注册后首次 / 定时 / 配置变更）。
 	ReportCapability(context.Context, *CapabilityReport) (*Ack, error)

@@ -31,23 +31,29 @@ const (
 	HeartbeatRequest_CAPABILITY      HeartbeatRequest_Type = 1
 	HeartbeatRequest_COMPLIANCE      HeartbeatRequest_Type = 2
 	HeartbeatRequest_METRICS         HeartbeatRequest_Type = 3
-	HeartbeatRequest_FS_PROBE        HeartbeatRequest_Type = 4 // T018：日志/FS 健康探测上报
-	HeartbeatRequest_CONFIG_TREE     HeartbeatRequest_Type = 5 // T018：nginx -T 配置树上报
-	HeartbeatRequest_LOG_TARGETS     HeartbeatRequest_Type = 6 // T018：日志采集目标上报
-	HeartbeatRequest_CONFIG_VALIDATE HeartbeatRequest_Type = 7 // T024：nginx -t 校验结果上报
+	HeartbeatRequest_FS_PROBE        HeartbeatRequest_Type = 4  // T018：日志/FS 健康探测上报
+	HeartbeatRequest_CONFIG_TREE     HeartbeatRequest_Type = 5  // T018：nginx -T 配置树上报
+	HeartbeatRequest_LOG_TARGETS     HeartbeatRequest_Type = 6  // T018：日志采集目标上报
+	HeartbeatRequest_CONFIG_VALIDATE HeartbeatRequest_Type = 7  // T024：nginx -t 校验结果上报
+	HeartbeatRequest_SNAPSHOT        HeartbeatRequest_Type = 8  // T031：快照结果上报（create / restore）
+	HeartbeatRequest_DEPLOY          HeartbeatRequest_Type = 9  // T032：原子落盘进度上报
+	HeartbeatRequest_RS_WEIGHT       HeartbeatRequest_Type = 10 // T035：RS 权重调整结果上报
 )
 
 // Enum value maps for HeartbeatRequest_Type.
 var (
 	HeartbeatRequest_Type_name = map[int32]string{
-		0: "PING",
-		1: "CAPABILITY",
-		2: "COMPLIANCE",
-		3: "METRICS",
-		4: "FS_PROBE",
-		5: "CONFIG_TREE",
-		6: "LOG_TARGETS",
-		7: "CONFIG_VALIDATE",
+		0:  "PING",
+		1:  "CAPABILITY",
+		2:  "COMPLIANCE",
+		3:  "METRICS",
+		4:  "FS_PROBE",
+		5:  "CONFIG_TREE",
+		6:  "LOG_TARGETS",
+		7:  "CONFIG_VALIDATE",
+		8:  "SNAPSHOT",
+		9:  "DEPLOY",
+		10: "RS_WEIGHT",
 	}
 	HeartbeatRequest_Type_value = map[string]int32{
 		"PING":            0,
@@ -58,6 +64,9 @@ var (
 		"CONFIG_TREE":     5,
 		"LOG_TARGETS":     6,
 		"CONFIG_VALIDATE": 7,
+		"SNAPSHOT":        8,
+		"DEPLOY":          9,
+		"RS_WEIGHT":       10,
 	}
 )
 
@@ -95,6 +104,11 @@ const (
 	HeartbeatResponse_REFRESH_CAPABILITY HeartbeatResponse_Command = 1 // 让 Agent 重新跑 nginx -V / -T 并上报
 	HeartbeatResponse_RUN_COMPLIANCE     HeartbeatResponse_Command = 2 // 让 Agent 重新跑 DR 合规自检
 	HeartbeatResponse_VALIDATE_CONFIG    HeartbeatResponse_Command = 3 // T024：让 Agent 在本地跑 nginx -t 校验（带待校验文件）
+	HeartbeatResponse_CREATE_SNAPSHOT    HeartbeatResponse_Command = 4 // T031：让 Agent 在本地抓配置快照（变更前回滚点）
+	HeartbeatResponse_RESTORE_SNAPSHOT   HeartbeatResponse_Command = 5 // T031：让 Agent 从快照恢复配置
+	HeartbeatResponse_DEPLOY_CONFIG      HeartbeatResponse_Command = 6 // T032：让 Agent 跑 9 步原子落盘（含校验/快照/reload/探活）
+	HeartbeatResponse_ROLLBACK_CONFIG    HeartbeatResponse_Command = 7 // T034：让 Agent 跑回滚流水线（解压校验→恢复→reload→探活）
+	HeartbeatResponse_SET_RS_WEIGHT      HeartbeatResponse_Command = 8 // T035：让 Agent 在 LVS Director 上调整 RS 权重（摘除式灰度）
 )
 
 // Enum value maps for HeartbeatResponse_Command.
@@ -104,12 +118,22 @@ var (
 		1: "REFRESH_CAPABILITY",
 		2: "RUN_COMPLIANCE",
 		3: "VALIDATE_CONFIG",
+		4: "CREATE_SNAPSHOT",
+		5: "RESTORE_SNAPSHOT",
+		6: "DEPLOY_CONFIG",
+		7: "ROLLBACK_CONFIG",
+		8: "SET_RS_WEIGHT",
 	}
 	HeartbeatResponse_Command_value = map[string]int32{
 		"NONE":               0,
 		"REFRESH_CAPABILITY": 1,
 		"RUN_COMPLIANCE":     2,
 		"VALIDATE_CONFIG":    3,
+		"CREATE_SNAPSHOT":    4,
+		"RESTORE_SNAPSHOT":   5,
+		"DEPLOY_CONFIG":      6,
+		"ROLLBACK_CONFIG":    7,
+		"SET_RS_WEIGHT":      8,
 	}
 )
 
@@ -337,18 +361,21 @@ func (x *ServerConfig) GetClockSkewWarnSec() int64 {
 }
 
 type HeartbeatRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Type           HeartbeatRequest_Type  `protobuf:"varint,1,opt,name=type,proto3,enum=agent.v1.HeartbeatRequest_Type" json:"type,omitempty"`
-	Timestamp      int64                  `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"` // 节点本地时间（unix 秒），控制面据此算时钟偏差
-	Capability     *Capability            `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
-	Compliance     *ComplianceReport      `protobuf:"bytes,4,opt,name=compliance,proto3" json:"compliance,omitempty"`
-	MetricsPayload []byte                 `protobuf:"bytes,5,opt,name=metrics_payload,json=metricsPayload,proto3" json:"metrics_payload,omitempty"` // Prometheus 文本格式
-	FsProbe        *FsProbeReport         `protobuf:"bytes,6,opt,name=fs_probe,json=fsProbe,proto3" json:"fs_probe,omitempty"`                      // T018：日志/FS 健康探测结果
-	ConfigTree     *ConfigTreeReport      `protobuf:"bytes,7,opt,name=config_tree,json=configTree,proto3" json:"config_tree,omitempty"`             // T018：nginx -T 配置树
-	LogTargets     *LogTargetsReport      `protobuf:"bytes,8,opt,name=log_targets,json=logTargets,proto3" json:"log_targets,omitempty"`             // T018：日志采集目标清单
-	ValidateResult *ValidateResult        `protobuf:"bytes,9,opt,name=validate_result,json=validateResult,proto3" json:"validate_result,omitempty"` // T024：nginx -t 校验结果
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state             protoimpl.MessageState     `protogen:"open.v1"`
+	Type              HeartbeatRequest_Type      `protobuf:"varint,1,opt,name=type,proto3,enum=agent.v1.HeartbeatRequest_Type" json:"type,omitempty"`
+	Timestamp         int64                      `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"` // 节点本地时间（unix 秒），控制面据此算时钟偏差
+	Capability        *Capability                `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
+	Compliance        *ComplianceReport          `protobuf:"bytes,4,opt,name=compliance,proto3" json:"compliance,omitempty"`
+	MetricsPayload    []byte                     `protobuf:"bytes,5,opt,name=metrics_payload,json=metricsPayload,proto3" json:"metrics_payload,omitempty"`               // Prometheus 文本格式
+	FsProbe           *FsProbeReport             `protobuf:"bytes,6,opt,name=fs_probe,json=fsProbe,proto3" json:"fs_probe,omitempty"`                                    // T018：日志/FS 健康探测结果
+	ConfigTree        *ConfigTreeReport          `protobuf:"bytes,7,opt,name=config_tree,json=configTree,proto3" json:"config_tree,omitempty"`                           // T018：nginx -T 配置树
+	LogTargets        *LogTargetsReport          `protobuf:"bytes,8,opt,name=log_targets,json=logTargets,proto3" json:"log_targets,omitempty"`                           // T018：日志采集目标清单
+	ValidateResult    *ValidateResult            `protobuf:"bytes,9,opt,name=validate_result,json=validateResult,proto3" json:"validate_result,omitempty"`               // T024：nginx -t 校验结果
+	SnapshotResult    *SnapshotResult            `protobuf:"bytes,10,opt,name=snapshot_result,json=snapshotResult,proto3" json:"snapshot_result,omitempty"`              // T031：快照（create / restore）结果
+	DeployProgress    *DeployProgress            `protobuf:"bytes,11,opt,name=deploy_progress,json=deployProgress,proto3" json:"deploy_progress,omitempty"`              // T032：原子落盘进度（9 步逐步上报）
+	SetRsWeightResult *SetRealServerWeightResult `protobuf:"bytes,12,opt,name=set_rs_weight_result,json=setRsWeightResult,proto3" json:"set_rs_weight_result,omitempty"` // T035：RS 权重调整结果
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *HeartbeatRequest) Reset() {
@@ -444,12 +471,43 @@ func (x *HeartbeatRequest) GetValidateResult() *ValidateResult {
 	return nil
 }
 
+func (x *HeartbeatRequest) GetSnapshotResult() *SnapshotResult {
+	if x != nil {
+		return x.SnapshotResult
+	}
+	return nil
+}
+
+func (x *HeartbeatRequest) GetDeployProgress() *DeployProgress {
+	if x != nil {
+		return x.DeployProgress
+	}
+	return nil
+}
+
+func (x *HeartbeatRequest) GetSetRsWeightResult() *SetRealServerWeightResult {
+	if x != nil {
+		return x.SetRsWeightResult
+	}
+	return nil
+}
+
 type HeartbeatResponse struct {
 	state   protoimpl.MessageState    `protogen:"open.v1"`
 	Command HeartbeatResponse_Command `protobuf:"varint,1,opt,name=command,proto3,enum=agent.v1.HeartbeatResponse_Command" json:"command,omitempty"`
 	TaskId  string                    `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"` // 幂等键，防止重放
 	// T024：VALIDATE_CONFIG 命令携带的校验任务（待校验文件 + 运行参数）。
-	ValidateTask  *ValidateTask `protobuf:"bytes,3,opt,name=validate_task,json=validateTask,proto3" json:"validate_task,omitempty"`
+	ValidateTask *ValidateTask `protobuf:"bytes,3,opt,name=validate_task,json=validateTask,proto3" json:"validate_task,omitempty"`
+	// T031：CREATE_SNAPSHOT 命令携带的快照任务（要抓取的路径 + 参数）。
+	SnapshotCreate *SnapshotCreateTask `protobuf:"bytes,4,opt,name=snapshot_create,json=snapshotCreate,proto3" json:"snapshot_create,omitempty"`
+	// T031：RESTORE_SNAPSHOT 命令携带的恢复任务（目标 tar.gz + 根）。
+	SnapshotRestore *SnapshotRestoreTask `protobuf:"bytes,5,opt,name=snapshot_restore,json=snapshotRestore,proto3" json:"snapshot_restore,omitempty"`
+	// T032：DEPLOY_CONFIG 命令携带的原子落盘任务（待下发文件集合 + 运行参数）。
+	SyncConfig *SyncConfigTask `protobuf:"bytes,6,opt,name=sync_config,json=syncConfig,proto3" json:"sync_config,omitempty"`
+	// T034：ROLLBACK_CONFIG 命令携带的回滚任务（快照路径 + 运行参数）。
+	RollbackTask *RollbackTask `protobuf:"bytes,7,opt,name=rollback_task,json=rollbackTask,proto3" json:"rollback_task,omitempty"`
+	// T035：SET_RS_WEIGHT 命令携带的权重调整任务（目标 RS + 权重，0=摘除）。
+	SetRsWeight   *SetRealServerWeightTask `protobuf:"bytes,8,opt,name=set_rs_weight,json=setRsWeight,proto3" json:"set_rs_weight,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -501,6 +559,41 @@ func (x *HeartbeatResponse) GetTaskId() string {
 func (x *HeartbeatResponse) GetValidateTask() *ValidateTask {
 	if x != nil {
 		return x.ValidateTask
+	}
+	return nil
+}
+
+func (x *HeartbeatResponse) GetSnapshotCreate() *SnapshotCreateTask {
+	if x != nil {
+		return x.SnapshotCreate
+	}
+	return nil
+}
+
+func (x *HeartbeatResponse) GetSnapshotRestore() *SnapshotRestoreTask {
+	if x != nil {
+		return x.SnapshotRestore
+	}
+	return nil
+}
+
+func (x *HeartbeatResponse) GetSyncConfig() *SyncConfigTask {
+	if x != nil {
+		return x.SyncConfig
+	}
+	return nil
+}
+
+func (x *HeartbeatResponse) GetRollbackTask() *RollbackTask {
+	if x != nil {
+		return x.RollbackTask
+	}
+	return nil
+}
+
+func (x *HeartbeatResponse) GetSetRsWeight() *SetRealServerWeightTask {
+	if x != nil {
+		return x.SetRsWeight
 	}
 	return nil
 }
@@ -1816,6 +1909,747 @@ func (x *ValidateResult) GetRaw() string {
 	return ""
 }
 
+// SnapshotCreateTask 是控制面下发给 Agent 的快照任务。
+type SnapshotCreateTask struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`                         // 幂等键，结果回传时原样带回
+	Paths         []string               `protobuf:"bytes,2,rep,name=paths,proto3" json:"paths,omitempty"`                                         // 要快照的目录/文件绝对路径，如 /etc/nginx、/etc/keepalived
+	IncludeSsl    bool                   `protobuf:"varint,3,opt,name=include_ssl,json=includeSsl,proto3" json:"include_ssl,omitempty"`            // 是否含各根下的 ssl 子目录（默认 false，证书走独立生命周期）
+	StagingDir    string                 `protobuf:"bytes,4,opt,name=staging_dir,json=stagingDir,proto3" json:"staging_dir,omitempty"`             // tar 生成目录（建议与目标分区同盘），空则 Agent 取默认
+	ChangeOrderId int64                  `protobuf:"varint,5,opt,name=change_order_id,json=changeOrderId,proto3" json:"change_order_id,omitempty"` // 关联变更单（pre_deploy 时必填，便于回滚时定位）
+	Type          string                 `protobuf:"bytes,6,opt,name=type,proto3" json:"type,omitempty"`                                           // pre_deploy | manual | scheduled
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SnapshotCreateTask) Reset() {
+	*x = SnapshotCreateTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnapshotCreateTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnapshotCreateTask) ProtoMessage() {}
+
+func (x *SnapshotCreateTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnapshotCreateTask.ProtoReflect.Descriptor instead.
+func (*SnapshotCreateTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SnapshotCreateTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SnapshotCreateTask) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *SnapshotCreateTask) GetIncludeSsl() bool {
+	if x != nil {
+		return x.IncludeSsl
+	}
+	return false
+}
+
+func (x *SnapshotCreateTask) GetStagingDir() string {
+	if x != nil {
+		return x.StagingDir
+	}
+	return ""
+}
+
+func (x *SnapshotCreateTask) GetChangeOrderId() int64 {
+	if x != nil {
+		return x.ChangeOrderId
+	}
+	return 0
+}
+
+func (x *SnapshotCreateTask) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+// SnapshotRestoreTask 是控制面下发给 Agent 的恢复任务。
+type SnapshotRestoreTask struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`    // 幂等键
+	TarPath       string                 `protobuf:"bytes,2,opt,name=tar_path,json=tarPath,proto3" json:"tar_path,omitempty"` // 先前快照生成的 tar.gz 绝对路径（由 create 结果回传）
+	Root          string                 `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`                      // 恢复根目录，默认 /（落回原绝对路径）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SnapshotRestoreTask) Reset() {
+	*x = SnapshotRestoreTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnapshotRestoreTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnapshotRestoreTask) ProtoMessage() {}
+
+func (x *SnapshotRestoreTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnapshotRestoreTask.ProtoReflect.Descriptor instead.
+func (*SnapshotRestoreTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *SnapshotRestoreTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SnapshotRestoreTask) GetTarPath() string {
+	if x != nil {
+		return x.TarPath
+	}
+	return ""
+}
+
+func (x *SnapshotRestoreTask) GetRoot() string {
+	if x != nil {
+		return x.Root
+	}
+	return ""
+}
+
+// SnapshotResult 是 Agent 回传的快照结果。
+type SnapshotResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Ok            bool                   `protobuf:"varint,2,opt,name=ok,proto3" json:"ok,omitempty"`      // 是否成功
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`   // 生成的 tar.gz 绝对路径（create 成功时填充）
+	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`  // tar.gz 字节数（create 成功时填充）
+	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"` // 失败原因（ok=false 时）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SnapshotResult) Reset() {
+	*x = SnapshotResult{}
+	mi := &file_agent_v1_agent_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnapshotResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnapshotResult) ProtoMessage() {}
+
+func (x *SnapshotResult) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnapshotResult.ProtoReflect.Descriptor instead.
+func (*SnapshotResult) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SnapshotResult) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SnapshotResult) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *SnapshotResult) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SnapshotResult) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *SnapshotResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+// FileToWrite 是待下发的一个配置文件（路径相对 nginx prefix）。
+type FileToWrite struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`       // 相对 prefix，如 "conf.d/api.conf"
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"` // 文件原文
+	Sha256        string                 `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`   // 可选：传输后摘要校验，空则跳过
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileToWrite) Reset() {
+	*x = FileToWrite{}
+	mi := &file_agent_v1_agent_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileToWrite) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileToWrite) ProtoMessage() {}
+
+func (x *FileToWrite) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileToWrite.ProtoReflect.Descriptor instead.
+func (*FileToWrite) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *FileToWrite) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *FileToWrite) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *FileToWrite) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+// SyncConfigTask 是控制面下发给 Agent 的原子落盘任务。
+type SyncConfigTask struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	TaskId           string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`                         // 幂等键，结果回传时原样带回
+	ChangeOrderId    int64                  `protobuf:"varint,2,opt,name=change_order_id,json=changeOrderId,proto3" json:"change_order_id,omitempty"` // 关联变更单
+	NodeId           int64                  `protobuf:"varint,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Files            []*FileToWrite         `protobuf:"bytes,4,rep,name=files,proto3" json:"files,omitempty"`
+	Prefix           string                 `protobuf:"bytes,5,opt,name=prefix,proto3" json:"prefix,omitempty"`                                                // nginx prefix，默认 /etc/nginx
+	NginxPath        string                 `protobuf:"bytes,6,opt,name=nginx_path,json=nginxPath,proto3" json:"nginx_path,omitempty"`                         // 默认 /usr/sbin/nginx
+	ConfPath         string                 `protobuf:"bytes,7,opt,name=conf_path,json=confPath,proto3" json:"conf_path,omitempty"`                            // 主配置相对 prefix，默认 nginx.conf
+	ObserveWindowSec int64                  `protobuf:"varint,8,opt,name=observe_window_sec,json=observeWindowSec,proto3" json:"observe_window_sec,omitempty"` // 步骤⑦ 观测窗口，默认 5
+	ProbeUrl         string                 `protobuf:"bytes,9,opt,name=probe_url,json=probeUrl,proto3" json:"probe_url,omitempty"`                            // 步骤⑧ 探活 URL，空则跳过
+	ProbeTimeoutSec  int64                  `protobuf:"varint,10,opt,name=probe_timeout_sec,json=probeTimeoutSec,proto3" json:"probe_timeout_sec,omitempty"`   // 探活超时，默认 5
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SyncConfigTask) Reset() {
+	*x = SyncConfigTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncConfigTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncConfigTask) ProtoMessage() {}
+
+func (x *SyncConfigTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncConfigTask.ProtoReflect.Descriptor instead.
+func (*SyncConfigTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *SyncConfigTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SyncConfigTask) GetChangeOrderId() int64 {
+	if x != nil {
+		return x.ChangeOrderId
+	}
+	return 0
+}
+
+func (x *SyncConfigTask) GetNodeId() int64 {
+	if x != nil {
+		return x.NodeId
+	}
+	return 0
+}
+
+func (x *SyncConfigTask) GetFiles() []*FileToWrite {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *SyncConfigTask) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+func (x *SyncConfigTask) GetNginxPath() string {
+	if x != nil {
+		return x.NginxPath
+	}
+	return ""
+}
+
+func (x *SyncConfigTask) GetConfPath() string {
+	if x != nil {
+		return x.ConfPath
+	}
+	return ""
+}
+
+func (x *SyncConfigTask) GetObserveWindowSec() int64 {
+	if x != nil {
+		return x.ObserveWindowSec
+	}
+	return 0
+}
+
+func (x *SyncConfigTask) GetProbeUrl() string {
+	if x != nil {
+		return x.ProbeUrl
+	}
+	return ""
+}
+
+func (x *SyncConfigTask) GetProbeTimeoutSec() int64 {
+	if x != nil {
+		return x.ProbeTimeoutSec
+	}
+	return 0
+}
+
+// RollbackTask 是 T034 ROLLBACK_CONFIG 命令携带的回滚任务（Agent 端 RollbackExecutor 执行）。
+type RollbackTask struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	TaskId           string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`                         // 幂等键，结果回传时原样带回
+	ChangeOrderId    int64                  `protobuf:"varint,2,opt,name=change_order_id,json=changeOrderId,proto3" json:"change_order_id,omitempty"` // 关联变更单
+	NodeId           int64                  `protobuf:"varint,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	SnapshotPath     string                 `protobuf:"bytes,4,opt,name=snapshot_path,json=snapshotPath,proto3" json:"snapshot_path,omitempty"`                // 预变更快照 tar.gz 绝对路径
+	Prefix           string                 `protobuf:"bytes,5,opt,name=prefix,proto3" json:"prefix,omitempty"`                                                // nginx prefix，默认 /etc/nginx
+	NginxPath        string                 `protobuf:"bytes,6,opt,name=nginx_path,json=nginxPath,proto3" json:"nginx_path,omitempty"`                         // 默认 /usr/sbin/nginx
+	ConfPath         string                 `protobuf:"bytes,7,opt,name=conf_path,json=confPath,proto3" json:"conf_path,omitempty"`                            // 主配置相对 prefix，默认 nginx.conf
+	ObserveWindowSec int64                  `protobuf:"varint,8,opt,name=observe_window_sec,json=observeWindowSec,proto3" json:"observe_window_sec,omitempty"` // 步骤⑤ 观测窗口，默认 5
+	ProbeUrl         string                 `protobuf:"bytes,9,opt,name=probe_url,json=probeUrl,proto3" json:"probe_url,omitempty"`                            // 步骤⑥ 探活 URL，空则跳过
+	ProbeTimeoutSec  int64                  `protobuf:"varint,10,opt,name=probe_timeout_sec,json=probeTimeoutSec,proto3" json:"probe_timeout_sec,omitempty"`   // 探活超时，默认 5
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RollbackTask) Reset() {
+	*x = RollbackTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollbackTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollbackTask) ProtoMessage() {}
+
+func (x *RollbackTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RollbackTask.ProtoReflect.Descriptor instead.
+func (*RollbackTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RollbackTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *RollbackTask) GetChangeOrderId() int64 {
+	if x != nil {
+		return x.ChangeOrderId
+	}
+	return 0
+}
+
+func (x *RollbackTask) GetNodeId() int64 {
+	if x != nil {
+		return x.NodeId
+	}
+	return 0
+}
+
+func (x *RollbackTask) GetSnapshotPath() string {
+	if x != nil {
+		return x.SnapshotPath
+	}
+	return ""
+}
+
+func (x *RollbackTask) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+func (x *RollbackTask) GetNginxPath() string {
+	if x != nil {
+		return x.NginxPath
+	}
+	return ""
+}
+
+func (x *RollbackTask) GetConfPath() string {
+	if x != nil {
+		return x.ConfPath
+	}
+	return ""
+}
+
+func (x *RollbackTask) GetObserveWindowSec() int64 {
+	if x != nil {
+		return x.ObserveWindowSec
+	}
+	return 0
+}
+
+func (x *RollbackTask) GetProbeUrl() string {
+	if x != nil {
+		return x.ProbeUrl
+	}
+	return ""
+}
+
+func (x *RollbackTask) GetProbeTimeoutSec() int64 {
+	if x != nil {
+		return x.ProbeTimeoutSec
+	}
+	return 0
+}
+
+// SetRealServerWeightTask 是 T035 SET_RS_WEIGHT 命令携带的权重调整任务（Agent 端 IPVSExecutor 执行）。
+type SetRealServerWeightTask struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`     // 幂等键，结果回传时原样带回
+	Vip           string                 `protobuf:"bytes,2,opt,name=vip,proto3" json:"vip,omitempty"`                         // 虚拟 IP，如 192.0.2.5
+	VipPort       int32                  `protobuf:"varint,3,opt,name=vip_port,json=vipPort,proto3" json:"vip_port,omitempty"` // 虚拟服务端口，如 80 / 443
+	Proto         string                 `protobuf:"bytes,4,opt,name=proto,proto3" json:"proto,omitempty"`                     // TCP / UDP
+	RsAddr        string                 `protobuf:"bytes,5,opt,name=rs_addr,json=rsAddr,proto3" json:"rs_addr,omitempty"`     // 真实服务器地址
+	RsPort        int32                  `protobuf:"varint,6,opt,name=rs_port,json=rsPort,proto3" json:"rs_port,omitempty"`    // 真实服务器端口
+	Weight        int32                  `protobuf:"varint,7,opt,name=weight,proto3" json:"weight,omitempty"`                  // 目标权重（0 = 摘除）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRealServerWeightTask) Reset() {
+	*x = SetRealServerWeightTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRealServerWeightTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRealServerWeightTask) ProtoMessage() {}
+
+func (x *SetRealServerWeightTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRealServerWeightTask.ProtoReflect.Descriptor instead.
+func (*SetRealServerWeightTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *SetRealServerWeightTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SetRealServerWeightTask) GetVip() string {
+	if x != nil {
+		return x.Vip
+	}
+	return ""
+}
+
+func (x *SetRealServerWeightTask) GetVipPort() int32 {
+	if x != nil {
+		return x.VipPort
+	}
+	return 0
+}
+
+func (x *SetRealServerWeightTask) GetProto() string {
+	if x != nil {
+		return x.Proto
+	}
+	return ""
+}
+
+func (x *SetRealServerWeightTask) GetRsAddr() string {
+	if x != nil {
+		return x.RsAddr
+	}
+	return ""
+}
+
+func (x *SetRealServerWeightTask) GetRsPort() int32 {
+	if x != nil {
+		return x.RsPort
+	}
+	return 0
+}
+
+func (x *SetRealServerWeightTask) GetWeight() int32 {
+	if x != nil {
+		return x.Weight
+	}
+	return 0
+}
+
+// SetRealServerWeightResult 是 Agent 回传的权重调整结果。
+type SetRealServerWeightResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Ok            bool                   `protobuf:"varint,2,opt,name=ok,proto3" json:"ok,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRealServerWeightResult) Reset() {
+	*x = SetRealServerWeightResult{}
+	mi := &file_agent_v1_agent_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRealServerWeightResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRealServerWeightResult) ProtoMessage() {}
+
+func (x *SetRealServerWeightResult) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRealServerWeightResult.ProtoReflect.Descriptor instead.
+func (*SetRealServerWeightResult) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *SetRealServerWeightResult) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *SetRealServerWeightResult) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *SetRealServerWeightResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+// DeployProgress 是 Agent 回传的 9 步进度。
+type DeployProgress struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Step          string                 `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`     // transfer|verify_hash|validate|snapshot|switch|reload|wait|probe|report|rollback
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"` // running|success|failed
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeployProgress) Reset() {
+	*x = DeployProgress{}
+	mi := &file_agent_v1_agent_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeployProgress) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeployProgress) ProtoMessage() {}
+
+func (x *DeployProgress) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeployProgress.ProtoReflect.Descriptor instead.
+func (*DeployProgress) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *DeployProgress) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *DeployProgress) GetStep() string {
+	if x != nil {
+		return x.Step
+	}
+	return ""
+}
+
+func (x *DeployProgress) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DeployProgress) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
@@ -1835,7 +2669,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\fServerConfig\x124\n" +
 	"\x16heartbeat_interval_sec\x18\x01 \x01(\x03R\x14heartbeatIntervalSec\x122\n" +
 	"\x15heartbeat_timeout_sec\x18\x02 \x01(\x03R\x13heartbeatTimeoutSec\x12-\n" +
-	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\xf6\x04\n" +
+	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\xfb\x06\n" +
 	"\x10HeartbeatRequest\x123\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1f.agent.v1.HeartbeatRequest.TypeR\x04type\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x124\n" +
@@ -1851,7 +2685,11 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"configTree\x12;\n" +
 	"\vlog_targets\x18\b \x01(\v2\x1a.agent.v1.LogTargetsReportR\n" +
 	"logTargets\x12A\n" +
-	"\x0fvalidate_result\x18\t \x01(\v2\x18.agent.v1.ValidateResultR\x0evalidateResult\"\x82\x01\n" +
+	"\x0fvalidate_result\x18\t \x01(\v2\x18.agent.v1.ValidateResultR\x0evalidateResult\x12A\n" +
+	"\x0fsnapshot_result\x18\n" +
+	" \x01(\v2\x18.agent.v1.SnapshotResultR\x0esnapshotResult\x12A\n" +
+	"\x0fdeploy_progress\x18\v \x01(\v2\x18.agent.v1.DeployProgressR\x0edeployProgress\x12T\n" +
+	"\x14set_rs_weight_result\x18\f \x01(\v2#.agent.v1.SetRealServerWeightResultR\x11setRsWeightResult\"\xab\x01\n" +
 	"\x04Type\x12\b\n" +
 	"\x04PING\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -1862,16 +2700,32 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\bFS_PROBE\x10\x04\x12\x0f\n" +
 	"\vCONFIG_TREE\x10\x05\x12\x0f\n" +
 	"\vLOG_TARGETS\x10\x06\x12\x13\n" +
-	"\x0fCONFIG_VALIDATE\x10\a\"\xfe\x01\n" +
+	"\x0fCONFIG_VALIDATE\x10\a\x12\f\n" +
+	"\bSNAPSHOT\x10\b\x12\n" +
+	"\n" +
+	"\x06DEPLOY\x10\t\x12\r\n" +
+	"\tRS_WEIGHT\x10\n" +
+	"\"\xb5\x05\n" +
 	"\x11HeartbeatResponse\x12=\n" +
 	"\acommand\x18\x01 \x01(\x0e2#.agent.v1.HeartbeatResponse.CommandR\acommand\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12;\n" +
-	"\rvalidate_task\x18\x03 \x01(\v2\x16.agent.v1.ValidateTaskR\fvalidateTask\"T\n" +
+	"\rvalidate_task\x18\x03 \x01(\v2\x16.agent.v1.ValidateTaskR\fvalidateTask\x12E\n" +
+	"\x0fsnapshot_create\x18\x04 \x01(\v2\x1c.agent.v1.SnapshotCreateTaskR\x0esnapshotCreate\x12H\n" +
+	"\x10snapshot_restore\x18\x05 \x01(\v2\x1d.agent.v1.SnapshotRestoreTaskR\x0fsnapshotRestore\x129\n" +
+	"\vsync_config\x18\x06 \x01(\v2\x18.agent.v1.SyncConfigTaskR\n" +
+	"syncConfig\x12;\n" +
+	"\rrollback_task\x18\a \x01(\v2\x16.agent.v1.RollbackTaskR\frollbackTask\x12E\n" +
+	"\rset_rs_weight\x18\b \x01(\v2!.agent.v1.SetRealServerWeightTaskR\vsetRsWeight\"\xba\x01\n" +
 	"\aCommand\x12\b\n" +
 	"\x04NONE\x10\x00\x12\x16\n" +
 	"\x12REFRESH_CAPABILITY\x10\x01\x12\x12\n" +
 	"\x0eRUN_COMPLIANCE\x10\x02\x12\x13\n" +
-	"\x0fVALIDATE_CONFIG\x10\x03\"a\n" +
+	"\x0fVALIDATE_CONFIG\x10\x03\x12\x13\n" +
+	"\x0fCREATE_SNAPSHOT\x10\x04\x12\x14\n" +
+	"\x10RESTORE_SNAPSHOT\x10\x05\x12\x11\n" +
+	"\rDEPLOY_CONFIG\x10\x06\x12\x13\n" +
+	"\x0fROLLBACK_CONFIG\x10\a\x12\x11\n" +
+	"\rSET_RS_WEIGHT\x10\b\"a\n" +
 	"\x10CapabilityReport\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\x03R\x06nodeId\x124\n" +
 	"\n" +
@@ -2001,7 +2855,73 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x0e\n" +
 	"\x02ok\x18\x02 \x01(\bR\x02ok\x12,\n" +
 	"\x06errors\x18\x03 \x03(\v2\x14.agent.v1.NginxErrorR\x06errors\x12\x10\n" +
-	"\x03raw\x18\x04 \x01(\tR\x03raw2\xda\x01\n" +
+	"\x03raw\x18\x04 \x01(\tR\x03raw\"\xc1\x01\n" +
+	"\x12SnapshotCreateTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05paths\x18\x02 \x03(\tR\x05paths\x12\x1f\n" +
+	"\vinclude_ssl\x18\x03 \x01(\bR\n" +
+	"includeSsl\x12\x1f\n" +
+	"\vstaging_dir\x18\x04 \x01(\tR\n" +
+	"stagingDir\x12&\n" +
+	"\x0fchange_order_id\x18\x05 \x01(\x03R\rchangeOrderId\x12\x12\n" +
+	"\x04type\x18\x06 \x01(\tR\x04type\"]\n" +
+	"\x13SnapshotRestoreTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x19\n" +
+	"\btar_path\x18\x02 \x01(\tR\atarPath\x12\x12\n" +
+	"\x04root\x18\x03 \x01(\tR\x04root\"w\n" +
+	"\x0eSnapshotResult\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x0e\n" +
+	"\x02ok\x18\x02 \x01(\bR\x02ok\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"S\n" +
+	"\vFileToWrite\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12\x16\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\"\xe2\x02\n" +
+	"\x0eSyncConfigTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12&\n" +
+	"\x0fchange_order_id\x18\x02 \x01(\x03R\rchangeOrderId\x12\x17\n" +
+	"\anode_id\x18\x03 \x01(\x03R\x06nodeId\x12+\n" +
+	"\x05files\x18\x04 \x03(\v2\x15.agent.v1.FileToWriteR\x05files\x12\x16\n" +
+	"\x06prefix\x18\x05 \x01(\tR\x06prefix\x12\x1d\n" +
+	"\n" +
+	"nginx_path\x18\x06 \x01(\tR\tnginxPath\x12\x1b\n" +
+	"\tconf_path\x18\a \x01(\tR\bconfPath\x12,\n" +
+	"\x12observe_window_sec\x18\b \x01(\x03R\x10observeWindowSec\x12\x1b\n" +
+	"\tprobe_url\x18\t \x01(\tR\bprobeUrl\x12*\n" +
+	"\x11probe_timeout_sec\x18\n" +
+	" \x01(\x03R\x0fprobeTimeoutSec\"\xd8\x02\n" +
+	"\fRollbackTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12&\n" +
+	"\x0fchange_order_id\x18\x02 \x01(\x03R\rchangeOrderId\x12\x17\n" +
+	"\anode_id\x18\x03 \x01(\x03R\x06nodeId\x12#\n" +
+	"\rsnapshot_path\x18\x04 \x01(\tR\fsnapshotPath\x12\x16\n" +
+	"\x06prefix\x18\x05 \x01(\tR\x06prefix\x12\x1d\n" +
+	"\n" +
+	"nginx_path\x18\x06 \x01(\tR\tnginxPath\x12\x1b\n" +
+	"\tconf_path\x18\a \x01(\tR\bconfPath\x12,\n" +
+	"\x12observe_window_sec\x18\b \x01(\x03R\x10observeWindowSec\x12\x1b\n" +
+	"\tprobe_url\x18\t \x01(\tR\bprobeUrl\x12*\n" +
+	"\x11probe_timeout_sec\x18\n" +
+	" \x01(\x03R\x0fprobeTimeoutSec\"\xbf\x01\n" +
+	"\x17SetRealServerWeightTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x10\n" +
+	"\x03vip\x18\x02 \x01(\tR\x03vip\x12\x19\n" +
+	"\bvip_port\x18\x03 \x01(\x05R\avipPort\x12\x14\n" +
+	"\x05proto\x18\x04 \x01(\tR\x05proto\x12\x17\n" +
+	"\ars_addr\x18\x05 \x01(\tR\x06rsAddr\x12\x17\n" +
+	"\ars_port\x18\x06 \x01(\x05R\x06rsPort\x12\x16\n" +
+	"\x06weight\x18\a \x01(\x05R\x06weight\"Z\n" +
+	"\x19SetRealServerWeightResult\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x0e\n" +
+	"\x02ok\x18\x02 \x01(\bR\x02ok\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"o\n" +
+	"\x0eDeployProgress\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x12\n" +
+	"\x04step\x18\x02 \x01(\tR\x04step\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage2\xda\x01\n" +
 	"\fAgentService\x12A\n" +
 	"\bRegister\x12\x19.agent.v1.RegisterRequest\x1a\x1a.agent.v1.RegisterResponse\x12H\n" +
 	"\tHeartbeat\x12\x1a.agent.v1.HeartbeatRequest\x1a\x1b.agent.v1.HeartbeatResponse(\x010\x01\x12=\n" +
@@ -2020,32 +2940,41 @@ func file_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_agent_v1_agent_proto_goTypes = []any{
-	(HeartbeatRequest_Type)(0),     // 0: agent.v1.HeartbeatRequest.Type
-	(HeartbeatResponse_Command)(0), // 1: agent.v1.HeartbeatResponse.Command
-	(*RegisterRequest)(nil),        // 2: agent.v1.RegisterRequest
-	(*RegisterResponse)(nil),       // 3: agent.v1.RegisterResponse
-	(*ServerConfig)(nil),           // 4: agent.v1.ServerConfig
-	(*HeartbeatRequest)(nil),       // 5: agent.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),      // 6: agent.v1.HeartbeatResponse
-	(*CapabilityReport)(nil),       // 7: agent.v1.CapabilityReport
-	(*Ack)(nil),                    // 8: agent.v1.Ack
-	(*Capability)(nil),             // 9: agent.v1.Capability
-	(*NginxInfo)(nil),              // 10: agent.v1.NginxInfo
-	(*ConfigFile)(nil),             // 11: agent.v1.ConfigFile
-	(*ComplianceReport)(nil),       // 12: agent.v1.ComplianceReport
-	(*ComplianceItem)(nil),         // 13: agent.v1.ComplianceItem
-	(*FsProbeReport)(nil),          // 14: agent.v1.FsProbeReport
-	(*SystemInfo)(nil),             // 15: agent.v1.SystemInfo
-	(*ConfigTreeReport)(nil),       // 16: agent.v1.ConfigTreeReport
-	(*LogTargetsReport)(nil),       // 17: agent.v1.LogTargetsReport
-	(*LogTarget)(nil),              // 18: agent.v1.LogTarget
-	(*NginxError)(nil),             // 19: agent.v1.NginxError
-	(*ValidateFile)(nil),           // 20: agent.v1.ValidateFile
-	(*ValidateTask)(nil),           // 21: agent.v1.ValidateTask
-	(*ValidateResult)(nil),         // 22: agent.v1.ValidateResult
-	nil,                            // 23: agent.v1.SystemInfo.DiskFreeEntry
+	(HeartbeatRequest_Type)(0),        // 0: agent.v1.HeartbeatRequest.Type
+	(HeartbeatResponse_Command)(0),    // 1: agent.v1.HeartbeatResponse.Command
+	(*RegisterRequest)(nil),           // 2: agent.v1.RegisterRequest
+	(*RegisterResponse)(nil),          // 3: agent.v1.RegisterResponse
+	(*ServerConfig)(nil),              // 4: agent.v1.ServerConfig
+	(*HeartbeatRequest)(nil),          // 5: agent.v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil),         // 6: agent.v1.HeartbeatResponse
+	(*CapabilityReport)(nil),          // 7: agent.v1.CapabilityReport
+	(*Ack)(nil),                       // 8: agent.v1.Ack
+	(*Capability)(nil),                // 9: agent.v1.Capability
+	(*NginxInfo)(nil),                 // 10: agent.v1.NginxInfo
+	(*ConfigFile)(nil),                // 11: agent.v1.ConfigFile
+	(*ComplianceReport)(nil),          // 12: agent.v1.ComplianceReport
+	(*ComplianceItem)(nil),            // 13: agent.v1.ComplianceItem
+	(*FsProbeReport)(nil),             // 14: agent.v1.FsProbeReport
+	(*SystemInfo)(nil),                // 15: agent.v1.SystemInfo
+	(*ConfigTreeReport)(nil),          // 16: agent.v1.ConfigTreeReport
+	(*LogTargetsReport)(nil),          // 17: agent.v1.LogTargetsReport
+	(*LogTarget)(nil),                 // 18: agent.v1.LogTarget
+	(*NginxError)(nil),                // 19: agent.v1.NginxError
+	(*ValidateFile)(nil),              // 20: agent.v1.ValidateFile
+	(*ValidateTask)(nil),              // 21: agent.v1.ValidateTask
+	(*ValidateResult)(nil),            // 22: agent.v1.ValidateResult
+	(*SnapshotCreateTask)(nil),        // 23: agent.v1.SnapshotCreateTask
+	(*SnapshotRestoreTask)(nil),       // 24: agent.v1.SnapshotRestoreTask
+	(*SnapshotResult)(nil),            // 25: agent.v1.SnapshotResult
+	(*FileToWrite)(nil),               // 26: agent.v1.FileToWrite
+	(*SyncConfigTask)(nil),            // 27: agent.v1.SyncConfigTask
+	(*RollbackTask)(nil),              // 28: agent.v1.RollbackTask
+	(*SetRealServerWeightTask)(nil),   // 29: agent.v1.SetRealServerWeightTask
+	(*SetRealServerWeightResult)(nil), // 30: agent.v1.SetRealServerWeightResult
+	(*DeployProgress)(nil),            // 31: agent.v1.DeployProgress
+	nil,                               // 32: agent.v1.SystemInfo.DiskFreeEntry
 }
 var file_agent_v1_agent_proto_depIdxs = []int32{
 	4,  // 0: agent.v1.RegisterResponse.config:type_name -> agent.v1.ServerConfig
@@ -2056,31 +2985,40 @@ var file_agent_v1_agent_proto_depIdxs = []int32{
 	16, // 5: agent.v1.HeartbeatRequest.config_tree:type_name -> agent.v1.ConfigTreeReport
 	17, // 6: agent.v1.HeartbeatRequest.log_targets:type_name -> agent.v1.LogTargetsReport
 	22, // 7: agent.v1.HeartbeatRequest.validate_result:type_name -> agent.v1.ValidateResult
-	1,  // 8: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
-	21, // 9: agent.v1.HeartbeatResponse.validate_task:type_name -> agent.v1.ValidateTask
-	9,  // 10: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
-	10, // 11: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
-	12, // 12: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
-	15, // 13: agent.v1.Capability.system:type_name -> agent.v1.SystemInfo
-	11, // 14: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
-	13, // 15: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
-	13, // 16: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
-	23, // 17: agent.v1.SystemInfo.disk_free:type_name -> agent.v1.SystemInfo.DiskFreeEntry
-	11, // 18: agent.v1.ConfigTreeReport.files:type_name -> agent.v1.ConfigFile
-	18, // 19: agent.v1.LogTargetsReport.items:type_name -> agent.v1.LogTarget
-	20, // 20: agent.v1.ValidateTask.files:type_name -> agent.v1.ValidateFile
-	19, // 21: agent.v1.ValidateResult.errors:type_name -> agent.v1.NginxError
-	2,  // 22: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
-	5,  // 23: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
-	7,  // 24: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
-	3,  // 25: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
-	6,  // 26: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
-	8,  // 27: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
-	25, // [25:28] is the sub-list for method output_type
-	22, // [22:25] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	25, // 8: agent.v1.HeartbeatRequest.snapshot_result:type_name -> agent.v1.SnapshotResult
+	31, // 9: agent.v1.HeartbeatRequest.deploy_progress:type_name -> agent.v1.DeployProgress
+	30, // 10: agent.v1.HeartbeatRequest.set_rs_weight_result:type_name -> agent.v1.SetRealServerWeightResult
+	1,  // 11: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
+	21, // 12: agent.v1.HeartbeatResponse.validate_task:type_name -> agent.v1.ValidateTask
+	23, // 13: agent.v1.HeartbeatResponse.snapshot_create:type_name -> agent.v1.SnapshotCreateTask
+	24, // 14: agent.v1.HeartbeatResponse.snapshot_restore:type_name -> agent.v1.SnapshotRestoreTask
+	27, // 15: agent.v1.HeartbeatResponse.sync_config:type_name -> agent.v1.SyncConfigTask
+	28, // 16: agent.v1.HeartbeatResponse.rollback_task:type_name -> agent.v1.RollbackTask
+	29, // 17: agent.v1.HeartbeatResponse.set_rs_weight:type_name -> agent.v1.SetRealServerWeightTask
+	9,  // 18: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
+	10, // 19: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
+	12, // 20: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
+	15, // 21: agent.v1.Capability.system:type_name -> agent.v1.SystemInfo
+	11, // 22: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
+	13, // 23: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
+	13, // 24: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
+	32, // 25: agent.v1.SystemInfo.disk_free:type_name -> agent.v1.SystemInfo.DiskFreeEntry
+	11, // 26: agent.v1.ConfigTreeReport.files:type_name -> agent.v1.ConfigFile
+	18, // 27: agent.v1.LogTargetsReport.items:type_name -> agent.v1.LogTarget
+	20, // 28: agent.v1.ValidateTask.files:type_name -> agent.v1.ValidateFile
+	19, // 29: agent.v1.ValidateResult.errors:type_name -> agent.v1.NginxError
+	26, // 30: agent.v1.SyncConfigTask.files:type_name -> agent.v1.FileToWrite
+	2,  // 31: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
+	5,  // 32: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
+	7,  // 33: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
+	3,  // 34: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
+	6,  // 35: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
+	8,  // 36: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
+	34, // [34:37] is the sub-list for method output_type
+	31, // [31:34] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_agent_v1_agent_proto_init() }
@@ -2094,7 +3032,7 @@ func file_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_v1_agent_proto_rawDesc), len(file_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   22,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
