@@ -1,0 +1,9 @@
+# .agent-tokens —— deploy-agent.sh 读取的「一次性接入令牌」清单，每行一条：
+#   <ssh目标>=<enroll token>
+# token 由控制面签发（POST /api/v1/nodes/:id/enroll-token，前缀 ngxcp_），一次性、与节点绑定。
+# 含机密，切勿入库（建议加入 .gitignore）。
+#
+# root@rs1=ngxcp_xxxxxxxxxxxxxxxxxxxxxxxx
+# root@rs2=ngxcp_xxxxxxxxxxxxxxxxxxxxxxxx
+# root@director1=ngxcp_xxxxxxxxxxxxxxxxxxxxxxxx
+# root@director2=ngxcp_xxxxxxxxxxxxxxxxxxxxxxxx

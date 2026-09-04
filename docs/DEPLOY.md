@@ -145,3 +145,55 @@ bash scripts/verify-local.sh                # 起控制面 + Agent，验证到�
 > 注：`Dockerfile.server` / `Dockerfile.agent` 仅把 `make build` 产物 COPY 进 alpine 镜像，供验证用，
 > 不承载生产编排（生产按 §2 / §6 走 `scripts/deploy*.sh`）。`configs/server.local.yaml` 为本地验证专属
 > 配置（sqlite + 固定令牌），已 gitignore，不会进入仓库。
+
+## 8. 执行清单（按此顺序推真实机）
+
+### 8.1 前置（一次性）
+- 本机 → 目标机 **root SSH 免密**（`ssh-copy-id root@<host>`，脚本用 `BatchMode=yes` 无交互）。
+- 目标机为 **linux/amd64**（TH-D2110 满足）；控制面开放 **8080/9443**，节点 Agent 仅需**出方向 9443**。
+- 本机装好 **go + node/npm**（`deploy.sh` 自动交叉编译 + 构建前端，目标机无需 go）。
+
+### 8.2 推控制面（1 台）
+```bash
+NGXCP_DEPLOY_HOST=root@<控制面IP> bash scripts/deploy.sh
+```
+- 首次生成 `/opt/ngxcp/config.yaml`（**sqlite + 随机 admin token**，文件 600，未入库）。
+- 脚本自带冒烟：`/health`、`/api/v1/version`、SPA `/` 全绿即成功。
+- 取管理员令牌：`ssh root@<控制面IP> 'grep auth_admin_token /opt/ngxcp/config.yaml'`。
+- 回滚：`ssh root@<控制面IP> 'systemctl stop ngxcp-server; cp -f /opt/ngxcp/backups/ngxcp-server.<时间戳> /opt/ngxcp/ngxcp-server; systemctl start ngxcp-server'`。
+
+### 8.3 纳管节点（二选一）
+**A. Web 一键（推荐，无审批，契合架构选型）**：浏览器开 `https://<控制面>/agent/`，填 admin 令牌 →
+填节点名/角色 →「新建节点并生成接入命令」→ 到每台目标节点以 root 执行该命令即上线。逐台操作即天然灰度。
+
+**B. 批量（enroll token，适合一次性铺多台）**：
+1) 控制面建节点 + 发 enroll token（前缀 `ngxcp_`），每条对应一台，写入 `.agent-tokens`：
+```bash
+TOKEN=$(ssh root@<控制面IP> 'grep auth_admin_token /opt/ngxcp/config.yaml' | awk '{print $2}')
+for H in rs1 rs2 director1 director2; do
+  NID=$(curl -fsS -X POST https://<控制面>/api/v1/nodes -H "Authorization: Bearer $TOKEN" \
+    -d "{\"name\":\"$H\",\"role\":\"real_server\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["id"])')
+  curl -fsS -X POST "https://<控制面>/api/v1/nodes/$NID/enroll-token?ttl=24h" -H "Authorization: Bearer $TOKEN" \
+    | python3 -c 'import sys,json;print("'"$H"'="+json.load(sys.stdin)["data"]["token"])' >> .agent-tokens
+done
+```
+2) 取 CA：`curl -fsS https://<控制面>/agent/ca.crt -o pki/ca.crt`
+3) 推 Agent（逐节点灰度：一台失败自动回滚该节点、不继续推后续）：
+```bash
+NGXCP_AGENT_HOSTS="root@rs1 root@rs2 root@director1 root@director2" \
+NGXCP_AGENT_CONTROL_PLANE="<控制面>:9443" \
+NGXCP_AGENT_CA_CERT="./pki/ca.crt" \
+NGXCP_AGENT_TOKENS_FILE="./.agent-tokens" \
+bash scripts/deploy-agent.sh
+```
+模板见 `.agent-tokens.example`；`NGXCP_AGENT_ROLLBACK=1` 可整体回滚到上次备份。
+
+### 8.4 校验
+```bash
+curl -s https://<控制面>/api/v1/nodes -H "Authorization: Bearer $TOKEN"
+# 所有节点 status=online 即完成。Agent 重启复用 /var/lib/ngxcp 持久化证书，免重注册。
+```
+
+> **数据库**：脚本默认 **sqlite**（单控制面实例、2+2 规模足够，自动建表）。若按架构决策上
+> **PostgreSQL 16**，先手动在控制面落一份含 `db_driver: postgres` + `db_dsn` 的 `config.yaml`
+> （脚本「仅首次生成」，已有则保留），其余不变；备份改 `pg_dump` + WAL 归档。
