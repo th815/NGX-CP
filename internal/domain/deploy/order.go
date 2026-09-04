@@ -24,16 +24,33 @@ type updateFunc func(*ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate
 // 回滚与告警依赖为可选项，经 Set* 注入（不破坏既有 New(client) 调用方）：
 //   - rbClient：触发某节点执行回滚（控制面经 Agent 接线，单测用 fake）
 //   - alert：   告警出口，rollback_failed 必发 CRITICAL
+//   - eventSink：实时事件出口（T037 SSE Hub），nil 时静默丢弃
 type Service struct {
 	client      *ent.Client
 	rbClient    NodeRollbackClient
 	alert       AlertSink
 	approvalCfg *ApprovalConfig // 审批配置；nil 时用 DefaultApprovalConfig()
+	eventSink   EventSink       // 事件出口；nil 时静默丢弃（单测/未接线）
 }
 
 // New 构造发布服务。
 func New(client *ent.Client) *Service {
 	return &Service{client: client}
+}
+
+// SetEventSink 注入实时事件出口（T037 SSE）。nil 合法，表示暂不推送。
+func (s *Service) SetEventSink(es EventSink) { s.eventSink = es }
+
+// emit 发布一条发布事件；未注入 eventSink 时静默丢弃。
+// 调用方只需填业务字段，ID/时间戳由 Hub 补齐。
+func (s *Service) emit(evt DeployEvent) {
+	if s.eventSink == nil {
+		return
+	}
+	if evt.Timestamp == 0 {
+		evt.Timestamp = time.Now().UnixMilli()
+	}
+	s.eventSink.Emit(evt)
 }
 
 // Transition 执行一次状态转换，使用数据库乐观锁：
@@ -150,12 +167,20 @@ func (s *Service) Submit(ctx context.Context, orderID int) error {
 	}
 	need, rule := s.cfg().RequiresApproval(co)
 	if !need {
-		return s.Transition(ctx, orderID, string(StatusDraft), string(StatusPending))
+		if err := s.Transition(ctx, orderID, string(StatusDraft), string(StatusPending)); err != nil {
+			return err
+		}
+		s.emit(DeployEvent{OrderID: orderID, Step: "submit", Status: string(StatusPending), Message: "已提交（免审批）"})
+		return nil
 	}
 	if err := s.createApproval(ctx, orderID, rule); err != nil {
 		return err
 	}
-	return s.Transition(ctx, orderID, string(StatusDraft), string(StatusPendingApproval))
+	if err := s.Transition(ctx, orderID, string(StatusDraft), string(StatusPendingApproval)); err != nil {
+		return err
+	}
+	s.emit(DeployEvent{OrderID: orderID, Step: "submit", Status: string(StatusPendingApproval), Message: "已提交，等待审批：" + rule})
+	return nil
 }
 
 // Approve pending_approval → pending，做自审批拦截并记录审批人。
@@ -171,8 +196,12 @@ func (s *Service) Approve(ctx context.Context, orderID int, approver string) err
 	if err := s.markApproval(ctx, orderID, "approved", approver, ""); err != nil {
 		return err
 	}
-	return s.Transition(ctx, orderID, string(StatusPendingApproval), string(StatusPending),
-		func(u *ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate { return u.SetApprovedBy(approver) })
+	if err := s.Transition(ctx, orderID, string(StatusPendingApproval), string(StatusPending),
+		func(u *ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate { return u.SetApprovedBy(approver) }); err != nil {
+		return err
+	}
+	s.emit(DeployEvent{OrderID: orderID, Step: "approve", Status: string(StatusPending), Message: "已批准（" + approver + "）"})
+	return nil
 }
 
 // Reject pending_approval → rejected，并记录拒绝动作。
@@ -180,7 +209,11 @@ func (s *Service) Reject(ctx context.Context, orderID int) error {
 	if err := s.markApproval(ctx, orderID, "rejected", "", ""); err != nil {
 		return err
 	}
-	return s.Transition(ctx, orderID, string(StatusPendingApproval), string(StatusRejected))
+	if err := s.Transition(ctx, orderID, string(StatusPendingApproval), string(StatusRejected)); err != nil {
+		return err
+	}
+	s.emit(DeployEvent{OrderID: orderID, Step: "reject", Status: string(StatusRejected), Message: "已拒绝"})
+	return nil
 }
 
 // Cancel 从任何可取消的状态 → canceled（乐观锁：WHERE status IN (可取消集合)）。
@@ -204,12 +237,17 @@ func (s *Service) Cancel(ctx context.Context, orderID int) error {
 	if n == 0 {
 		return apperr.New(apperr.CodeConflict, "该变更单当前状态不可取消，或已被其他操作修改")
 	}
+	s.emit(DeployEvent{OrderID: orderID, Step: "cancel", Status: string(StatusCanceled), Message: "已取消"})
 	return nil
 }
 
 // Start pending → running，并记录 started_at（执行流水线入口，后续任务实现）。
 func (s *Service) Start(ctx context.Context, orderID int) error {
 	now := time.Now()
-	return s.Transition(ctx, orderID, string(StatusPending), string(StatusRunning),
-		func(u *ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate { return u.SetStartedAt(now) })
+	if err := s.Transition(ctx, orderID, string(StatusPending), string(StatusRunning),
+		func(u *ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate { return u.SetStartedAt(now) }); err != nil {
+		return err
+	}
+	s.emit(DeployEvent{OrderID: orderID, Step: "start", Status: string(StatusRunning), Message: "开始执行"})
+	return nil
 }

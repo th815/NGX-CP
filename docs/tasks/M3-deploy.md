@@ -718,7 +718,7 @@ curl -s -X POST http://localhost:8080/api/v1/change-orders/16/approve -d '{"comm
 
 ---
 
-## T037 · 发布进度实时推送（SSE）
+## T037 · 发布进度实时推送（SSE）✅ 已完成（2026-09-04）
 
 **目标**：让用户在页面上看到发布的每一步。
 
@@ -726,12 +726,22 @@ curl -s -X POST http://localhost:8080/api/v1/change-orders/16/approve -d '{"comm
 
 **涉及文件**：
 ```
-internal/server/handler/stream.go
-internal/server/hub.go
-internal/domain/deploy/events.go
-web/src/composables/useDeployStream.ts
+internal/domain/deploy/events.go        # DeployEvent 数据模型 + EventSink 接口（域层只产生事件）
+internal/server/hub.go                  # 进程内发布/订阅中心（实现 deploy.EventSink + 有界历史回放）
+internal/server/handler/stream.go       # GET /api/v1/change-orders/:id/stream（SSE，依赖 DeployEventSource 接口避免循环依赖）
+internal/server/server.go               # 创建 Hub + deploySvc.SetEventSink(hub)
+internal/server/router.go              # 挂载 /:id/stream 路由
+web/src/composables/useDeployStream.ts  # ★ 前端 composable 推到 T039 与发布页一起落地
 web/src/components/deploy/ProgressPanel.vue
 ```
+
+**实现说明（与原任务注释的偏差）**：
+- `DeployEvent` 与 `EventSink` 定义在**域层** `internal/domain/deploy/events.go`：Service 经 `SetEventSink` 注入出口，发出提交/批准/拒绝/取消/开始 5 类生命周期事件（`emit` 在 `eventSink==nil` 时静默丢弃，单测与未接线态安全）。
+- `Hub`（`internal/server/hub.go`）同时实现 `deploy.EventSink`（供域层 `Emit`）与 `handler.DeployEventSource` 接口（供 SSE 订阅）。**关键架构点**：handler 不 import server 包，而是依赖自己定义的 `DeployEventSource` 接口，规避 `server→handler` 的循环依赖。
+- SSE 处理器设 `Content-Type: text/event-stream` + `X-Accel-Buffering: no`，逐事件 `Flush`，15s 心跳保活；每条事件带 `id: <全局单调号>`，支持客户端 `Last-Event-ID` 断连重连（Hub 在 `Subscribe` 时回放该变更单有界历史，默认每单保留最近 256 条）。
+- 订阅者消费慢时 `Emit` 走 `default` 丢弃本次推送而非阻塞发布路径，靠重连补帧兜底——保证发布主路径不被 SSE 客户端拖慢。
+- **刻意未做（推 T039）**：① 事件「同时落库」用于历史审计与跨进程重放——本期 Hub 为内存实现，`NewHub` 接口稳定，T039 接 PG 持久化时不改调用方；② 单节点执行步骤事件（transfer/validate/snapshot/...）待 T039 执行器经 Agent 接线后由域层在 9 步流水线中各发一步；③ 前端 `useDeployStream` + `ProgressPanel` 随发布页集成落地。
+- **测试**：`internal/server/hub_test.go` 5 例（发布订阅 / 不串流 / 历史回放 / 取消无泄漏 / `-race` 并发安全）；`internal/domain/deploy/events_test.go` 2 例（提交/批准事件发出）。`go build/vet/gofmt` 干净。
 
 **契约**：
 

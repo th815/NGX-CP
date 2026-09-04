@@ -114,6 +114,10 @@ func Run(cfg *config.Config) error {
 	// T030 发布引擎：变更单状态机与持久化（复用同一 ent 客户端）。
 	deploySvc := deploy.New(client)
 
+	// T037 发布进度实时推送：Hub 作为事件出口注入域层，并供 SSE 处理器订阅。
+	hub := NewHub(256)
+	deploySvc.SetEventSink(hub)
+
 	// T026 漂移定时巡检：ctx 取消即退出（与进程同生命周期）。
 	go func() {
 		if err := driftDetector.RunWorker(ctx, driftCfg.CheckInterval); err != nil && ctx.Err() == nil {
@@ -123,7 +127,7 @@ func Run(cfg *config.Config) error {
 
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc)
+	r := buildRouter(cfg, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub)
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
 }

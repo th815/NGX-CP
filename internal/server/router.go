@@ -22,7 +22,7 @@ import (
 // semantic 为 T025 语义校验器（复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎）。
 // drift 为 T026 漂移检测器（复用 cfgStore + ent 客户端，在配置树上报时即时检测 + 定时巡检）。
 // tmplSvc 为 T027 模板与三级变量服务（复用 ent 客户端，提供配置模板渲染与变量解析）。
-func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service) *gin.Engine {
+func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -100,6 +100,7 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 		// T030 发布引擎：变更单生命周期（创建/列表/详情 + 提交/批准/拒绝/取消）。
 		dh := handler.NewDeployHandler(deploySvc)
 		ah := handler.NewApprovalHandler(deploySvc) // T036 审批记录查询
+		sh := handler.NewStreamHandler(hub)         // T037 SSE 实时进度推送
 		do := v1.Group("/change-orders")
 		{
 			do.POST("", auth, dh.Create)
@@ -110,6 +111,7 @@ func buildRouter(cfg *config.Config, nodeSvc *node.Service, cfgStore *configstor
 			do.POST("/:id/reject", auth, dh.Reject)
 			do.POST("/:id/cancel", auth, dh.Cancel)
 			do.GET("/:id/approval", ah.GetForOrder) // T036 取该变更单的审批记录
+			do.GET("/:id/stream", sh.Stream)        // T037 SSE 实时进度
 		}
 
 		// T036 审批流：审批记录查询（列表按状态过滤）。
