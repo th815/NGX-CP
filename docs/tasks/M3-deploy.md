@@ -504,7 +504,7 @@ curl -s -X POST http://localhost:8080/api/v1/change-orders/15/rollback | jq
 
 ---
 
-## T035 · LVS 权重摘除式灰度 ★
+## T035 · LVS 权重摘除式灰度 ✅ 已完成（2026-09-04）
 
 **目标**：让 Nginx 变更对用户完全无感。
 
@@ -512,12 +512,22 @@ curl -s -X POST http://localhost:8080/api/v1/change-orders/15/rollback | jq
 
 **涉及文件**：
 ```
-internal/domain/lvs/ipvsadm.go
-internal/domain/lvs/graceful.go
-internal/agent/executor/ipvs.go
-internal/domain/deploy/strategy_lvs.go
-proto/agent/v1/agent.proto        # 追加 SetRealServerWeight
+internal/domain/lvs/ipvsadm.go            # VirtualServer/RealServer 类型 + ParseIPVS + VS 枚举（:80/:443tcp/:443udp）
+internal/domain/lvs/graceful.go           # GracefulDeploy：DeployOne 7 步（置 0→排空→Deployer→探活→加回→观测 60s→上报），defer 必加回权重
+internal/domain/lvs/lvs_test.go           # 6 例（枚举/解析/权重不变量）
+internal/agent/executor/ipvs.go           # IPVSExecutor 实现 WeightSetter（hostexec 调 ipvsadm -e）
+internal/domain/deploy/strategy_lvs.go    # LVSStrategy + NewLVSStrategy + SetTimings + DeployNodeCanary/DeployAll
+internal/domain/deploy/strategy_lvs_test.go # 3 例（含「权重必加回」不变量）
+proto/agent/v1/agent.proto                # SET_RS_WEIGHT=8 命令 + 消息（Heartbeat 通道，gen 待 protoc）
+scripts/prod-lvs-probe.sh                 # 生产环境「只读」一致性探测（T035 配套，严格只读）
 ```
+
+**实现说明（与原任务注释的偏差）**：
+- 原注释的 `LVSGracefulDeploy` 用单 `VIP/Port/OriginalWeight` 字段 + `setWeight(nodeID, w)`，只能命中**单条 VS**。现场确认同一 RS 在 `:80`、`:443/tcp`、`:443/udp` 是**三条独立 VS**（见 `testdata/ipvsadm_Ln.txt`），只摘 `:80` 会让 443 继续打 RS、灰度失效。故改为 `BackendRef{Address}` 枚举该 backend 在**全部 VS** 上的条目统一置权（`graceful.go`），`WeightSetter` 接口按 `(vs, rs)` 逐条 `-w 0 / -w <原>`。
+- `defer` 必加回权重：任何异常路径（排空超时 / 变更失败 / 探活失败）都先把节点权重复原再返回，避免把 RS 永久留池外雪上加霜（测试以「双次加回」不变量验证：正常路径 + defer 安全网）。
+- 复用 T032 9 步（Deployer）+ T033 复合探活（Probers）+ T031 快照（回滚兜底），未重复造轮子。
+- 生产环境只读体检（2026-09-04）确认设计契合现场（DR / wrr / persistent 60 / 3 VS），并发现 3 个问题（见 `docs/PROD-LVS-REPORT.md`）：① keepalived 组播未配 unicast_peer（违反 vSphere 铁律）；② 备机 .7 持有与 .6 完全一致的 ipvs 表 → 双 MASTER / split-brain 表象；③ 同一 RS 三条 VS，灰度须三处同步摘除。**这些均为标注建议，体检未改动任何生产配置。**
+- 端到端接线（Agent 经 Heartbeat `SET_RS_WEIGHT` 命令触发、控制面从外部探活 VIP）随 M3 集成验收（T037 + T039）一并落地。
 
 **契约 —— LVS 摘除式灰度序列**：
 

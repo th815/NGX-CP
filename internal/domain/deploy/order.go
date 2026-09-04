@@ -20,8 +20,14 @@ type updateFunc func(*ent.ChangeOrderUpdate) *ent.ChangeOrderUpdate
 
 // Service 封装变更单的持久化与状态机转换。
 // 所有状态迁移都走数据库乐观锁（见 Transition），控制面重启后可从库里恢复。
+//
+// 回滚与告警依赖为可选项，经 Set* 注入（不破坏既有 New(client) 调用方）：
+//   - rbClient：触发某节点执行回滚（控制面经 Agent 接线，单测用 fake）
+//   - alert：   告警出口，rollback_failed 必发 CRITICAL
 type Service struct {
-	client *ent.Client
+	client   *ent.Client
+	rbClient NodeRollbackClient
+	alert    AlertSink
 }
 
 // New 构造发布服务。

@@ -51,6 +51,7 @@ message HeartbeatRequest {
     CONFIG_VALIDATE = 7;          // T024：nginx -t 校验结果上报
     SNAPSHOT = 8;                  // T031：快照结果上报（create / restore）
     DEPLOY = 9;                   // T032：原子落盘进度上报
+    RS_WEIGHT = 10;               // T035：RS 权重调整结果上报
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
@@ -63,6 +64,7 @@ message HeartbeatRequest {
   ValidateResult validate_result = 9; // T024：nginx -t 校验结果
   SnapshotResult snapshot_result = 10;  // T031：快照（create / restore）结果
   DeployProgress deploy_progress = 11;  // T032：原子落盘进度（9 步逐步上报）
+  SetRealServerWeightResult set_rs_weight_result = 12; // T035：RS 权重调整结果
 }
 
 message HeartbeatResponse {
@@ -75,6 +77,7 @@ message HeartbeatResponse {
     RESTORE_SNAPSHOT = 5;   // T031：让 Agent 从快照恢复配置
     DEPLOY_CONFIG = 6;      // T032：让 Agent 跑 9 步原子落盘（含校验/快照/reload/探活）
     ROLLBACK_CONFIG = 7;    // T034：让 Agent 跑回滚流水线（解压校验→恢复→reload→探活）
+    SET_RS_WEIGHT = 8;      // T035：让 Agent 在 LVS Director 上调整 RS 权重（摘除式灰度）
   }
   Command command = 1;
   string task_id = 2;       // 幂等键，防止重放
@@ -88,6 +91,8 @@ message HeartbeatResponse {
   SyncConfigTask sync_config = 6;
   // T034：ROLLBACK_CONFIG 命令携带的回滚任务（快照路径 + 运行参数）。
   RollbackTask rollback_task = 7;
+  // T035：SET_RS_WEIGHT 命令携带的权重调整任务（目标 RS + 权重，0=摘除）。
+  SetRealServerWeightTask set_rs_weight = 8;
 }
 
 message CapabilityReport {
@@ -317,6 +322,24 @@ message RollbackTask {
   int64 observe_window_sec = 8;// 步骤⑤ 观测窗口，默认 5
   string probe_url = 9;        // 步骤⑥ 探活 URL，空则跳过
   int64 probe_timeout_sec = 10;// 探活超时，默认 5
+}
+
+// SetRealServerWeightTask 是 T035 SET_RS_WEIGHT 命令携带的权重调整任务（Agent 端 IPVSExecutor 执行）。
+message SetRealServerWeightTask {
+  string task_id = 1;          // 幂等键，结果回传时原样带回
+  string vip = 2;             // 虚拟 IP，如 192.168.5.5
+  int32 vip_port = 3;         // 虚拟服务端口，如 80 / 443
+  string proto = 4;           // TCP / UDP
+  string rs_addr = 5;         // 真实服务器地址
+  int32 rs_port = 6;          // 真实服务器端口
+  int32 weight = 7;           // 目标权重（0 = 摘除）
+}
+
+// SetRealServerWeightResult 是 Agent 回传的权重调整结果。
+message SetRealServerWeightResult {
+  string task_id = 1;
+  bool ok = 2;
+  string error = 3;
 }
 
 // DeployProgress 是 Agent 回传的 9 步进度。
