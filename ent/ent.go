@@ -26,6 +26,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -106,6 +107,7 @@ func checkColumn(t, c string) error {
 			configvariable.Table: configvariable.ValidColumn,
 			deploynodelock.Table: deploynodelock.ValidColumn,
 			deploytask.Table:     deploytask.ValidColumn,
+			enrolltoken.Table:    enrolltoken.ValidColumn,
 			jointoken.Table:      jointoken.ValidColumn,
 			node.Table:           node.ValidColumn,
 			nodecapability.Table: nodecapability.ValidColumn,

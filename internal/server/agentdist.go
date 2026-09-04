@@ -99,7 +99,7 @@ func (ad *agentDist) serveConsole(c *gin.Context) {
 }
 
 // createNodeWithToken 实现「web 一键自注册」：新建节点（enrolling）→ 为该节点签发
-// 节点绑定 Join Token（入库 join_tokens 表，原文持久化于 Agent 侧 /etc/ngxcp-agent.env）→
+// 节点绑定 Join Token（入库 join_tokens 表，原文持久化于 Agent 侧 /etc/ngxcp/agent.conf）→
 // 返回 token + 过期时间。前端据此拼出一行安装命令。无审批：节点随后凭令牌自注册即上线。
 func (ad *agentDist) createNodeWithToken(c *gin.Context) {
 	var in struct {

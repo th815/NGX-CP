@@ -14,7 +14,7 @@ import (
 // 哈希反查节点；支持单独吊销（revoked 标志），吊销即时生效、无需等过期。
 //
 // 安全：库内只存 SHA-256 哈希（token_hash），原文仅在签发时返回一次，
-// 持久化于 Agent 侧（/etc/ngxcp-agent.env，systemd EnvironmentFile）。
+// 持久化于 Agent 侧（/etc/ngxcp/agent.conf，systemd EnvironmentFile）。
 // 一个节点可有多条令牌（轮换时旧令牌置 revoked），但每条令牌仅绑定一个节点。
 type JoinToken struct {
 	ent.Schema

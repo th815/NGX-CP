@@ -14,6 +14,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -241,6 +242,21 @@ func (_c *NodeCreate) AddJoinTokens(v ...*JoinToken) *NodeCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddJoinTokenIDs(ids...)
+}
+
+// AddEnrollTokenIDs adds the "enroll_tokens" edge to the EnrollToken entity by IDs.
+func (_c *NodeCreate) AddEnrollTokenIDs(ids ...int) *NodeCreate {
+	_c.mutation.AddEnrollTokenIDs(ids...)
+	return _c
+}
+
+// AddEnrollTokens adds the "enroll_tokens" edges to the EnrollToken entity.
+func (_c *NodeCreate) AddEnrollTokens(v ...*EnrollToken) *NodeCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddEnrollTokenIDs(ids...)
 }
 
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
@@ -523,6 +539,22 @@ func (_c *NodeCreate) createSpec() (*Node, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.EnrollTokensIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.EnrollTokensTable,
+			Columns: []string{node.EnrollTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

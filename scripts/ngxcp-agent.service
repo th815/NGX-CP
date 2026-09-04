@@ -7,8 +7,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-# 机密走 EnvironmentFile（600），不落进 unit、也不出现在命令行 / ps 输出里
-EnvironmentFile=/etc/ngxcp/agent.env
+# 机密走 EnvironmentFile（600 的 .conf，不落进 unit、也不出现在命令行 / ps 输出里）
+EnvironmentFile=/etc/ngxcp/agent.conf
 ExecStart=/opt/ngxcp/ngxcp-agent
 Restart=always
 RestartSec=5

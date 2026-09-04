@@ -177,6 +177,18 @@ func (f DeployTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeployTaskMutation", m)
 }
 
+// The EnrollTokenFunc type is an adapter to allow the use of ordinary
+// function as EnrollToken mutator.
+type EnrollTokenFunc func(context.Context, *ent.EnrollTokenMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EnrollTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EnrollTokenMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EnrollTokenMutation", m)
+}
+
 // The JoinTokenFunc type is an adapter to allow the use of ordinary
 // function as JoinToken mutator.
 type JoinTokenFunc func(context.Context, *ent.JoinTokenMutation) (ent.Value, error)

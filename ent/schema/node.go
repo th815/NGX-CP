@@ -40,6 +40,7 @@ func (Node) Edges() []ent.Edge {
 		edge.To("deploy_tasks", DeployTask.Type),
 		edge.To("real_servers", RealServer.Type),
 		edge.To("join_tokens", JoinToken.Type),
+		edge.To("enroll_tokens", EnrollToken.Type),
 		edge.From("cluster", Cluster.Type).
 			Ref("nodes").
 			Unique(),

@@ -73,7 +73,7 @@ func TestRegisterSelfJoin(t *testing.T) {
 		t.Fatalf("issue join token: %v", err)
 	}
 
-	// 2) 持 Join Token + 本地 CSR 自注册（Agent 侧：token 持久化于 /etc/ngxcp-agent.env）。
+	// 2) 持 Join Token + 本地 CSR 自注册（Agent 侧：token 持久化于 /etc/ngxcp/agent.conf）。
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	resp, err := cli.Register(ctx, &agentv1.RegisterRequest{
 		JoinToken: joinTok,

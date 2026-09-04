@@ -339,6 +339,32 @@ var (
 			},
 		},
 	}
+	// EnrollTokensColumns holds the columns for the "enroll_tokens" table.
+	EnrollTokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "used", Type: field.TypeBool, Default: false},
+		{Name: "revoked", Type: field.TypeBool, Default: false},
+		{Name: "used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "node_enroll_tokens", Type: field.TypeInt},
+	}
+	// EnrollTokensTable holds the schema information for the "enroll_tokens" table.
+	EnrollTokensTable = &schema.Table{
+		Name:       "enroll_tokens",
+		Columns:    EnrollTokensColumns,
+		PrimaryKey: []*schema.Column{EnrollTokensColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "enroll_tokens_nodes_enroll_tokens",
+				Columns:    []*schema.Column{EnrollTokensColumns[8]},
+				RefColumns: []*schema.Column{NodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// JoinTokensColumns holds the columns for the "join_tokens" table.
 	JoinTokensColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -547,6 +573,7 @@ var (
 		ConfigVariablesTable,
 		DeployNodeLocksTable,
 		DeployTasksTable,
+		EnrollTokensTable,
 		JoinTokensTable,
 		NodesTable,
 		NodeCapabilitiesTable,
@@ -563,6 +590,7 @@ func init() {
 	ConfigSnapshotsTable.ForeignKeys[0].RefTable = NodesTable
 	DeployTasksTable.ForeignKeys[0].RefTable = ChangeOrdersTable
 	DeployTasksTable.ForeignKeys[1].RefTable = NodesTable
+	EnrollTokensTable.ForeignKeys[0].RefTable = NodesTable
 	JoinTokensTable.ForeignKeys[0].RefTable = NodesTable
 	NodesTable.ForeignKeys[0].RefTable = ClustersTable
 	NodeCapabilitiesTable.ForeignKeys[0].RefTable = NodesTable

@@ -16,6 +16,7 @@ import (
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/ent"
+	entenrolltoken "github.com/th/ngxcp/ent/enrolltoken"
 	entjointoken "github.com/th/ngxcp/ent/jointoken"
 	entnode "github.com/th/ngxcp/ent/node"
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
@@ -43,9 +44,6 @@ type Service struct {
 	// drift 是 T026 配置漂移检测器（可空：未注入时 SaveConfigTree 仅同步版本链，不做漂移检测）。
 	drift *config.DriftDetector
 
-	mu     sync.RWMutex
-	tokens map[string]*enrollToken
-
 	// compMu / compReports 缓存各节点最近一次合规自检报告（M1 内存态，无独立表；
 	// 与 clock_skew 同理，真实持久化随 T018/T019 后续里程碑）。
 	compMu      sync.RWMutex
@@ -61,7 +59,6 @@ func New(client *ent.Client, cfgStore *config.ConfigStore) *Service {
 	return &Service{
 		client:      client,
 		cfgStore:    cfgStore,
-		tokens:      make(map[string]*enrollToken),
 		compReports: make(map[int]*agentv1.ComplianceReport),
 		fsReports:   make(map[int]*agentv1.FsProbeReport),
 	}
@@ -74,14 +71,6 @@ func (s *Service) SetDriftDetector(d *config.DriftDetector) {
 
 // Client 暴露底层 ent 客户端，供审计中间件等复用同一连接（避免重复持有）。
 func (s *Service) Client() *ent.Client { return s.client }
-
-// enrollToken 一次性接入令牌记录（只存哈希，原文仅生成时返回一次）。
-// nodeID 用于在 T014 Agent 注册时把令牌回绑到具体节点。
-type enrollToken struct {
-	nodeID    int
-	expiresAt time.Time
-	used      bool
-}
 
 // NodeOut 是节点的对外视图（脱敏后的 DTO）。
 type NodeOut struct {
@@ -347,7 +336,8 @@ func (s *Service) Delete(ctx context.Context, id int) error {
 }
 
 // IssueEnrollToken 为指定节点生成一次性接入令牌（格式 ngxcp_<24B base62>），仅返回原文一次。
-// 库中只存 SHA-256 哈希与 nodeID；默认 1h 有效。节点不存在返回 CodeNotFound。
+// 令牌入库 enroll_tokens 表（仅存 SHA-256 哈希 + 绑定节点 + 过期 + 吊销/已用标志），
+// 持久化于控制面，重启不丢、可主动吊销（revoked 即时失效）。默认 1h 有效。节点不存在返回 CodeNotFound。
 func (s *Service) IssueEnrollToken(ctx context.Context, id int, ttl time.Duration) (string, time.Time, error) {
 	// 令牌必须绑定到真实存在的节点，否则校验时无法回绑。
 	if _, err := s.Get(ctx, id); err != nil {
@@ -360,35 +350,66 @@ func (s *Service) IssueEnrollToken(ctx context.Context, id int, ttl time.Duratio
 	if err != nil {
 		return "", time.Time{}, apperr.Wrap(apperr.CodeInternal, "生成令牌失败", err)
 	}
-	sum := hashToken(raw)
 	exp := time.Now().Add(ttl)
-	s.mu.Lock()
-	s.tokens[sum] = &enrollToken{nodeID: id, expiresAt: exp}
-	s.mu.Unlock()
+	if _, err := s.client.EnrollToken.Create().
+		SetTokenHash(hashToken(raw)).
+		SetExpiresAt(exp).
+		SetNodeID(id).
+		Save(ctx); err != nil {
+		return "", time.Time{}, apperr.Wrap(apperr.CodeInternal, "写入 Enroll Token 失败", err)
+	}
 	return raw, exp, nil
 }
 
-// VerifyEnrollToken 校验接入令牌：存在 + 未使用 + 未过期，校验成功后标记已用（一次性）。
-// 返回令牌绑定的 nodeID，供 T014 Agent 注册流程把请求回绑到具体节点。
-// 接受 ctx 以便后续令牌持久化（落库）时传递超时/取消。
+// VerifyEnrollToken 校验一次性接入令牌：存在 + 未吊销 + 未使用 + 未过期，
+// 校验成功后标记已用（一次性），返回令牌绑定的 nodeID，供 T014 Agent 注册流程回绑节点。
+// 数据来自服务端 enroll_tokens 表（持久化），因此重启后仍可校验、且可被主动吊销。
 func (s *Service) VerifyEnrollToken(ctx context.Context, raw string) (int, error) {
-	sum := hashToken(raw)
-	s.mu.RLock()
-	t, ok := s.tokens[sum]
-	s.mu.RUnlock()
-	if !ok {
-		return 0, apperr.New(apperr.CodeUnauthorized, "令牌无效")
+	t, err := s.client.EnrollToken.Query().
+		Where(entenrolltoken.TokenHashEQ(hashToken(raw))).
+		WithNode().
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return 0, apperr.New(apperr.CodeUnauthorized, "令牌无效")
+		}
+		return 0, apperr.Wrap(apperr.CodeInternal, "查询 Enroll Token 失败", err)
 	}
-	if t.used {
+	if t.Revoked {
+		return 0, apperr.New(apperr.CodeUnauthorized, "令牌已吊销")
+	}
+	if t.Used {
 		return 0, apperr.New(apperr.CodeUnauthorized, "令牌已使用")
 	}
-	if time.Now().After(t.expiresAt) {
+	if time.Now().After(t.ExpiresAt) {
 		return 0, apperr.New(apperr.CodeUnauthorized, "令牌已过期")
 	}
-	s.mu.Lock()
-	t.used = true
-	s.mu.Unlock()
-	return t.nodeID, nil
+	// 一次性：标记已用 + 审计使用时间（失败不阻断注册，仅影响审计字段）。
+	_ = s.client.EnrollToken.UpdateOneID(t.ID).SetUsed(true).SetUsedAt(time.Now()).Exec(ctx)
+	n, nerr := t.QueryNode().Only(ctx)
+	if nerr != nil {
+		if ent.IsNotFound(nerr) {
+			return 0, apperr.New(apperr.CodeUnauthorized, "令牌绑定节点不存在")
+		}
+		return 0, apperr.Wrap(apperr.CodeInternal, "查询节点失败", nerr)
+	}
+	return n.ID, nil
+}
+
+// RevokeNodeEnrollTokens 吊销该节点所有尚未吊销的 Enroll Token（旋转即吊销旧令牌）。
+// 用于「轮换令牌」与「令牌疑似泄漏」场景——吊销即时生效，无需等过期。
+func (s *Service) RevokeNodeEnrollTokens(ctx context.Context, nodeID int) error {
+	_, err := s.client.EnrollToken.Update().
+		Where(
+			entenrolltoken.HasNodeWith(entnode.ID(nodeID)),
+			entenrolltoken.RevokedEQ(false),
+		).
+		SetRevoked(true).
+		Save(ctx)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "吊销 Enroll Token 失败", err)
+	}
+	return nil
 }
 
 // MarkEnrolled 将节点从 enrolling 标记为 online（T014 Agent 注册成功回写）。
@@ -414,7 +435,7 @@ const joinTokenPrefix = "ngxcpj_"
 
 // IssueJoinToken 为指定节点签发「节点绑定」自注册令牌（仿 mmw：token→node 入库）。
 // 先确保节点存在 → 生成随机令牌（原文仅返回一次）→ 库内只存 SHA-256 哈希 + 绑定节点
-// + 过期 + role。控制面不存明文；Agent 侧持久化（/etc/ngxcp-agent.env，systemd EnvironmentFile）。
+// + 过期 + role。控制面不存明文；Agent 侧持久化（/etc/ngxcp/agent.conf，systemd EnvironmentFile）。
 // role 非法返回 CodeInvalid。旧令牌不会在此自动吊销——轮换请走 RevokeNodeJoinTokens。
 func (s *Service) IssueJoinToken(ctx context.Context, nodeID int, role string, ttl time.Duration) (string, time.Time, error) {
 	if _, err := s.Get(ctx, nodeID); err != nil {

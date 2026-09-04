@@ -61,11 +61,13 @@ type NodeEdges struct {
 	RealServers []*RealServer `json:"real_servers,omitempty"`
 	// JoinTokens holds the value of the join_tokens edge.
 	JoinTokens []*JoinToken `json:"join_tokens,omitempty"`
+	// EnrollTokens holds the value of the enroll_tokens edge.
+	EnrollTokens []*EnrollToken `json:"enroll_tokens,omitempty"`
 	// Cluster holds the value of the cluster edge.
 	Cluster *Cluster `json:"cluster,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [9]bool
 }
 
 // CapabilitiesOrErr returns the Capabilities value or an error if the edge
@@ -131,12 +133,21 @@ func (e NodeEdges) JoinTokensOrErr() ([]*JoinToken, error) {
 	return nil, &NotLoadedError{edge: "join_tokens"}
 }
 
+// EnrollTokensOrErr returns the EnrollTokens value or an error if the edge
+// was not loaded in eager-loading.
+func (e NodeEdges) EnrollTokensOrErr() ([]*EnrollToken, error) {
+	if e.loadedTypes[7] {
+		return e.EnrollTokens, nil
+	}
+	return nil, &NotLoadedError{edge: "enroll_tokens"}
+}
+
 // ClusterOrErr returns the Cluster value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e NodeEdges) ClusterOrErr() (*Cluster, error) {
 	if e.Cluster != nil {
 		return e.Cluster, nil
-	} else if e.loadedTypes[7] {
+	} else if e.loadedTypes[8] {
 		return nil, &NotFoundError{label: cluster.Label}
 	}
 	return nil, &NotLoadedError{edge: "cluster"}
@@ -291,6 +302,11 @@ func (_m *Node) QueryRealServers() *RealServerQuery {
 // QueryJoinTokens queries the "join_tokens" edge of the Node entity.
 func (_m *Node) QueryJoinTokens() *JoinTokenQuery {
 	return NewNodeClient(_m.config).QueryJoinTokens(_m)
+}
+
+// QueryEnrollTokens queries the "enroll_tokens" edge of the Node entity.
+func (_m *Node) QueryEnrollTokens() *EnrollTokenQuery {
+	return NewNodeClient(_m.config).QueryEnrollTokens(_m)
 }
 
 // QueryCluster queries the "cluster" edge of the Node entity.

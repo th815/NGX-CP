@@ -72,10 +72,10 @@ bash scripts/deploy-agent.sh
 
 ### 6.3 机密管理
 
-- 环境文件 `/etc/ngxcp/agent.env`（`chmod 600`）承载控制面地址与 enroll token，
+- 配置文件 `/etc/ngxcp/agent.conf`（`chmod 600`，systemd EnvironmentFile 格式）承载控制面地址与 enroll token，
   不落进 systemd unit，也不会出现在 `ps` 输出里。
 - **enroll token 是一次性的**：首次注册后 Agent 会把客户端证书持久化到 `data-dir`（默认 `/var/lib/ngxcp`）。
-  因此重复部署**只创建、绝不覆盖**已有 `agent.env` —— 否则会用已失效的令牌覆盖掉有效凭据。
+  因此重复部署**只创建、绝不覆盖**已有 `agent.conf` —— 否则会用已失效的令牌覆盖掉有效凭据。
 - 令牌文件与 CA 私钥均不入库；`.gitignore` 已增列 `.agent-tokens` / `*.tokens`。
 
 ### 6.4 回滚
@@ -110,14 +110,19 @@ bash scripts/deploy-agent.sh
    ```
 
    脚本会：拉取引导 CA → 按架构（amd64 / arm64）下载 Agent 二进制 → 写 systemd 单元
-   （机密走 `/etc/ngxcp-agent.env`，`chmod 600`，不进 unit、不出现在 `ps`）→ `enable --now`。
+   （机密走 `/etc/ngxcp/agent.conf`，`chmod 600`，不进 unit、不出现在 `ps`）→ `enable --now`。
 4. Agent 启动后用 Join Token + 本地生成的 CSR 自注册，**控制面复用该节点**（名称/角色取自令牌绑定节点、
    不新建节点）并签发客户端证书，节点随即上线（无审批），出现在「节点」列表。
 
 前置：`make dist` 已把 Agent 二进制放入 `dist/agent/`（控制面在 `/agent/bin/` 提供下载）；
 `agent_dist_dir` 为空则禁用二进制下载（此时改用 6.2 推送或手动分发）。
 
-**令牌模型（仿妙妙屋X）**：一个 Agent 一个 Token，令牌原文持久化于 Agent 侧 `/etc/ngxcp-agent.env`
-（systemd EnvironmentFile），控制面服务端 `join_tokens` 表按哈希反查节点。支持**单独吊销**
-（`POST /api/v1/nodes/:id/join-token` 轮换即吊销旧令牌，即时生效、无需等过期），也允许已纳管节点
-凭同一令牌**重建客户端证书**（证书丢失场景）。
+**令牌模型（仿妙妙屋X）**：一个 Agent 一个 Token，令牌原文持久化于 Agent 侧 `/etc/ngxcp/agent.conf`
+（systemd EnvironmentFile），控制面服务端**两张表**按哈希反查节点，均支持**单独吊销**（即时生效、无需等过期）：
+
+- **Join Token（`join_tokens` 表）**：节点绑定、可复用。`POST /api/v1/nodes/:id/join-token` 轮换即
+  吊销旧令牌；已纳管节点可凭同一令牌**重建客户端证书**（证书丢失场景）。
+- **Enroll Token（`enroll_tokens` 表）**：预建节点场景下的一次性令牌（首次注册后即作废），
+  入库持久化（**重启不丢**），同样可主动吊销。
+
+两种令牌控制面都**只存 SHA-256 哈希 + 绑定节点 + 过期 + 吊销/已用标志**，原文仅在签发时返回一次。

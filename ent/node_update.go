@@ -14,6 +14,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -278,6 +279,21 @@ func (_u *NodeUpdate) AddJoinTokens(v ...*JoinToken) *NodeUpdate {
 	return _u.AddJoinTokenIDs(ids...)
 }
 
+// AddEnrollTokenIDs adds the "enroll_tokens" edge to the EnrollToken entity by IDs.
+func (_u *NodeUpdate) AddEnrollTokenIDs(ids ...int) *NodeUpdate {
+	_u.mutation.AddEnrollTokenIDs(ids...)
+	return _u
+}
+
+// AddEnrollTokens adds the "enroll_tokens" edges to the EnrollToken entity.
+func (_u *NodeUpdate) AddEnrollTokens(v ...*EnrollToken) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEnrollTokenIDs(ids...)
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
 func (_u *NodeUpdate) SetClusterID(id int) *NodeUpdate {
 	_u.mutation.SetClusterID(id)
@@ -447,6 +463,27 @@ func (_u *NodeUpdate) RemoveJoinTokens(v ...*JoinToken) *NodeUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveJoinTokenIDs(ids...)
+}
+
+// ClearEnrollTokens clears all "enroll_tokens" edges to the EnrollToken entity.
+func (_u *NodeUpdate) ClearEnrollTokens() *NodeUpdate {
+	_u.mutation.ClearEnrollTokens()
+	return _u
+}
+
+// RemoveEnrollTokenIDs removes the "enroll_tokens" edge to EnrollToken entities by IDs.
+func (_u *NodeUpdate) RemoveEnrollTokenIDs(ids ...int) *NodeUpdate {
+	_u.mutation.RemoveEnrollTokenIDs(ids...)
+	return _u
+}
+
+// RemoveEnrollTokens removes "enroll_tokens" edges to EnrollToken entities.
+func (_u *NodeUpdate) RemoveEnrollTokens(v ...*EnrollToken) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEnrollTokenIDs(ids...)
 }
 
 // ClearCluster clears the "cluster" edge to the Cluster entity.
@@ -869,6 +906,51 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.EnrollTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.EnrollTokensTable,
+			Columns: []string{node.EnrollTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEnrollTokensIDs(); len(nodes) > 0 && !_u.mutation.EnrollTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.EnrollTokensTable,
+			Columns: []string{node.EnrollTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EnrollTokensIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.EnrollTokensTable,
+			Columns: []string{node.EnrollTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ClusterCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -1160,6 +1242,21 @@ func (_u *NodeUpdateOne) AddJoinTokens(v ...*JoinToken) *NodeUpdateOne {
 	return _u.AddJoinTokenIDs(ids...)
 }
 
+// AddEnrollTokenIDs adds the "enroll_tokens" edge to the EnrollToken entity by IDs.
+func (_u *NodeUpdateOne) AddEnrollTokenIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.AddEnrollTokenIDs(ids...)
+	return _u
+}
+
+// AddEnrollTokens adds the "enroll_tokens" edges to the EnrollToken entity.
+func (_u *NodeUpdateOne) AddEnrollTokens(v ...*EnrollToken) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEnrollTokenIDs(ids...)
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
 func (_u *NodeUpdateOne) SetClusterID(id int) *NodeUpdateOne {
 	_u.mutation.SetClusterID(id)
@@ -1329,6 +1426,27 @@ func (_u *NodeUpdateOne) RemoveJoinTokens(v ...*JoinToken) *NodeUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveJoinTokenIDs(ids...)
+}
+
+// ClearEnrollTokens clears all "enroll_tokens" edges to the EnrollToken entity.
+func (_u *NodeUpdateOne) ClearEnrollTokens() *NodeUpdateOne {
+	_u.mutation.ClearEnrollTokens()
+	return _u
+}
+
+// RemoveEnrollTokenIDs removes the "enroll_tokens" edge to EnrollToken entities by IDs.
+func (_u *NodeUpdateOne) RemoveEnrollTokenIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.RemoveEnrollTokenIDs(ids...)
+	return _u
+}
+
+// RemoveEnrollTokens removes "enroll_tokens" edges to EnrollToken entities.
+func (_u *NodeUpdateOne) RemoveEnrollTokens(v ...*EnrollToken) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEnrollTokenIDs(ids...)
 }
 
 // ClearCluster clears the "cluster" edge to the Cluster entity.
@@ -1774,6 +1892,51 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.EnrollTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.EnrollTokensTable,
+			Columns: []string{node.EnrollTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEnrollTokensIDs(); len(nodes) > 0 && !_u.mutation.EnrollTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.EnrollTokensTable,
+			Columns: []string{node.EnrollTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EnrollTokensIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.EnrollTokensTable,
+			Columns: []string{node.EnrollTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

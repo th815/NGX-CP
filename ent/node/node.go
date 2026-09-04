@@ -49,6 +49,8 @@ const (
 	EdgeRealServers = "real_servers"
 	// EdgeJoinTokens holds the string denoting the join_tokens edge name in mutations.
 	EdgeJoinTokens = "join_tokens"
+	// EdgeEnrollTokens holds the string denoting the enroll_tokens edge name in mutations.
+	EdgeEnrollTokens = "enroll_tokens"
 	// EdgeCluster holds the string denoting the cluster edge name in mutations.
 	EdgeCluster = "cluster"
 	// Table holds the table name of the node in the database.
@@ -102,6 +104,13 @@ const (
 	JoinTokensInverseTable = "join_tokens"
 	// JoinTokensColumn is the table column denoting the join_tokens relation/edge.
 	JoinTokensColumn = "node_join_tokens"
+	// EnrollTokensTable is the table that holds the enroll_tokens relation/edge.
+	EnrollTokensTable = "enroll_tokens"
+	// EnrollTokensInverseTable is the table name for the EnrollToken entity.
+	// It exists in this package in order to avoid circular dependency with the "enrolltoken" package.
+	EnrollTokensInverseTable = "enroll_tokens"
+	// EnrollTokensColumn is the table column denoting the enroll_tokens relation/edge.
+	EnrollTokensColumn = "node_enroll_tokens"
 	// ClusterTable is the table that holds the cluster relation/edge.
 	ClusterTable = "nodes"
 	// ClusterInverseTable is the table name for the Cluster entity.
@@ -367,6 +376,20 @@ func ByJoinTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByEnrollTokensCount orders the results by enroll_tokens count.
+func ByEnrollTokensCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newEnrollTokensStep(), opts...)
+	}
+}
+
+// ByEnrollTokens orders the results by enroll_tokens terms.
+func ByEnrollTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newEnrollTokensStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByClusterField orders the results by cluster field.
 func ByClusterField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -420,6 +443,13 @@ func newJoinTokensStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(JoinTokensInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, JoinTokensTable, JoinTokensColumn),
+	)
+}
+func newEnrollTokensStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(EnrollTokensInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, EnrollTokensTable, EnrollTokensColumn),
 	)
 }
 func newClusterStep() *sqlgraph.Step {

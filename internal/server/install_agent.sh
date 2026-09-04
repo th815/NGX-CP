@@ -21,7 +21,7 @@ GRPC=""        # 控制面 gRPC 地址，如 cp.example.com:9443
 TOKEN=""       # 自注册 Join Token
 DATA_DIR="/var/lib/ngxcp"
 UNIT=/etc/systemd/system/ngxcp-agent.service
-ENV_FILE=/etc/ngxcp-agent.env
+ENV_FILE=/etc/ngxcp/agent.conf
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -82,10 +82,10 @@ MemoryMax=256M
 WantedBy=multi-user.target
 EOF
 
-# 环境文件：仅在首次写入（Join Token 一次性，且 Agent 已持久化客户端证书，
-# 重复部署绝不覆盖已有凭据，避免把已注册节点打回未注册）。
+# 配置文件（.conf，systemd EnvironmentFile 格式）：仅在首次写入（Join Token 一次性，
+# 且 Agent 已持久化客户端证书，重复部署绝不覆盖已有凭据，避免把已注册节点打回未注册）。
 if [ ! -f "$ENV_FILE" ]; then
-  echo "[3/5] 写入环境文件 $ENV_FILE (600) ..."
+  echo "[3/5] 写入配置文件 $ENV_FILE (600) ..."
   install -d -m 700 "$(dirname "$ENV_FILE")"
   cat > "$ENV_FILE" <<EOF
 NGXCP_AGENT_CONTROL_PLANE=$GRPC
@@ -95,7 +95,7 @@ NGXCP_AGENT_DATA_DIR=$DATA_DIR
 EOF
   chmod 600 "$ENV_FILE"
 else
-  echo "[3/5] 环境文件已存在，保留既有凭据（如需轮换请手动编辑 $ENV_FILE）"
+  echo "[3/5] 配置文件已存在，保留既有凭据（如需轮换请手动编辑 $ENV_FILE）"
 fi
 
 echo "[4/5] 重载并启动 ..."

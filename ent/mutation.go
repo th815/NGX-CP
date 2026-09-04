@@ -25,6 +25,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -58,6 +59,7 @@ const (
 	TypeConfigVariable = "ConfigVariable"
 	TypeDeployNodeLock = "DeployNodeLock"
 	TypeDeployTask     = "DeployTask"
+	TypeEnrollToken    = "EnrollToken"
 	TypeJoinToken      = "JoinToken"
 	TypeNode           = "Node"
 	TypeNodeCapability = "NodeCapability"
@@ -11937,6 +11939,745 @@ func (m *DeployTaskMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown DeployTask edge %s", name)
 }
 
+// EnrollTokenMutation represents an operation that mutates the EnrollToken nodes in the graph.
+type EnrollTokenMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	token_hash    *string
+	expires_at    *time.Time
+	used          *bool
+	revoked       *bool
+	used_at       *time.Time
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	node          *int
+	clearednode   bool
+	done          bool
+	oldValue      func(context.Context) (*EnrollToken, error)
+	predicates    []predicate.EnrollToken
+}
+
+var _ ent.Mutation = (*EnrollTokenMutation)(nil)
+
+// enrolltokenOption allows management of the mutation configuration using functional options.
+type enrolltokenOption func(*EnrollTokenMutation)
+
+// newEnrollTokenMutation creates new mutation for the EnrollToken entity.
+func newEnrollTokenMutation(c config, op Op, opts ...enrolltokenOption) *EnrollTokenMutation {
+	m := &EnrollTokenMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEnrollToken,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEnrollTokenID sets the ID field of the mutation.
+func withEnrollTokenID(id int) enrolltokenOption {
+	return func(m *EnrollTokenMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EnrollToken
+		)
+		m.oldValue = func(ctx context.Context) (*EnrollToken, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EnrollToken.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEnrollToken sets the old EnrollToken of the mutation.
+func withEnrollToken(node *EnrollToken) enrolltokenOption {
+	return func(m *EnrollTokenMutation) {
+		m.oldValue = func(context.Context) (*EnrollToken, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EnrollTokenMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EnrollTokenMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EnrollTokenMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EnrollTokenMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EnrollToken.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTokenHash sets the "token_hash" field.
+func (m *EnrollTokenMutation) SetTokenHash(s string) {
+	m.token_hash = &s
+}
+
+// TokenHash returns the value of the "token_hash" field in the mutation.
+func (m *EnrollTokenMutation) TokenHash() (r string, exists bool) {
+	v := m.token_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenHash returns the old "token_hash" field's value of the EnrollToken entity.
+// If the EnrollToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EnrollTokenMutation) OldTokenHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenHash: %w", err)
+	}
+	return oldValue.TokenHash, nil
+}
+
+// ResetTokenHash resets all changes to the "token_hash" field.
+func (m *EnrollTokenMutation) ResetTokenHash() {
+	m.token_hash = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *EnrollTokenMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *EnrollTokenMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the EnrollToken entity.
+// If the EnrollToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EnrollTokenMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *EnrollTokenMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetUsed sets the "used" field.
+func (m *EnrollTokenMutation) SetUsed(b bool) {
+	m.used = &b
+}
+
+// Used returns the value of the "used" field in the mutation.
+func (m *EnrollTokenMutation) Used() (r bool, exists bool) {
+	v := m.used
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsed returns the old "used" field's value of the EnrollToken entity.
+// If the EnrollToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EnrollTokenMutation) OldUsed(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsed: %w", err)
+	}
+	return oldValue.Used, nil
+}
+
+// ResetUsed resets all changes to the "used" field.
+func (m *EnrollTokenMutation) ResetUsed() {
+	m.used = nil
+}
+
+// SetRevoked sets the "revoked" field.
+func (m *EnrollTokenMutation) SetRevoked(b bool) {
+	m.revoked = &b
+}
+
+// Revoked returns the value of the "revoked" field in the mutation.
+func (m *EnrollTokenMutation) Revoked() (r bool, exists bool) {
+	v := m.revoked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevoked returns the old "revoked" field's value of the EnrollToken entity.
+// If the EnrollToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EnrollTokenMutation) OldRevoked(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevoked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevoked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevoked: %w", err)
+	}
+	return oldValue.Revoked, nil
+}
+
+// ResetRevoked resets all changes to the "revoked" field.
+func (m *EnrollTokenMutation) ResetRevoked() {
+	m.revoked = nil
+}
+
+// SetUsedAt sets the "used_at" field.
+func (m *EnrollTokenMutation) SetUsedAt(t time.Time) {
+	m.used_at = &t
+}
+
+// UsedAt returns the value of the "used_at" field in the mutation.
+func (m *EnrollTokenMutation) UsedAt() (r time.Time, exists bool) {
+	v := m.used_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsedAt returns the old "used_at" field's value of the EnrollToken entity.
+// If the EnrollToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EnrollTokenMutation) OldUsedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsedAt: %w", err)
+	}
+	return oldValue.UsedAt, nil
+}
+
+// ClearUsedAt clears the value of the "used_at" field.
+func (m *EnrollTokenMutation) ClearUsedAt() {
+	m.used_at = nil
+	m.clearedFields[enrolltoken.FieldUsedAt] = struct{}{}
+}
+
+// UsedAtCleared returns if the "used_at" field was cleared in this mutation.
+func (m *EnrollTokenMutation) UsedAtCleared() bool {
+	_, ok := m.clearedFields[enrolltoken.FieldUsedAt]
+	return ok
+}
+
+// ResetUsedAt resets all changes to the "used_at" field.
+func (m *EnrollTokenMutation) ResetUsedAt() {
+	m.used_at = nil
+	delete(m.clearedFields, enrolltoken.FieldUsedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EnrollTokenMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EnrollTokenMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EnrollToken entity.
+// If the EnrollToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EnrollTokenMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EnrollTokenMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EnrollTokenMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EnrollTokenMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EnrollToken entity.
+// If the EnrollToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EnrollTokenMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EnrollTokenMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetNodeID sets the "node" edge to the Node entity by id.
+func (m *EnrollTokenMutation) SetNodeID(id int) {
+	m.node = &id
+}
+
+// ClearNode clears the "node" edge to the Node entity.
+func (m *EnrollTokenMutation) ClearNode() {
+	m.clearednode = true
+}
+
+// NodeCleared reports if the "node" edge to the Node entity was cleared.
+func (m *EnrollTokenMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeID returns the "node" edge ID in the mutation.
+func (m *EnrollTokenMutation) NodeID() (id int, exists bool) {
+	if m.node != nil {
+		return *m.node, true
+	}
+	return
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *EnrollTokenMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *EnrollTokenMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// Where appends a list predicates to the EnrollTokenMutation builder.
+func (m *EnrollTokenMutation) Where(ps ...predicate.EnrollToken) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EnrollTokenMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EnrollTokenMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EnrollToken, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EnrollTokenMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EnrollTokenMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EnrollToken).
+func (m *EnrollTokenMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EnrollTokenMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.token_hash != nil {
+		fields = append(fields, enrolltoken.FieldTokenHash)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, enrolltoken.FieldExpiresAt)
+	}
+	if m.used != nil {
+		fields = append(fields, enrolltoken.FieldUsed)
+	}
+	if m.revoked != nil {
+		fields = append(fields, enrolltoken.FieldRevoked)
+	}
+	if m.used_at != nil {
+		fields = append(fields, enrolltoken.FieldUsedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, enrolltoken.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, enrolltoken.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EnrollTokenMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case enrolltoken.FieldTokenHash:
+		return m.TokenHash()
+	case enrolltoken.FieldExpiresAt:
+		return m.ExpiresAt()
+	case enrolltoken.FieldUsed:
+		return m.Used()
+	case enrolltoken.FieldRevoked:
+		return m.Revoked()
+	case enrolltoken.FieldUsedAt:
+		return m.UsedAt()
+	case enrolltoken.FieldCreatedAt:
+		return m.CreatedAt()
+	case enrolltoken.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EnrollTokenMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case enrolltoken.FieldTokenHash:
+		return m.OldTokenHash(ctx)
+	case enrolltoken.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case enrolltoken.FieldUsed:
+		return m.OldUsed(ctx)
+	case enrolltoken.FieldRevoked:
+		return m.OldRevoked(ctx)
+	case enrolltoken.FieldUsedAt:
+		return m.OldUsedAt(ctx)
+	case enrolltoken.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case enrolltoken.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EnrollToken field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EnrollTokenMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case enrolltoken.FieldTokenHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenHash(v)
+		return nil
+	case enrolltoken.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case enrolltoken.FieldUsed:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsed(v)
+		return nil
+	case enrolltoken.FieldRevoked:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevoked(v)
+		return nil
+	case enrolltoken.FieldUsedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsedAt(v)
+		return nil
+	case enrolltoken.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case enrolltoken.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EnrollToken field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EnrollTokenMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EnrollTokenMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EnrollTokenMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown EnrollToken numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EnrollTokenMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(enrolltoken.FieldUsedAt) {
+		fields = append(fields, enrolltoken.FieldUsedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EnrollTokenMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EnrollTokenMutation) ClearField(name string) error {
+	switch name {
+	case enrolltoken.FieldUsedAt:
+		m.ClearUsedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EnrollToken nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EnrollTokenMutation) ResetField(name string) error {
+	switch name {
+	case enrolltoken.FieldTokenHash:
+		m.ResetTokenHash()
+		return nil
+	case enrolltoken.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case enrolltoken.FieldUsed:
+		m.ResetUsed()
+		return nil
+	case enrolltoken.FieldRevoked:
+		m.ResetRevoked()
+		return nil
+	case enrolltoken.FieldUsedAt:
+		m.ResetUsedAt()
+		return nil
+	case enrolltoken.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case enrolltoken.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EnrollToken field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EnrollTokenMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.node != nil {
+		edges = append(edges, enrolltoken.EdgeNode)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EnrollTokenMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case enrolltoken.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EnrollTokenMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EnrollTokenMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EnrollTokenMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearednode {
+		edges = append(edges, enrolltoken.EdgeNode)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EnrollTokenMutation) EdgeCleared(name string) bool {
+	switch name {
+	case enrolltoken.EdgeNode:
+		return m.clearednode
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EnrollTokenMutation) ClearEdge(name string) error {
+	switch name {
+	case enrolltoken.EdgeNode:
+		m.ClearNode()
+		return nil
+	}
+	return fmt.Errorf("unknown EnrollToken unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EnrollTokenMutation) ResetEdge(name string) error {
+	switch name {
+	case enrolltoken.EdgeNode:
+		m.ResetNode()
+		return nil
+	}
+	return fmt.Errorf("unknown EnrollToken edge %s", name)
+}
+
 // JoinTokenMutation represents an operation that mutates the JoinToken nodes in the graph.
 type JoinTokenMutation struct {
 	config
@@ -12679,47 +13420,50 @@ func (m *JoinTokenMutation) ResetEdge(name string) error {
 // NodeMutation represents an operation that mutates the Node nodes in the graph.
 type NodeMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	name                *string
-	address             *string
-	role                *node.Role
-	status              *node.Status
-	lvs_weight          *int
-	addlvs_weight       *int
-	lvs_enabled         *bool
-	last_heartbeat_at   *time.Time
-	created_at          *time.Time
-	updated_at          *time.Time
-	deleted_at          *time.Time
-	clearedFields       map[string]struct{}
-	capabilities        map[int]struct{}
-	removedcapabilities map[int]struct{}
-	clearedcapabilities bool
-	config_files        map[int]struct{}
-	removedconfig_files map[int]struct{}
-	clearedconfig_files bool
-	log_targets         map[int]struct{}
-	removedlog_targets  map[int]struct{}
-	clearedlog_targets  bool
-	snapshots           map[int]struct{}
-	removedsnapshots    map[int]struct{}
-	clearedsnapshots    bool
-	deploy_tasks        map[int]struct{}
-	removeddeploy_tasks map[int]struct{}
-	cleareddeploy_tasks bool
-	real_servers        map[int]struct{}
-	removedreal_servers map[int]struct{}
-	clearedreal_servers bool
-	join_tokens         map[int]struct{}
-	removedjoin_tokens  map[int]struct{}
-	clearedjoin_tokens  bool
-	cluster             *int
-	clearedcluster      bool
-	done                bool
-	oldValue            func(context.Context) (*Node, error)
-	predicates          []predicate.Node
+	op                   Op
+	typ                  string
+	id                   *int
+	name                 *string
+	address              *string
+	role                 *node.Role
+	status               *node.Status
+	lvs_weight           *int
+	addlvs_weight        *int
+	lvs_enabled          *bool
+	last_heartbeat_at    *time.Time
+	created_at           *time.Time
+	updated_at           *time.Time
+	deleted_at           *time.Time
+	clearedFields        map[string]struct{}
+	capabilities         map[int]struct{}
+	removedcapabilities  map[int]struct{}
+	clearedcapabilities  bool
+	config_files         map[int]struct{}
+	removedconfig_files  map[int]struct{}
+	clearedconfig_files  bool
+	log_targets          map[int]struct{}
+	removedlog_targets   map[int]struct{}
+	clearedlog_targets   bool
+	snapshots            map[int]struct{}
+	removedsnapshots     map[int]struct{}
+	clearedsnapshots     bool
+	deploy_tasks         map[int]struct{}
+	removeddeploy_tasks  map[int]struct{}
+	cleareddeploy_tasks  bool
+	real_servers         map[int]struct{}
+	removedreal_servers  map[int]struct{}
+	clearedreal_servers  bool
+	join_tokens          map[int]struct{}
+	removedjoin_tokens   map[int]struct{}
+	clearedjoin_tokens   bool
+	enroll_tokens        map[int]struct{}
+	removedenroll_tokens map[int]struct{}
+	clearedenroll_tokens bool
+	cluster              *int
+	clearedcluster       bool
+	done                 bool
+	oldValue             func(context.Context) (*Node, error)
+	predicates           []predicate.Node
 }
 
 var _ ent.Mutation = (*NodeMutation)(nil)
@@ -13604,6 +14348,60 @@ func (m *NodeMutation) ResetJoinTokens() {
 	m.removedjoin_tokens = nil
 }
 
+// AddEnrollTokenIDs adds the "enroll_tokens" edge to the EnrollToken entity by ids.
+func (m *NodeMutation) AddEnrollTokenIDs(ids ...int) {
+	if m.enroll_tokens == nil {
+		m.enroll_tokens = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.enroll_tokens[ids[i]] = struct{}{}
+	}
+}
+
+// ClearEnrollTokens clears the "enroll_tokens" edge to the EnrollToken entity.
+func (m *NodeMutation) ClearEnrollTokens() {
+	m.clearedenroll_tokens = true
+}
+
+// EnrollTokensCleared reports if the "enroll_tokens" edge to the EnrollToken entity was cleared.
+func (m *NodeMutation) EnrollTokensCleared() bool {
+	return m.clearedenroll_tokens
+}
+
+// RemoveEnrollTokenIDs removes the "enroll_tokens" edge to the EnrollToken entity by IDs.
+func (m *NodeMutation) RemoveEnrollTokenIDs(ids ...int) {
+	if m.removedenroll_tokens == nil {
+		m.removedenroll_tokens = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.enroll_tokens, ids[i])
+		m.removedenroll_tokens[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedEnrollTokens returns the removed IDs of the "enroll_tokens" edge to the EnrollToken entity.
+func (m *NodeMutation) RemovedEnrollTokensIDs() (ids []int) {
+	for id := range m.removedenroll_tokens {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// EnrollTokensIDs returns the "enroll_tokens" edge IDs in the mutation.
+func (m *NodeMutation) EnrollTokensIDs() (ids []int) {
+	for id := range m.enroll_tokens {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetEnrollTokens resets all changes to the "enroll_tokens" edge.
+func (m *NodeMutation) ResetEnrollTokens() {
+	m.enroll_tokens = nil
+	m.clearedenroll_tokens = false
+	m.removedenroll_tokens = nil
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by id.
 func (m *NodeMutation) SetClusterID(id int) {
 	m.cluster = &id
@@ -13959,7 +14757,7 @@ func (m *NodeMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *NodeMutation) AddedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.capabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -13980,6 +14778,9 @@ func (m *NodeMutation) AddedEdges() []string {
 	}
 	if m.join_tokens != nil {
 		edges = append(edges, node.EdgeJoinTokens)
+	}
+	if m.enroll_tokens != nil {
+		edges = append(edges, node.EdgeEnrollTokens)
 	}
 	if m.cluster != nil {
 		edges = append(edges, node.EdgeCluster)
@@ -14033,6 +14834,12 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case node.EdgeEnrollTokens:
+		ids := make([]ent.Value, 0, len(m.enroll_tokens))
+		for id := range m.enroll_tokens {
+			ids = append(ids, id)
+		}
+		return ids
 	case node.EdgeCluster:
 		if id := m.cluster; id != nil {
 			return []ent.Value{*id}
@@ -14043,7 +14850,7 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *NodeMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.removedcapabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -14064,6 +14871,9 @@ func (m *NodeMutation) RemovedEdges() []string {
 	}
 	if m.removedjoin_tokens != nil {
 		edges = append(edges, node.EdgeJoinTokens)
+	}
+	if m.removedenroll_tokens != nil {
+		edges = append(edges, node.EdgeEnrollTokens)
 	}
 	return edges
 }
@@ -14114,13 +14924,19 @@ func (m *NodeMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case node.EdgeEnrollTokens:
+		ids := make([]ent.Value, 0, len(m.removedenroll_tokens))
+		for id := range m.removedenroll_tokens {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *NodeMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.clearedcapabilities {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -14141,6 +14957,9 @@ func (m *NodeMutation) ClearedEdges() []string {
 	}
 	if m.clearedjoin_tokens {
 		edges = append(edges, node.EdgeJoinTokens)
+	}
+	if m.clearedenroll_tokens {
+		edges = append(edges, node.EdgeEnrollTokens)
 	}
 	if m.clearedcluster {
 		edges = append(edges, node.EdgeCluster)
@@ -14166,6 +14985,8 @@ func (m *NodeMutation) EdgeCleared(name string) bool {
 		return m.clearedreal_servers
 	case node.EdgeJoinTokens:
 		return m.clearedjoin_tokens
+	case node.EdgeEnrollTokens:
+		return m.clearedenroll_tokens
 	case node.EdgeCluster:
 		return m.clearedcluster
 	}
@@ -14207,6 +15028,9 @@ func (m *NodeMutation) ResetEdge(name string) error {
 		return nil
 	case node.EdgeJoinTokens:
 		m.ResetJoinTokens()
+		return nil
+	case node.EdgeEnrollTokens:
+		m.ResetEnrollTokens()
 		return nil
 	case node.EdgeCluster:
 		m.ResetCluster()

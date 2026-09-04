@@ -15,6 +15,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -38,6 +39,7 @@ type NodeQuery struct {
 	withDeployTasks  *DeployTaskQuery
 	withRealServers  *RealServerQuery
 	withJoinTokens   *JoinTokenQuery
+	withEnrollTokens *EnrollTokenQuery
 	withCluster      *ClusterQuery
 	withFKs          bool
 	// intermediate query (i.e. traversal path).
@@ -223,6 +225,28 @@ func (_q *NodeQuery) QueryJoinTokens() *JoinTokenQuery {
 			sqlgraph.From(node.Table, node.FieldID, selector),
 			sqlgraph.To(jointoken.Table, jointoken.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, node.JoinTokensTable, node.JoinTokensColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryEnrollTokens chains the current query on the "enroll_tokens" edge.
+func (_q *NodeQuery) QueryEnrollTokens() *EnrollTokenQuery {
+	query := (&EnrollTokenClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, selector),
+			sqlgraph.To(enrolltoken.Table, enrolltoken.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.EnrollTokensTable, node.EnrollTokensColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -451,6 +475,7 @@ func (_q *NodeQuery) Clone() *NodeQuery {
 		withDeployTasks:  _q.withDeployTasks.Clone(),
 		withRealServers:  _q.withRealServers.Clone(),
 		withJoinTokens:   _q.withJoinTokens.Clone(),
+		withEnrollTokens: _q.withEnrollTokens.Clone(),
 		withCluster:      _q.withCluster.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -532,6 +557,17 @@ func (_q *NodeQuery) WithJoinTokens(opts ...func(*JoinTokenQuery)) *NodeQuery {
 		opt(query)
 	}
 	_q.withJoinTokens = query
+	return _q
+}
+
+// WithEnrollTokens tells the query-builder to eager-load the nodes that are connected to
+// the "enroll_tokens" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NodeQuery) WithEnrollTokens(opts ...func(*EnrollTokenQuery)) *NodeQuery {
+	query := (&EnrollTokenClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withEnrollTokens = query
 	return _q
 }
 
@@ -625,7 +661,7 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		nodes       = []*Node{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [9]bool{
 			_q.withCapabilities != nil,
 			_q.withConfigFiles != nil,
 			_q.withLogTargets != nil,
@@ -633,6 +669,7 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 			_q.withDeployTasks != nil,
 			_q.withRealServers != nil,
 			_q.withJoinTokens != nil,
+			_q.withEnrollTokens != nil,
 			_q.withCluster != nil,
 		}
 	)
@@ -706,6 +743,13 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		if err := _q.loadJoinTokens(ctx, query, nodes,
 			func(n *Node) { n.Edges.JoinTokens = []*JoinToken{} },
 			func(n *Node, e *JoinToken) { n.Edges.JoinTokens = append(n.Edges.JoinTokens, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withEnrollTokens; query != nil {
+		if err := _q.loadEnrollTokens(ctx, query, nodes,
+			func(n *Node) { n.Edges.EnrollTokens = []*EnrollToken{} },
+			func(n *Node, e *EnrollToken) { n.Edges.EnrollTokens = append(n.Edges.EnrollTokens, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -930,6 +974,37 @@ func (_q *NodeQuery) loadJoinTokens(ctx context.Context, query *JoinTokenQuery, 
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "node_join_tokens" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *NodeQuery) loadEnrollTokens(ctx context.Context, query *EnrollTokenQuery, nodes []*Node, init func(*Node), assign func(*Node, *EnrollToken)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Node)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.EnrollToken(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(node.EnrollTokensColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.node_enroll_tokens
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "node_enroll_tokens" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "node_enroll_tokens" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

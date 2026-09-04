@@ -74,16 +74,35 @@ v0.1 · 2026-09-03
 
 ### 3.1 Agent 注册
 
+注册走 gRPC `Register` RPC：Agent 持有令牌 + 本地生成的 CSR，向控制面换取 mTLS 客户端证书
+（证书 `Serial = nodeID`，SAN = hostname），后续所有连接均由证书身份驱动（服务端从对端证书
+Serial 反查 nodeID，无需任何应用层 token）。注册期放宽 mTLS 要求（仅 TLS + token 鉴权），注册成功即翻转节点在线。
+
+控制面提供**两条互斥的注册路径**，令牌都「服务端入库、只存哈希、可单独吊销」：
+
+- **Join Token（自注册，推荐，无审批）**：控制台「新建节点并生成接入命令」→ 控制面先建节点（enrolling），
+  再为该节点签发**节点绑定** Join Token（入库 `join_tokens` 表，原文仅返回一次，Agent 侧持久化于
+  `/etc/ngxcp/agent.conf`）→ 目标节点执行 `curl …/agent/install.sh | sudo bash` 拉二进制 + 装 systemd →
+  Agent 持 Join Token + 本地 CSR 自注册，**复用既有节点**无审批直接上线。同一令牌可反复用于
+  **重建证书**（证书丢失场景），契合「1 Agent = 1 Token、控制面不新建节点」的约束。
+- **Enroll Token（预建节点，一次性）**：控制面已存在某节点时，经 `POST /api/v1/nodes/:id/enroll-token`
+  为其签发一次性令牌（入库 `enroll_tokens` 表，**持久化、重启不丢**）；Agent 持该令牌 + 本地 CSR 注册，
+  校验成功即作废（used 标志），回绑到该预建节点。
+
 ```bash
-# 控制台生成一次性令牌，节点上执行一条命令即可
-curl -fsSL https://ngxcp.internal/api/v1/enroll.sh | \
-  NGXCP_TOKEN=eyJhbGciOi... NGXCP_CLUSTER=prod-web sh -
+# 路径一（推荐）：Web 控制台生成接入命令，节点上以 root 执行一行即可
+curl -fsSL https://<控制面>/agent/install.sh | sudo bash -s -- \
+  --cp https://<控制面> --grpc <控制面:9443> --token <JOIN_TOKEN>
+
+# 路径二（预建节点）：控制面先建节点并下发一次性 enroll token，Agent 首次注册即用后即废
+#   POST /api/v1/nodes/:id/enroll-token  →  Agent 启动时带 --enroll-token 注册
 ```
 
-注册流程：
-1. Agent 携带 token 调用 `Enroll(nodeInfo)`，nodeInfo 含 hostname/ip/nginx_version/os/kernel/ipvs 能力探测结果。
-2. 服务端校验 token → 签发**节点证书**（mTLS 客户端证书）→ 返回 `node_id` + CA。
-3. Agent 将证书写入 `/var/lib/ngxcp/pki/`，后续所有连接使用 mTLS。
+注册流程（两条路径通用）：
+1. Agent 本地生成密钥对（私钥永不出节点），用公钥构造 CSR，连同 `hostname` 一并提交 `Register`。
+2. 控制面按令牌类型（`join_token` / `enroll_token`）校验 → 用 CSR 签发**节点客户端证书**（mTLS），
+   并回写节点状态 `enrolling → online`（已 online 的重新注册视为 no-op，以支持证书重建）。
+3. Agent 将证书写入 `data-dir`（默认 `/var/lib/ngxcp`），后续所有连接使用 mTLS；enroll token 就此作废。
 
 ### 3.2 指令流（服务端 → Agent）
 

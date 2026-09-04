@@ -656,6 +656,29 @@ func HasJoinTokensWith(preds ...predicate.JoinToken) predicate.Node {
 	})
 }
 
+// HasEnrollTokens applies the HasEdge predicate on the "enroll_tokens" edge.
+func HasEnrollTokens() predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, EnrollTokensTable, EnrollTokensColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasEnrollTokensWith applies the HasEdge predicate on the "enroll_tokens" edge with a given conditions (other predicates).
+func HasEnrollTokensWith(preds ...predicate.EnrollToken) predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := newEnrollTokensStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasCluster applies the HasEdge predicate on the "cluster" edge.
 func HasCluster() predicate.Node {
 	return predicate.Node(func(s *sql.Selector) {

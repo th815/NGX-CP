@@ -18,6 +18,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
@@ -203,6 +204,26 @@ func init() {
 	deploytask.DefaultUpdatedAt = deploytaskDescUpdatedAt.Default.(func() time.Time)
 	// deploytask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	deploytask.UpdateDefaultUpdatedAt = deploytaskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	enrolltokenFields := schema.EnrollToken{}.Fields()
+	_ = enrolltokenFields
+	// enrolltokenDescUsed is the schema descriptor for used field.
+	enrolltokenDescUsed := enrolltokenFields[2].Descriptor()
+	// enrolltoken.DefaultUsed holds the default value on creation for the used field.
+	enrolltoken.DefaultUsed = enrolltokenDescUsed.Default.(bool)
+	// enrolltokenDescRevoked is the schema descriptor for revoked field.
+	enrolltokenDescRevoked := enrolltokenFields[3].Descriptor()
+	// enrolltoken.DefaultRevoked holds the default value on creation for the revoked field.
+	enrolltoken.DefaultRevoked = enrolltokenDescRevoked.Default.(bool)
+	// enrolltokenDescCreatedAt is the schema descriptor for created_at field.
+	enrolltokenDescCreatedAt := enrolltokenFields[5].Descriptor()
+	// enrolltoken.DefaultCreatedAt holds the default value on creation for the created_at field.
+	enrolltoken.DefaultCreatedAt = enrolltokenDescCreatedAt.Default.(func() time.Time)
+	// enrolltokenDescUpdatedAt is the schema descriptor for updated_at field.
+	enrolltokenDescUpdatedAt := enrolltokenFields[6].Descriptor()
+	// enrolltoken.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	enrolltoken.DefaultUpdatedAt = enrolltokenDescUpdatedAt.Default.(func() time.Time)
+	// enrolltoken.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	enrolltoken.UpdateDefaultUpdatedAt = enrolltokenDescUpdatedAt.UpdateDefault.(func() time.Time)
 	jointokenFields := schema.JoinToken{}.Fields()
 	_ = jointokenFields
 	// jointokenDescRevoked is the schema descriptor for revoked field.

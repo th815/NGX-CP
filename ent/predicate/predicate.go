@@ -48,6 +48,9 @@ type DeployNodeLock func(*sql.Selector)
 // DeployTask is the predicate function for deploytask builders.
 type DeployTask func(*sql.Selector)
 
+// EnrollToken is the predicate function for enrolltoken builders.
+type EnrollToken func(*sql.Selector)
+
 // JoinToken is the predicate function for jointoken builders.
 type JoinToken func(*sql.Selector)
 
