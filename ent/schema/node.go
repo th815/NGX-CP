@@ -39,6 +39,7 @@ func (Node) Edges() []ent.Edge {
 		edge.To("snapshots", ConfigSnapshot.Type),
 		edge.To("deploy_tasks", DeployTask.Type),
 		edge.To("real_servers", RealServer.Type),
+		edge.To("join_tokens", JoinToken.Type),
 		edge.From("cluster", Cluster.Type).
 			Ref("nodes").
 			Unique(),

@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<html lang="zh-CN" data-page-node-id="yDQRTIIMX8HYJAiz0HYj7M">
+<head data-page-node-id="uWe2SCWlTxT0ByoU1eDEZN">
+<meta charset="utf-8" data-page-node-id="vZUwSnV3aHOMzviyD164T7" />
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="ZnZJ2HvItU8d0RN6F2HCZS" />
 <title>NGX-CP · 节点接入</title>
 <style>
   :root { color-scheme: dark; }
@@ -34,41 +34,44 @@
                font:12px/1.5 ui-monospace,monospace; color:#c7cedb; }
 </style>
 </head>
-<body>
-  <div class="card">
-    <h1>NGX-CP · 节点接入</h1>
-    <p class="sub">生成一次性 Join Token，复制下方一行命令到新节点执行即可自注册上线。</p>
+<body data-page-node-id="4hKgsGODe76hLQO04Bu5YK">
+  <div class="card" data-page-node-id="RjCEwnICyCdgq3Oz5hye8w">
+    <h1 data-page-node-id="zE1Oq3DHKH5myVXYoGCCXr">NGX-CP · 节点接入</h1>
+    <p class="sub" data-page-node-id="tQHWUmWxry3RrMxj7HhcGD">新建节点并生成接入命令：在控制面登记节点 → 签发节点绑定 Join Token（一个 Agent 一个 Token，持久化于 Agent 侧）→ 复制到目标节点执行即<b>无审批直接纳管</b>上线。纳管后凭同一令牌可重建客户端证书。</p>
 
-    <label>管理员令牌（Bearer，仅存于本浏览器 sessionStorage）</label>
-    <input id="token" type="password" placeholder="NGXCP_AUTH_ADMIN_TOKEN" autocomplete="off" />
+    <label data-page-node-id="BRH541zZ74BNOsmEINPHjp">管理员令牌（Bearer，仅存于本浏览器 sessionStorage）</label>
+    <input id="token" type="password" placeholder="NGXCP_AUTH_ADMIN_TOKEN" autocomplete="off" data-page-node-id="FMIfGSwlJA1txfAelW2Enz" />
 
-    <div class="row">
-      <div>
-        <label>节点角色</label>
-        <select id="role">
-          <option value="real_server">real_server（Nginx RS）</option>
-          <option value="director">director（LVS Director）</option>
-          <option value="director_and_rs">director_and_rs</option>
-          <option value="unknown">unknown</option>
+    <label data-page-node-id="NMwesXk7qYdQ2LbZ9pVkJ3">节点名称（唯一标识，如 nginx-rs-01）</label>
+    <input id="name" placeholder="nginx-rs-01" autocomplete="off" data-page-node-id="QxaLpV2mKb9hT8cY7sR4nW" />
+
+    <div class="row" data-page-node-id="1d6PzR9RvHFAAXx1kEbM2F">
+      <div data-page-node-id="hveTOOSbPYndlu5gl3B3nz">
+        <label data-page-node-id="kKmGjCANoz5UbXtYyAYset">节点角色</label>
+        <select id="role" data-page-node-id="IfZt3AN4HEQOx13tR5BiwH">
+          <option value="real_server" data-page-node-id="kxHvUnsjxL08Xc2XpXCSG1">real_server（Nginx RS）</option>
+          <option value="director" data-page-node-id="jYsZ2bVpgYIXnyyfxLlvRR">director（LVS Director）</option>
+          <option value="director_and_rs" data-page-node-id="EU10UzhUbtnnxBY3ZzOcEC">director_and_rs</option>
+          <option value="unknown" data-page-node-id="LWySpr8Dd5yRrsipGHKAhW">unknown</option>
         </select>
       </div>
-      <div>
-        <label>Token 有效期</label>
-        <input id="ttl" value="1h" placeholder="1h / 30m / 24h" />
+      <div data-page-node-id="Ks1GcDAJpgsj2j2aShk4W8">
+        <label data-page-node-id="kfpNeZNpYdiPOHO3J9byr9">Token 有效期（生成后该窗口内须执行安装）</label>
+        <input id="ttl" value="24h" placeholder="1h / 30m / 24h" data-page-node-id="ttXYp3ROB4wvkLerk02EZY" />
       </div>
     </div>
 
-    <button id="gen">生成接入令牌</button>
-    <div class="err" id="err"></div>
+    <button id="gen" data-page-node-id="OxHjsHyDCQSfaUy8A7DfVa">新建节点并生成接入命令</button>
+    <div class="err" id="err" data-page-node-id="rJlxwNgsISywD2RjNiKlcb"></div>
 
-    <div class="out" id="out">
-      <span class="copy" id="copyCmd">复制</span>
-      <strong>在目标节点以 root 执行：</strong>
-      <code class="block" id="cmd"></code>
-      <div class="note" id="exp"></div>
-      <details>
-        <summary>查看安装脚本（也可手动保存后再跑）</summary>
-        <pre class="script" id="script"></pre>
+    <div class="out" id="out" data-page-node-id="8IfDICP5eKiwH3VxyD2LXz">
+      <span class="copy" id="copyCmd" data-page-node-id="7AtRQh4JKjlkOD6UYQ0GJA">复制</span>
+      <strong data-page-node-id="5TefRHTbhnwsCnWork6jbI">在目标节点以 root 执行：</strong>
+      <code class="block" id="cmd" data-page-node-id="EgtYPkLO5vj60q5cWBMWyG"></code>
+      <div class="note" id="exp" data-page-node-id="CWuWCGtneTD14pvzlCj0cJ"></div>
+      <details data-page-node-id="ND7mEMYEeGMYhZSYd0XNSB">
+        <summary data-page-node-id="6iRFqn6FZmuDIhP06yt4h0">查看安装脚本（也可手动保存后再跑）</summary>
+        <pre class="script" id="script" data-page-node-id="rCvYS9g4QbeHUCe6bIPLr8"></pre>
       </details>
     </div>
   </div>
@@ -81,18 +84,22 @@ const $ = id => document.getElementById(id);
 $("gen").onclick = async () => {
   const auth = $("token").value.trim();
   if (!auth) { $("err").textContent = "请先填管理员令牌"; return; }
+  const name = $("name").value.trim();
+  if (!name) { $("err").textContent = "请先填节点名称"; return; }
   const role = $("role").value;
-  const ttl = encodeURIComponent($("ttl").value.trim() || "1h");
+  const ttl = encodeURIComponent($("ttl").value.trim() || "24h");
   $("err").textContent = ""; $("gen").disabled = true;
   try {
-    const r = await fetch(`${ORIGIN}/api/v1/join-tokens?role=${role}&ttl=${ttl}`, {
-      method: "POST", headers: { Authorization: "Bearer " + auth }
+    const r = await fetch(`${ORIGIN}/api/v1/nodes?ttl=${ttl}`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + auth, "Content-Type": "application/json" },
+      body: JSON.stringify({ name, role })
     });
     const j = await r.json();
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
     const cmd = `curl -fsSL ${ORIGIN}/agent/install.sh | sudo bash -s -- --cp ${ORIGIN} --grpc ${GRPC} --token ${j.data.token}`;
     $("cmd").textContent = cmd;
-    $("exp").textContent = `Token 过期时间：${new Date(j.data.expires_at).toLocaleString()}（过期前未使用即失效）`;
+    $("exp").textContent = `节点 #${j.data.node_id}（${j.data.name}）已登记；Token 过期时间：${new Date(j.data.expires_at).toLocaleString()}。该 Token 绑定本节点，无审批、执行即上线；纳管后若客户端证书丢失，可凭此 Token 重建。`;
     $("out").classList.add("show");
     const sc = await fetch(`${ORIGIN}/agent/install.sh`);
     $("script").textContent = await sc.text();

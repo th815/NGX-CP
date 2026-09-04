@@ -29,6 +29,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
 	"github.com/th/ngxcp/ent/nodeconfigfile"
@@ -69,6 +70,8 @@ type Client struct {
 	DeployNodeLock *DeployNodeLockClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
+	// JoinToken is the client for interacting with the JoinToken builders.
+	JoinToken *JoinTokenClient
 	// Node is the client for interacting with the Node builders.
 	Node *NodeClient
 	// NodeCapability is the client for interacting with the NodeCapability builders.
@@ -104,6 +107,7 @@ func (c *Client) init() {
 	c.ConfigVariable = NewConfigVariableClient(c.config)
 	c.DeployNodeLock = NewDeployNodeLockClient(c.config)
 	c.DeployTask = NewDeployTaskClient(c.config)
+	c.JoinToken = NewJoinTokenClient(c.config)
 	c.Node = NewNodeClient(c.config)
 	c.NodeCapability = NewNodeCapabilityClient(c.config)
 	c.NodeConfigFile = NewNodeConfigFileClient(c.config)
@@ -215,6 +219,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ConfigVariable: NewConfigVariableClient(cfg),
 		DeployNodeLock: NewDeployNodeLockClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
+		JoinToken:      NewJoinTokenClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
 		NodeConfigFile: NewNodeConfigFileClient(cfg),
@@ -253,6 +258,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ConfigVariable: NewConfigVariableClient(cfg),
 		DeployNodeLock: NewDeployNodeLockClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
+		JoinToken:      NewJoinTokenClient(cfg),
 		Node:           NewNodeClient(cfg),
 		NodeCapability: NewNodeCapabilityClient(cfg),
 		NodeConfigFile: NewNodeConfigFileClient(cfg),
@@ -289,8 +295,9 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Approval, c.AuditLog, c.CertDeployment, c.Certificate, c.ChangeOrder,
 		c.Cluster, c.ConfigBlob, c.ConfigFile, c.ConfigRevision, c.ConfigSnapshot,
-		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask, c.Node,
-		c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget, c.RealServer,
+		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask,
+		c.JoinToken, c.Node, c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget,
+		c.RealServer,
 	} {
 		n.Use(hooks...)
 	}
@@ -302,8 +309,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Approval, c.AuditLog, c.CertDeployment, c.Certificate, c.ChangeOrder,
 		c.Cluster, c.ConfigBlob, c.ConfigFile, c.ConfigRevision, c.ConfigSnapshot,
-		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask, c.Node,
-		c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget, c.RealServer,
+		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask,
+		c.JoinToken, c.Node, c.NodeCapability, c.NodeConfigFile, c.NodeLogTarget,
+		c.RealServer,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -340,6 +348,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DeployNodeLock.mutate(ctx, m)
 	case *DeployTaskMutation:
 		return c.DeployTask.mutate(ctx, m)
+	case *JoinTokenMutation:
+		return c.JoinToken.mutate(ctx, m)
 	case *NodeMutation:
 		return c.Node.mutate(ctx, m)
 	case *NodeCapabilityMutation:
@@ -2393,6 +2403,155 @@ func (c *DeployTaskClient) mutate(ctx context.Context, m *DeployTaskMutation) (V
 	}
 }
 
+// JoinTokenClient is a client for the JoinToken schema.
+type JoinTokenClient struct {
+	config
+}
+
+// NewJoinTokenClient returns a client for the JoinToken from the given config.
+func NewJoinTokenClient(c config) *JoinTokenClient {
+	return &JoinTokenClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `jointoken.Hooks(f(g(h())))`.
+func (c *JoinTokenClient) Use(hooks ...Hook) {
+	c.hooks.JoinToken = append(c.hooks.JoinToken, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `jointoken.Intercept(f(g(h())))`.
+func (c *JoinTokenClient) Intercept(interceptors ...Interceptor) {
+	c.inters.JoinToken = append(c.inters.JoinToken, interceptors...)
+}
+
+// Create returns a builder for creating a JoinToken entity.
+func (c *JoinTokenClient) Create() *JoinTokenCreate {
+	mutation := newJoinTokenMutation(c.config, OpCreate)
+	return &JoinTokenCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of JoinToken entities.
+func (c *JoinTokenClient) CreateBulk(builders ...*JoinTokenCreate) *JoinTokenCreateBulk {
+	return &JoinTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *JoinTokenClient) MapCreateBulk(slice any, setFunc func(*JoinTokenCreate, int)) *JoinTokenCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &JoinTokenCreateBulk{err: fmt.Errorf("calling to JoinTokenClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*JoinTokenCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &JoinTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for JoinToken.
+func (c *JoinTokenClient) Update() *JoinTokenUpdate {
+	mutation := newJoinTokenMutation(c.config, OpUpdate)
+	return &JoinTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *JoinTokenClient) UpdateOne(_m *JoinToken) *JoinTokenUpdateOne {
+	mutation := newJoinTokenMutation(c.config, OpUpdateOne, withJoinToken(_m))
+	return &JoinTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *JoinTokenClient) UpdateOneID(id int) *JoinTokenUpdateOne {
+	mutation := newJoinTokenMutation(c.config, OpUpdateOne, withJoinTokenID(id))
+	return &JoinTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for JoinToken.
+func (c *JoinTokenClient) Delete() *JoinTokenDelete {
+	mutation := newJoinTokenMutation(c.config, OpDelete)
+	return &JoinTokenDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *JoinTokenClient) DeleteOne(_m *JoinToken) *JoinTokenDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *JoinTokenClient) DeleteOneID(id int) *JoinTokenDeleteOne {
+	builder := c.Delete().Where(jointoken.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &JoinTokenDeleteOne{builder}
+}
+
+// Query returns a query builder for JoinToken.
+func (c *JoinTokenClient) Query() *JoinTokenQuery {
+	return &JoinTokenQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeJoinToken},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a JoinToken entity by its id.
+func (c *JoinTokenClient) Get(ctx context.Context, id int) (*JoinToken, error) {
+	return c.Query().Where(jointoken.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *JoinTokenClient) GetX(ctx context.Context, id int) *JoinToken {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryNode queries the node edge of a JoinToken.
+func (c *JoinTokenClient) QueryNode(_m *JoinToken) *NodeQuery {
+	query := (&NodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(jointoken.Table, jointoken.FieldID, id),
+			sqlgraph.To(node.Table, node.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, jointoken.NodeTable, jointoken.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *JoinTokenClient) Hooks() []Hook {
+	return c.hooks.JoinToken
+}
+
+// Interceptors returns the client interceptors.
+func (c *JoinTokenClient) Interceptors() []Interceptor {
+	return c.inters.JoinToken
+}
+
+func (c *JoinTokenClient) mutate(ctx context.Context, m *JoinTokenMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&JoinTokenCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&JoinTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&JoinTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&JoinTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown JoinToken mutation op: %q", m.Op())
+	}
+}
+
 // NodeClient is a client for the Node schema.
 type NodeClient struct {
 	config
@@ -2590,6 +2749,22 @@ func (c *NodeClient) QueryRealServers(_m *Node) *RealServerQuery {
 			sqlgraph.From(node.Table, node.FieldID, id),
 			sqlgraph.To(realserver.Table, realserver.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, node.RealServersTable, node.RealServersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryJoinTokens queries the join_tokens edge of a Node.
+func (c *NodeClient) QueryJoinTokens(_m *Node) *JoinTokenQuery {
+	query := (&JoinTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, id),
+			sqlgraph.To(jointoken.Table, jointoken.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.JoinTokensTable, node.JoinTokensColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3239,13 +3414,13 @@ type (
 	hooks struct {
 		Approval, AuditLog, CertDeployment, Certificate, ChangeOrder, Cluster,
 		ConfigBlob, ConfigFile, ConfigRevision, ConfigSnapshot, ConfigTemplate,
-		ConfigVariable, DeployNodeLock, DeployTask, Node, NodeCapability,
+		ConfigVariable, DeployNodeLock, DeployTask, JoinToken, Node, NodeCapability,
 		NodeConfigFile, NodeLogTarget, RealServer []ent.Hook
 	}
 	inters struct {
 		Approval, AuditLog, CertDeployment, Certificate, ChangeOrder, Cluster,
 		ConfigBlob, ConfigFile, ConfigRevision, ConfigSnapshot, ConfigTemplate,
-		ConfigVariable, DeployNodeLock, DeployTask, Node, NodeCapability,
+		ConfigVariable, DeployNodeLock, DeployTask, JoinToken, Node, NodeCapability,
 		NodeConfigFile, NodeLogTarget, RealServer []ent.Interceptor
 	}
 )

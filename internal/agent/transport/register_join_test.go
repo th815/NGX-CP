@@ -21,9 +21,10 @@ import (
 	"log/slog"
 )
 
-// TestRegisterSelfJoin 锁定「web 一键自注册」关键路径：
-// 签发 Join Token → Agent 持 token + 本地 CSR 注册 → 控制面自动建节点（角色取令牌）
-// → 签发客户端证书 → 节点上线（DB 中状态为 online）。
+// TestRegisterSelfJoin 锁定「web 一键自注册」关键路径（节点绑定令牌模型）：
+// 控制台新建节点 → 为该节点签发 Join Token（入库 join_tokens 表、Agent 侧持久化）
+// → Agent 持 token + 本地 CSR 注册 → 控制面复用既有节点、签发客户端证书 → 节点上线（无审批）。
+// 并验证：同一令牌可对该节点「重建证书」（证书丢失场景），即 1 token = 1 node。
 func TestRegisterSelfJoin(t *testing.T) {
 	ctx := context.Background()
 	ca, err := pki.LoadOrCreateCA(t.TempDir())
@@ -62,45 +63,57 @@ func TestRegisterSelfJoin(t *testing.T) {
 	defer conn.Close()
 	cli := agentv1.NewAgentServiceClient(conn)
 
-	// 1) 签发 Join Token（real_server 角色）。
-	joinTok, _, err := nodeSvc.IssueJoinToken(ctx, "real_server", time.Hour)
+	// 1) 控制台新建节点（enrolling），并为该节点签发 Join Token（real_server 角色）。
+	n, err := nodeSvc.Create(ctx, node.CreateNodeIn{Name: "nginx-rs-01", Role: "real_server"})
+	if err != nil {
+		t.Fatalf("create node: %v", err)
+	}
+	joinTok, _, err := nodeSvc.IssueJoinToken(ctx, n.ID, "real_server", time.Hour)
 	if err != nil {
 		t.Fatalf("issue join token: %v", err)
 	}
 
-	// 2) 持 Join Token + 本地 CSR 自注册。
+	// 2) 持 Join Token + 本地 CSR 自注册（Agent 侧：token 持久化于 /etc/ngxcp-agent.env）。
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	resp, err := cli.Register(ctx, &agentv1.RegisterRequest{
 		JoinToken: joinTok,
-		Hostname:  "auto-rs-01",
-		Csr:       genCSRPEM(t, "auto-rs-01", key),
+		Hostname:  "nginx-rs-01",
+		Csr:       genCSRPEM(t, "nginx-rs-01", key),
 	})
 	if err != nil {
 		t.Fatalf("register(join): %v", err)
 	}
-	if resp.NodeId == 0 {
-		t.Fatal("自注册未分配 nodeID")
+	if resp.NodeId != int64(n.ID) {
+		t.Fatalf("自注册 nodeID = %d, want %d（应为签发令牌时创建的节点）", resp.NodeId, n.ID)
 	}
 	if len(resp.ClientCert) == 0 || len(resp.CaCert) == 0 {
 		t.Fatal("自注册未返回证书")
 	}
 
-	// 3) 节点应已在 DB 中自动创建，角色与令牌一致，状态 online。
-	n, err := client.Node.Query().Where(entnode.Name("auto-rs-01")).Only(ctx)
+	// 3) 节点状态应为 online（无审批直接纳管），角色与创建时一致。
+	got, err := nodeSvc.Get(ctx, n.ID)
 	if err != nil {
-		t.Fatalf("查询自动创建的节点: %v", err)
+		t.Fatalf("查询节点: %v", err)
 	}
-	if n.Role != entnode.RoleRealServer {
-		t.Errorf("节点角色 = %q, want real_server", n.Role)
+	if got.Status != string(entnode.StatusOnline) {
+		t.Errorf("节点状态 = %q, want online（自注册后应直接上线，无审批）", got.Status)
 	}
-	if n.Status != entnode.StatusOnline {
-		t.Errorf("节点状态 = %q, want online（自注册后应直接上线）", n.Status)
+	if got.Role != string(entnode.RoleRealServer) {
+		t.Errorf("节点角色 = %q, want real_server", got.Role)
 	}
 
-	// 4) Join Token 一次性：重复使用应失败。
+	// 4) 同一令牌可对该节点「重建证书」（证书丢失场景）：应成功且复用同一 nodeID（1 token = 1 node）。
 	if _, err := cli.Register(ctx, &agentv1.RegisterRequest{
-		JoinToken: joinTok, Hostname: "dup", Csr: genCSRPEM(t, "dup", key),
-	}); err == nil {
-		t.Error("重复使用 Join Token 应报错")
+		JoinToken: joinTok, Hostname: "nginx-rs-01", Csr: genCSRPEM(t, "nginx-rs-01", key),
+	}); err != nil {
+		t.Errorf("凭同一令牌重建证书应成功（证书丢失场景），但报错: %v", err)
+	}
+	// 节点数仍应为 1（不会因重建证书而新建节点）。
+	cnt, err := client.Node.Query().Count(ctx)
+	if err != nil {
+		t.Fatalf("count nodes: %v", err)
+	}
+	if cnt != 1 {
+		t.Errorf("节点数 = %d, want 1（令牌绑定单一节点，不得扩散）", cnt)
 	}
 }

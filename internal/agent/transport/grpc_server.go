@@ -32,8 +32,8 @@ import (
 type EnrollBackend interface {
 	// VerifyEnrollToken 校验一次性接入令牌，返回其绑定的 nodeID。
 	VerifyEnrollToken(ctx context.Context, raw string) (nodeID int, err error)
-	// VerifyJoinToken 校验自注册令牌，返回其内嵌角色（用于自动建节点）。
-	VerifyJoinToken(ctx context.Context, raw string) (role string, err error)
+	// VerifyJoinToken 校验节点绑定自注册令牌，返回其绑定的 nodeID（令牌在签发时已绑定节点）。
+	VerifyJoinToken(ctx context.Context, raw string) (nodeID int, err error)
 	// MarkEnrolled 将节点标记为已注册（enrolling → online）。
 	MarkEnrolled(ctx context.Context, nodeID int) error
 }
@@ -111,8 +111,8 @@ func NewServer(log *slog.Logger, ca *pki.CA, enroll EnrollBackend, nodeSvc *node
 //
 // 两条路径互斥：
 //   - enroll_token：令牌已绑定具体节点（控制面预建节点后签发），校验直接回绑 nodeID。
-//   - join_token：自注册。令牌仅授权「可加入」，控制面按令牌内嵌角色 + 上报 hostname 自动建节点，
-//     再签发证书并上线——对应「web 一键安装自注册」场景。
+//   - join_token：节点绑定自注册令牌（签发时已创建并绑定节点，1 token = 1 node），
+//     校验得到 nodeID 后直接纳管——无审批门，签发证书并上线，对应「web 一键安装自注册」场景。
 func (s *Server) Register(ctx context.Context, req *agentv1.RegisterRequest) (*agentv1.RegisterResponse, error) {
 	if req.GetHostname() == "" {
 		return nil, status.Error(codes.InvalidArgument, "缺少 hostname")
@@ -122,23 +122,18 @@ func (s *Server) Register(ctx context.Context, req *agentv1.RegisterRequest) (*a
 	}
 
 	var nodeID int
+	var path string
 	switch {
 	case req.GetJoinToken() != "":
-		// 自注册：校验 join token，按内嵌角色 + hostname 自动建节点。
-		role, err := s.enroll.VerifyJoinToken(ctx, req.GetJoinToken())
+		// 自注册：校验 join token，得到其绑定的 nodeID（节点在签发令牌时已创建）。
+		// 无审批：直接纳管、签发证书、翻转上线。
+		id, err := s.enroll.VerifyJoinToken(ctx, req.GetJoinToken())
 		if err != nil {
 			return nil, status.Error(codes.Unauthenticated, "join 令牌校验失败: "+err.Error())
 		}
-		n, err := s.nodeSvc.Create(ctx, node.CreateNodeIn{
-			Name:    req.GetHostname(),
-			Address: req.GetHostname(),
-			Role:    role,
-		})
-		if err != nil {
-			return nil, status.Error(codes.Internal, "自动建节点失败: "+err.Error())
-		}
-		nodeID = n.ID
-		s.log.Info("agent self-register", "node_id", nodeID, "hostname", req.GetHostname(), "role", role)
+		nodeID = id
+		path = "join"
+		s.log.Info("agent self-register", "node_id", nodeID, "hostname", req.GetHostname())
 	case req.GetEnrollToken() != "":
 		// 预建节点流程：令牌回绑 nodeID。
 		id, err := s.enroll.VerifyEnrollToken(ctx, req.GetEnrollToken())
@@ -146,8 +141,17 @@ func (s *Server) Register(ctx context.Context, req *agentv1.RegisterRequest) (*a
 			return nil, status.Error(codes.Unauthenticated, "令牌校验失败: "+err.Error())
 		}
 		nodeID = id
+		path = "enroll"
 	default:
 		return nil, status.Error(codes.InvalidArgument, "缺少 enroll_token 或 join_token")
+	}
+
+	// 已纳管节点凭令牌重新注册（证书丢失）时，把节点可达地址补成上报 hostname。
+	if s.nodeSvc != nil {
+		addr := req.GetHostname()
+		if _, uerr := s.nodeSvc.Update(ctx, nodeID, node.UpdateNodeIn{Address: &addr}); uerr != nil {
+			s.log.Warn("update node address on register", "node_id", nodeID, "err", uerr)
+		}
 	}
 
 	// 用 Agent 提交的 CSR 签发客户端证书：Serial=nodeID（零额外 token 反查身份），SAN=hostname。
@@ -156,12 +160,12 @@ func (s *Server) Register(ctx context.Context, req *agentv1.RegisterRequest) (*a
 		return nil, status.Error(codes.Internal, "签发客户端证书失败: "+err.Error())
 	}
 
-	// 回写节点状态 enrolling → online。
+	// 回写节点状态 enrolling → online（已 online 的重新注册为 no-op）。
 	if err := s.enroll.MarkEnrolled(ctx, nodeID); err != nil {
 		return nil, status.Error(codes.Internal, "回写节点状态失败: "+err.Error())
 	}
 
-	s.log.Info("agent registered", "node_id", nodeID, "hostname", req.GetHostname(), "path", map[bool]string{true: "join", false: "enroll"}[req.GetJoinToken() != ""])
+	s.log.Info("agent registered", "node_id", nodeID, "hostname", req.GetHostname(), "path", path)
 	return &agentv1.RegisterResponse{
 		NodeId:        int64(nodeID),
 		ClientCert:    certPEM,

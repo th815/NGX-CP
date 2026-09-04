@@ -18,6 +18,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
 	"github.com/th/ngxcp/ent/nodeconfigfile"
@@ -202,6 +203,22 @@ func init() {
 	deploytask.DefaultUpdatedAt = deploytaskDescUpdatedAt.Default.(func() time.Time)
 	// deploytask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	deploytask.UpdateDefaultUpdatedAt = deploytaskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	jointokenFields := schema.JoinToken{}.Fields()
+	_ = jointokenFields
+	// jointokenDescRevoked is the schema descriptor for revoked field.
+	jointokenDescRevoked := jointokenFields[3].Descriptor()
+	// jointoken.DefaultRevoked holds the default value on creation for the revoked field.
+	jointoken.DefaultRevoked = jointokenDescRevoked.Default.(bool)
+	// jointokenDescCreatedAt is the schema descriptor for created_at field.
+	jointokenDescCreatedAt := jointokenFields[5].Descriptor()
+	// jointoken.DefaultCreatedAt holds the default value on creation for the created_at field.
+	jointoken.DefaultCreatedAt = jointokenDescCreatedAt.Default.(func() time.Time)
+	// jointokenDescUpdatedAt is the schema descriptor for updated_at field.
+	jointokenDescUpdatedAt := jointokenFields[6].Descriptor()
+	// jointoken.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	jointoken.DefaultUpdatedAt = jointokenDescUpdatedAt.Default.(func() time.Time)
+	// jointoken.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	jointoken.UpdateDefaultUpdatedAt = jointokenDescUpdatedAt.UpdateDefault.(func() time.Time)
 	nodeFields := schema.Node{}.Fields()
 	_ = nodeFields
 	// nodeDescLvsWeight is the schema descriptor for lvs_weight field.

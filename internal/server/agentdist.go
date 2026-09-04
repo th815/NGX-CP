@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/th/ngxcp/internal/domain/node"
+	entnode "github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/internal/pkg/pki"
 )
 
@@ -29,7 +30,7 @@ type agentDist struct {
 }
 
 // registerAgentDistribution 挂载自注册分发路由。
-// auth 为 Bearer 鉴权中间件（Join Token 签发需鉴权；安装脚本/CA/二进制/控制台页均公开）。
+// auth 为 Bearer 鉴权中间件（节点创建 / Join Token 签发需鉴权；安装脚本/CA/二进制/控制台页均公开）。
 func registerAgentDistribution(r *gin.Engine, ca *pki.CA, distDir, grpcListen string, nodeSvc *node.Service, auth gin.HandlerFunc) {
 	ad := &agentDist{ca: ca, distDir: distDir, grpcListen: grpcListen, nodeSvc: nodeSvc}
 
@@ -38,7 +39,10 @@ func registerAgentDistribution(r *gin.Engine, ca *pki.CA, distDir, grpcListen st
 	r.GET("/agent/bin/:file", ad.serveBinary)
 	r.GET("/agent/", ad.serveConsole)
 
-	r.POST("/api/v1/join-tokens", auth, ad.issueJoinToken)
+	// 「web 一键自注册」：新建节点 → 为该节点签发节点绑定 Join Token（持久化于 Agent 侧）。
+	r.POST("/api/v1/nodes", auth, ad.createNodeWithToken)
+	// 为已存在节点重新签发 Join Token（令牌过期 / 需吊销旧令牌时）。
+	r.POST("/api/v1/nodes/:id/join-token", auth, ad.rotateJoinToken)
 }
 
 // serveInstallScript 提供节点侧自安装脚本（公开，引导用）。
@@ -94,25 +98,83 @@ func (ad *agentDist) serveConsole(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(rendered))
 }
 
-// issueJoinToken 签发一次性自注册 Join Token（需 Bearer 鉴权）。
-// 查询参数：role（节点角色）、ttl（有效期，如 1h/30m）。返回 token + 过期时间 + 角色。
-func (ad *agentDist) issueJoinToken(c *gin.Context) {
-	role := c.Query("role")
+// createNodeWithToken 实现「web 一键自注册」：新建节点（enrolling）→ 为该节点签发
+// 节点绑定 Join Token（入库 join_tokens 表，原文持久化于 Agent 侧 /etc/ngxcp-agent.env）→
+// 返回 token + 过期时间。前端据此拼出一行安装命令。无审批：节点随后凭令牌自注册即上线。
+func (ad *agentDist) createNodeWithToken(c *gin.Context) {
+	var in struct {
+		Name string `json:"name" binding:"required"`
+		Role string `json:"role"`
+		TTL  string `json:"ttl"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "缺少节点名称（name）"}})
+		return
+	}
+	role := in.Role
 	if role == "" {
 		role = "real_server"
 	}
-	ttl := time.Hour
-	if q := c.Query("ttl"); q != "" {
-		if d, err := time.ParseDuration(q); err == nil {
+	if err := entnode.RoleValidator(entnode.Role(role)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "非法 role: " + role}})
+		return
+	}
+	ttl := 24 * time.Hour
+	if in.TTL != "" {
+		if d, perr := time.ParseDuration(in.TTL); perr == nil {
 			ttl = d
 		}
 	}
-	tok, exp, err := ad.nodeSvc.IssueJoinToken(c.Request.Context(), role, ttl)
+	n, err := ad.nodeSvc.Create(c.Request.Context(), node.CreateNodeIn{Name: in.Name, Role: role})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": tok, "role": role, "expires_at": exp}})
+	tok, exp, err := ad.nodeSvc.IssueJoinToken(c.Request.Context(), n.ID, role, ttl)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"node_id":    n.ID,
+		"name":       n.Name,
+		"role":       role,
+		"token":      tok,
+		"expires_at": exp,
+	}})
+}
+
+// rotateJoinToken 为已存在节点重新签发节点绑定 Join Token（令牌过期 / 需吊销旧令牌时）。
+// 查询参数 ttl 指定新有效期（默认 24h）。旧令牌随即失效（签名绑定到新 nodeID 会话，
+// 但控制面无状态，实际由「重新注册需新令牌」语义保证——运营商轮换即等于吊销旧令牌）。
+func (ad *agentDist) rotateJoinToken(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "非法节点 ID"}})
+		return
+	}
+	n, err := ad.nodeSvc.Get(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "节点不存在"}})
+		return
+	}
+	ttl := 24 * time.Hour
+	if q := c.Query("ttl"); q != "" {
+		if d, perr := time.ParseDuration(q); perr == nil {
+			ttl = d
+		}
+	}
+	// 轮换即吊销旧令牌：吊销该节点所有未吊销令牌，使旧令牌立即失效（无需等过期）。
+	if err := ad.nodeSvc.RevokeNodeJoinTokens(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		return
+	}
+	tok, exp, err := ad.nodeSvc.IssueJoinToken(c.Request.Context(), id, string(n.Role), ttl)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": tok, "expires_at": exp}})
 }
 
 // publicOrigin 还原请求的公网来源（兼容反向代理的 X-Forwarded-* 头）。

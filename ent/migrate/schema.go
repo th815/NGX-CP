@@ -339,6 +339,32 @@ var (
 			},
 		},
 	}
+	// JoinTokensColumns holds the columns for the "join_tokens" table.
+	JoinTokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "role", Type: field.TypeEnum, Enums: []string{"real_server", "director", "director_and_rs", "unknown"}},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "revoked", Type: field.TypeBool, Default: false},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "node_join_tokens", Type: field.TypeInt},
+	}
+	// JoinTokensTable holds the schema information for the "join_tokens" table.
+	JoinTokensTable = &schema.Table{
+		Name:       "join_tokens",
+		Columns:    JoinTokensColumns,
+		PrimaryKey: []*schema.Column{JoinTokensColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "join_tokens_nodes_join_tokens",
+				Columns:    []*schema.Column{JoinTokensColumns[8]},
+				RefColumns: []*schema.Column{NodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// NodesColumns holds the columns for the "nodes" table.
 	NodesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -521,6 +547,7 @@ var (
 		ConfigVariablesTable,
 		DeployNodeLocksTable,
 		DeployTasksTable,
+		JoinTokensTable,
 		NodesTable,
 		NodeCapabilitiesTable,
 		NodeConfigFilesTable,
@@ -536,6 +563,7 @@ func init() {
 	ConfigSnapshotsTable.ForeignKeys[0].RefTable = NodesTable
 	DeployTasksTable.ForeignKeys[0].RefTable = ChangeOrdersTable
 	DeployTasksTable.ForeignKeys[1].RefTable = NodesTable
+	JoinTokensTable.ForeignKeys[0].RefTable = NodesTable
 	NodesTable.ForeignKeys[0].RefTable = ClustersTable
 	NodeCapabilitiesTable.ForeignKeys[0].RefTable = NodesTable
 	NodeConfigFilesTable.ForeignKeys[0].RefTable = NodesTable

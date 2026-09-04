@@ -36,9 +36,10 @@
   不再假装成功。附带修复 watcher 注册竞态（监听生效前的配置变更会被永久丢弃）。
   落地工具：`scripts/deploy-agent.sh`（rollback-safe：备份→stop→落位→start→校验，
   失败自动回滚；主机/IP/令牌全部由环境变量与令牌文件提供，无内置环境信息）+ systemd 单元。
-- 🌐 **节点自注册（web 一键，推荐）**：控制面提供 `/agent/` 控制台 —— 选角色生成一次性 **Join Token**，
-  显示 `curl … | bash` 一行命令；节点自拉二进制 + CA、装 systemd、用 Join Token + 本地 CSR 自注册，
-  控制面**自动建节点**并下发证书后上线（`make dist` 准备分发二进制，`POST /api/v1/join-tokens` 签发令牌）。
+- 🌐 **节点自注册（web 一键，推荐）**：控制面提供 `/agent/` 控制台 —— 填节点名 + 选角色「新建节点并生成接入命令」，
+  签发**节点绑定 Join Token**（服务端 `join_tokens` 表，可单独吊销），显示 `curl … | bash` 一行命令；
+  节点自拉二进制 + CA、装 systemd、用 Join Token + 本地 CSR 自注册，**复用既有节点**无审批直接上线
+  （令牌持久化于 Agent 侧 `/etc/ngxcp-agent.env`）。`POST /api/v1/nodes` 新建并签发，`POST /api/v1/nodes/:id/join-token` 轮换（吊销旧令牌）。
   旧的手工 `enroll-agent.sh` 已移除（那套「先建节点再逐台发令牌」不是自注册）。
 - 🟡 **M4 证书管理**：进行中 —— T040 证书数据模型与加密存储 已完成；T041 DNS Provider / T042 ACME / T043 手动上传+6 项校验 / T044 分发 / T045 自动续期 / T046 UI 待做。
 - ⬜ **M5–M9**：LVS 管理 / 日志与安全 / 监控 / 构建升级 / 备份运维（增值模块，可边用边做）。

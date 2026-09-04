@@ -633,6 +633,29 @@ func HasRealServersWith(preds ...predicate.RealServer) predicate.Node {
 	})
 }
 
+// HasJoinTokens applies the HasEdge predicate on the "join_tokens" edge.
+func HasJoinTokens() predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, JoinTokensTable, JoinTokensColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasJoinTokensWith applies the HasEdge predicate on the "join_tokens" edge with a given conditions (other predicates).
+func HasJoinTokensWith(preds ...predicate.JoinToken) predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := newJoinTokensStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasCluster applies the HasEdge predicate on the "cluster" edge.
 func HasCluster() predicate.Node {
 	return predicate.Node(func(s *sql.Selector) {

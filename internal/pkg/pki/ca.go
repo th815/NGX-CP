@@ -222,3 +222,4 @@ func marshalECKey(key *ecdsa.PrivateKey) ([]byte, error) {
 func EncodePrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 	return marshalECKey(key)
 }
+

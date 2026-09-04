@@ -36,8 +36,8 @@ type fakeEnroll struct{}
 func (f *fakeEnroll) VerifyEnrollToken(_ context.Context, _ string) (int, error) {
 	return 0, fmt.Errorf("unused in heartbeat test")
 }
-func (f *fakeEnroll) VerifyJoinToken(_ context.Context, _ string) (string, error) {
-	return "", fmt.Errorf("unused in heartbeat test")
+func (f *fakeEnroll) VerifyJoinToken(_ context.Context, _ string) (int, error) {
+	return 0, fmt.Errorf("unused in heartbeat test")
 }
 func (f *fakeEnroll) MarkEnrolled(_ context.Context, _ int) error { return nil }
 

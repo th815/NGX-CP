@@ -95,11 +95,13 @@ bash scripts/deploy-agent.sh
 
 ### 6.6 Web 一键自注册（推荐）
 
-生产环境首选：无需预先在控制面建节点，也无需手工拉令牌 / CA。
+生产环境首选：无需手工建节点 / 拉令牌。控制台「新建节点并生成接入命令」即完成登记与令牌签发。
 
 1. 浏览器打开控制面 `https://<控制面>/agent/`，填管理员 Bearer 令牌（与 API 写接口同一令牌）。
-2. 选节点角色（`real_server` / `director` / `director_and_rs`）→「生成接入令牌」。
-   控制面返回一次性 **Join Token**（内嵌角色，默认 1h 有效，用后即焚）。
+2. 填节点名称（唯一标识，如 `nginx-rs-01`）、选节点角色（`real_server` / `director` / `director_and_rs`）
+   →「新建节点并生成接入命令」。
+   控制面**先建节点（enrolling）**，再为该节点签发**节点绑定 Join Token**（内嵌 nodeID + 角色，
+   默认 24h 有效），原文仅返回一次，库内只存 SHA-256 哈希 + 绑定节点（服务端 `join_tokens` 表）。
 3. 复制给出的单行命令，到目标节点以 root 执行：
 
    ```bash
@@ -109,9 +111,13 @@ bash scripts/deploy-agent.sh
 
    脚本会：拉取引导 CA → 按架构（amd64 / arm64）下载 Agent 二进制 → 写 systemd 单元
    （机密走 `/etc/ngxcp-agent.env`，`chmod 600`，不进 unit、不出现在 `ps`）→ `enable --now`。
-4. Agent 启动后用 Join Token + 本地生成的 CSR 自注册，控制面**自动建节点**（名称 = hostname、角色取令牌）
-   并签发客户端证书，节点随即上线，出现在「节点」列表。
+4. Agent 启动后用 Join Token + 本地生成的 CSR 自注册，**控制面复用该节点**（名称/角色取自令牌绑定节点、
+   不新建节点）并签发客户端证书，节点随即上线（无审批），出现在「节点」列表。
 
 前置：`make dist` 已把 Agent 二进制放入 `dist/agent/`（控制面在 `/agent/bin/` 提供下载）；
 `agent_dist_dir` 为空则禁用二进制下载（此时改用 6.2 推送或手动分发）。
-Join Token 与 enroll token 同生命周期（当前为内存态，控制面重启即失效，持久化随 T014 落地）。
+
+**令牌模型（仿妙妙屋X）**：一个 Agent 一个 Token，令牌原文持久化于 Agent 侧 `/etc/ngxcp-agent.env`
+（systemd EnvironmentFile），控制面服务端 `join_tokens` 表按哈希反查节点。支持**单独吊销**
+（`POST /api/v1/nodes/:id/join-token` 轮换即吊销旧令牌，即时生效、无需等过期），也允许已纳管节点
+凭同一令牌**重建客户端证书**（证书丢失场景）。

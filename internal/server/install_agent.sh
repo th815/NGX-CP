@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ngxcp-agent 自安装脚本（由控制面 /agent/install.sh 提供，对应「web 一键安装自注册」）。
 #
-# 用法（控制台「添加节点」会给出这条一行命令）：
+# 用法（控制台「新建节点并生成接入命令」会给出这条一行命令）：
 #   curl -fsSL https://<控制面>/agent/install.sh | sudo bash -s -- \
 #       --cp https://<控制面> --grpc <控制面:9443> --token <JOIN_TOKEN>
 #
@@ -11,7 +11,7 @@
 #   3. 从 <cp>/agent/bin/ngxcp-agent-linux-<arch> 拉取二进制到 /usr/local/bin。
 #   4. 写 systemd 单元（机密走 EnvironmentFile，不进 unit、不出现于 ps）。
 #   5. enable --now。Agent 启动后用 --token 自注册（Join Token + 本地 CSR），
-#      控制面自动建节点并下发证书，节点上线。
+#      控制面复用令牌绑定的既有节点并下发证书，节点无审批直接上线。
 #
 # 幂等：重复执行仅覆盖二进制 + 重启服务；EnvironmentFile 不被覆盖（凭据已存在则保留）。
 set -euo pipefail

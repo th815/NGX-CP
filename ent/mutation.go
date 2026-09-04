@@ -25,6 +25,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
 	"github.com/th/ngxcp/ent/nodeconfigfile"
@@ -57,6 +58,7 @@ const (
 	TypeConfigVariable = "ConfigVariable"
 	TypeDeployNodeLock = "DeployNodeLock"
 	TypeDeployTask     = "DeployTask"
+	TypeJoinToken      = "JoinToken"
 	TypeNode           = "Node"
 	TypeNodeCapability = "NodeCapability"
 	TypeNodeConfigFile = "NodeConfigFile"
@@ -11935,6 +11937,745 @@ func (m *DeployTaskMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown DeployTask edge %s", name)
 }
 
+// JoinTokenMutation represents an operation that mutates the JoinToken nodes in the graph.
+type JoinTokenMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	token_hash    *string
+	role          *jointoken.Role
+	expires_at    *time.Time
+	revoked       *bool
+	last_used_at  *time.Time
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	node          *int
+	clearednode   bool
+	done          bool
+	oldValue      func(context.Context) (*JoinToken, error)
+	predicates    []predicate.JoinToken
+}
+
+var _ ent.Mutation = (*JoinTokenMutation)(nil)
+
+// jointokenOption allows management of the mutation configuration using functional options.
+type jointokenOption func(*JoinTokenMutation)
+
+// newJoinTokenMutation creates new mutation for the JoinToken entity.
+func newJoinTokenMutation(c config, op Op, opts ...jointokenOption) *JoinTokenMutation {
+	m := &JoinTokenMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeJoinToken,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withJoinTokenID sets the ID field of the mutation.
+func withJoinTokenID(id int) jointokenOption {
+	return func(m *JoinTokenMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *JoinToken
+		)
+		m.oldValue = func(ctx context.Context) (*JoinToken, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().JoinToken.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withJoinToken sets the old JoinToken of the mutation.
+func withJoinToken(node *JoinToken) jointokenOption {
+	return func(m *JoinTokenMutation) {
+		m.oldValue = func(context.Context) (*JoinToken, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m JoinTokenMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m JoinTokenMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *JoinTokenMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *JoinTokenMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().JoinToken.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTokenHash sets the "token_hash" field.
+func (m *JoinTokenMutation) SetTokenHash(s string) {
+	m.token_hash = &s
+}
+
+// TokenHash returns the value of the "token_hash" field in the mutation.
+func (m *JoinTokenMutation) TokenHash() (r string, exists bool) {
+	v := m.token_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenHash returns the old "token_hash" field's value of the JoinToken entity.
+// If the JoinToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *JoinTokenMutation) OldTokenHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenHash: %w", err)
+	}
+	return oldValue.TokenHash, nil
+}
+
+// ResetTokenHash resets all changes to the "token_hash" field.
+func (m *JoinTokenMutation) ResetTokenHash() {
+	m.token_hash = nil
+}
+
+// SetRole sets the "role" field.
+func (m *JoinTokenMutation) SetRole(j jointoken.Role) {
+	m.role = &j
+}
+
+// Role returns the value of the "role" field in the mutation.
+func (m *JoinTokenMutation) Role() (r jointoken.Role, exists bool) {
+	v := m.role
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRole returns the old "role" field's value of the JoinToken entity.
+// If the JoinToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *JoinTokenMutation) OldRole(ctx context.Context) (v jointoken.Role, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRole is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRole requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRole: %w", err)
+	}
+	return oldValue.Role, nil
+}
+
+// ResetRole resets all changes to the "role" field.
+func (m *JoinTokenMutation) ResetRole() {
+	m.role = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *JoinTokenMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *JoinTokenMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the JoinToken entity.
+// If the JoinToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *JoinTokenMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *JoinTokenMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetRevoked sets the "revoked" field.
+func (m *JoinTokenMutation) SetRevoked(b bool) {
+	m.revoked = &b
+}
+
+// Revoked returns the value of the "revoked" field in the mutation.
+func (m *JoinTokenMutation) Revoked() (r bool, exists bool) {
+	v := m.revoked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevoked returns the old "revoked" field's value of the JoinToken entity.
+// If the JoinToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *JoinTokenMutation) OldRevoked(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevoked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevoked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevoked: %w", err)
+	}
+	return oldValue.Revoked, nil
+}
+
+// ResetRevoked resets all changes to the "revoked" field.
+func (m *JoinTokenMutation) ResetRevoked() {
+	m.revoked = nil
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (m *JoinTokenMutation) SetLastUsedAt(t time.Time) {
+	m.last_used_at = &t
+}
+
+// LastUsedAt returns the value of the "last_used_at" field in the mutation.
+func (m *JoinTokenMutation) LastUsedAt() (r time.Time, exists bool) {
+	v := m.last_used_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastUsedAt returns the old "last_used_at" field's value of the JoinToken entity.
+// If the JoinToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *JoinTokenMutation) OldLastUsedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastUsedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastUsedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastUsedAt: %w", err)
+	}
+	return oldValue.LastUsedAt, nil
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (m *JoinTokenMutation) ClearLastUsedAt() {
+	m.last_used_at = nil
+	m.clearedFields[jointoken.FieldLastUsedAt] = struct{}{}
+}
+
+// LastUsedAtCleared returns if the "last_used_at" field was cleared in this mutation.
+func (m *JoinTokenMutation) LastUsedAtCleared() bool {
+	_, ok := m.clearedFields[jointoken.FieldLastUsedAt]
+	return ok
+}
+
+// ResetLastUsedAt resets all changes to the "last_used_at" field.
+func (m *JoinTokenMutation) ResetLastUsedAt() {
+	m.last_used_at = nil
+	delete(m.clearedFields, jointoken.FieldLastUsedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *JoinTokenMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *JoinTokenMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the JoinToken entity.
+// If the JoinToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *JoinTokenMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *JoinTokenMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *JoinTokenMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *JoinTokenMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the JoinToken entity.
+// If the JoinToken object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *JoinTokenMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *JoinTokenMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetNodeID sets the "node" edge to the Node entity by id.
+func (m *JoinTokenMutation) SetNodeID(id int) {
+	m.node = &id
+}
+
+// ClearNode clears the "node" edge to the Node entity.
+func (m *JoinTokenMutation) ClearNode() {
+	m.clearednode = true
+}
+
+// NodeCleared reports if the "node" edge to the Node entity was cleared.
+func (m *JoinTokenMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeID returns the "node" edge ID in the mutation.
+func (m *JoinTokenMutation) NodeID() (id int, exists bool) {
+	if m.node != nil {
+		return *m.node, true
+	}
+	return
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *JoinTokenMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *JoinTokenMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// Where appends a list predicates to the JoinTokenMutation builder.
+func (m *JoinTokenMutation) Where(ps ...predicate.JoinToken) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the JoinTokenMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *JoinTokenMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.JoinToken, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *JoinTokenMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *JoinTokenMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (JoinToken).
+func (m *JoinTokenMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *JoinTokenMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.token_hash != nil {
+		fields = append(fields, jointoken.FieldTokenHash)
+	}
+	if m.role != nil {
+		fields = append(fields, jointoken.FieldRole)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, jointoken.FieldExpiresAt)
+	}
+	if m.revoked != nil {
+		fields = append(fields, jointoken.FieldRevoked)
+	}
+	if m.last_used_at != nil {
+		fields = append(fields, jointoken.FieldLastUsedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, jointoken.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, jointoken.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *JoinTokenMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case jointoken.FieldTokenHash:
+		return m.TokenHash()
+	case jointoken.FieldRole:
+		return m.Role()
+	case jointoken.FieldExpiresAt:
+		return m.ExpiresAt()
+	case jointoken.FieldRevoked:
+		return m.Revoked()
+	case jointoken.FieldLastUsedAt:
+		return m.LastUsedAt()
+	case jointoken.FieldCreatedAt:
+		return m.CreatedAt()
+	case jointoken.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *JoinTokenMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case jointoken.FieldTokenHash:
+		return m.OldTokenHash(ctx)
+	case jointoken.FieldRole:
+		return m.OldRole(ctx)
+	case jointoken.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case jointoken.FieldRevoked:
+		return m.OldRevoked(ctx)
+	case jointoken.FieldLastUsedAt:
+		return m.OldLastUsedAt(ctx)
+	case jointoken.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case jointoken.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown JoinToken field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *JoinTokenMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case jointoken.FieldTokenHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenHash(v)
+		return nil
+	case jointoken.FieldRole:
+		v, ok := value.(jointoken.Role)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRole(v)
+		return nil
+	case jointoken.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case jointoken.FieldRevoked:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevoked(v)
+		return nil
+	case jointoken.FieldLastUsedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastUsedAt(v)
+		return nil
+	case jointoken.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case jointoken.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown JoinToken field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *JoinTokenMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *JoinTokenMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *JoinTokenMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown JoinToken numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *JoinTokenMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(jointoken.FieldLastUsedAt) {
+		fields = append(fields, jointoken.FieldLastUsedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *JoinTokenMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *JoinTokenMutation) ClearField(name string) error {
+	switch name {
+	case jointoken.FieldLastUsedAt:
+		m.ClearLastUsedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown JoinToken nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *JoinTokenMutation) ResetField(name string) error {
+	switch name {
+	case jointoken.FieldTokenHash:
+		m.ResetTokenHash()
+		return nil
+	case jointoken.FieldRole:
+		m.ResetRole()
+		return nil
+	case jointoken.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case jointoken.FieldRevoked:
+		m.ResetRevoked()
+		return nil
+	case jointoken.FieldLastUsedAt:
+		m.ResetLastUsedAt()
+		return nil
+	case jointoken.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case jointoken.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown JoinToken field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *JoinTokenMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.node != nil {
+		edges = append(edges, jointoken.EdgeNode)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *JoinTokenMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case jointoken.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *JoinTokenMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *JoinTokenMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *JoinTokenMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearednode {
+		edges = append(edges, jointoken.EdgeNode)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *JoinTokenMutation) EdgeCleared(name string) bool {
+	switch name {
+	case jointoken.EdgeNode:
+		return m.clearednode
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *JoinTokenMutation) ClearEdge(name string) error {
+	switch name {
+	case jointoken.EdgeNode:
+		m.ClearNode()
+		return nil
+	}
+	return fmt.Errorf("unknown JoinToken unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *JoinTokenMutation) ResetEdge(name string) error {
+	switch name {
+	case jointoken.EdgeNode:
+		m.ResetNode()
+		return nil
+	}
+	return fmt.Errorf("unknown JoinToken edge %s", name)
+}
+
 // NodeMutation represents an operation that mutates the Node nodes in the graph.
 type NodeMutation struct {
 	config
@@ -11971,6 +12712,9 @@ type NodeMutation struct {
 	real_servers        map[int]struct{}
 	removedreal_servers map[int]struct{}
 	clearedreal_servers bool
+	join_tokens         map[int]struct{}
+	removedjoin_tokens  map[int]struct{}
+	clearedjoin_tokens  bool
 	cluster             *int
 	clearedcluster      bool
 	done                bool
@@ -12806,6 +13550,60 @@ func (m *NodeMutation) ResetRealServers() {
 	m.removedreal_servers = nil
 }
 
+// AddJoinTokenIDs adds the "join_tokens" edge to the JoinToken entity by ids.
+func (m *NodeMutation) AddJoinTokenIDs(ids ...int) {
+	if m.join_tokens == nil {
+		m.join_tokens = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.join_tokens[ids[i]] = struct{}{}
+	}
+}
+
+// ClearJoinTokens clears the "join_tokens" edge to the JoinToken entity.
+func (m *NodeMutation) ClearJoinTokens() {
+	m.clearedjoin_tokens = true
+}
+
+// JoinTokensCleared reports if the "join_tokens" edge to the JoinToken entity was cleared.
+func (m *NodeMutation) JoinTokensCleared() bool {
+	return m.clearedjoin_tokens
+}
+
+// RemoveJoinTokenIDs removes the "join_tokens" edge to the JoinToken entity by IDs.
+func (m *NodeMutation) RemoveJoinTokenIDs(ids ...int) {
+	if m.removedjoin_tokens == nil {
+		m.removedjoin_tokens = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.join_tokens, ids[i])
+		m.removedjoin_tokens[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedJoinTokens returns the removed IDs of the "join_tokens" edge to the JoinToken entity.
+func (m *NodeMutation) RemovedJoinTokensIDs() (ids []int) {
+	for id := range m.removedjoin_tokens {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// JoinTokensIDs returns the "join_tokens" edge IDs in the mutation.
+func (m *NodeMutation) JoinTokensIDs() (ids []int) {
+	for id := range m.join_tokens {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetJoinTokens resets all changes to the "join_tokens" edge.
+func (m *NodeMutation) ResetJoinTokens() {
+	m.join_tokens = nil
+	m.clearedjoin_tokens = false
+	m.removedjoin_tokens = nil
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by id.
 func (m *NodeMutation) SetClusterID(id int) {
 	m.cluster = &id
@@ -13161,7 +13959,7 @@ func (m *NodeMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *NodeMutation) AddedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.capabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -13179,6 +13977,9 @@ func (m *NodeMutation) AddedEdges() []string {
 	}
 	if m.real_servers != nil {
 		edges = append(edges, node.EdgeRealServers)
+	}
+	if m.join_tokens != nil {
+		edges = append(edges, node.EdgeJoinTokens)
 	}
 	if m.cluster != nil {
 		edges = append(edges, node.EdgeCluster)
@@ -13226,6 +14027,12 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case node.EdgeJoinTokens:
+		ids := make([]ent.Value, 0, len(m.join_tokens))
+		for id := range m.join_tokens {
+			ids = append(ids, id)
+		}
+		return ids
 	case node.EdgeCluster:
 		if id := m.cluster; id != nil {
 			return []ent.Value{*id}
@@ -13236,7 +14043,7 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *NodeMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.removedcapabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -13254,6 +14061,9 @@ func (m *NodeMutation) RemovedEdges() []string {
 	}
 	if m.removedreal_servers != nil {
 		edges = append(edges, node.EdgeRealServers)
+	}
+	if m.removedjoin_tokens != nil {
+		edges = append(edges, node.EdgeJoinTokens)
 	}
 	return edges
 }
@@ -13298,13 +14108,19 @@ func (m *NodeMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case node.EdgeJoinTokens:
+		ids := make([]ent.Value, 0, len(m.removedjoin_tokens))
+		for id := range m.removedjoin_tokens {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *NodeMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.clearedcapabilities {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -13322,6 +14138,9 @@ func (m *NodeMutation) ClearedEdges() []string {
 	}
 	if m.clearedreal_servers {
 		edges = append(edges, node.EdgeRealServers)
+	}
+	if m.clearedjoin_tokens {
+		edges = append(edges, node.EdgeJoinTokens)
 	}
 	if m.clearedcluster {
 		edges = append(edges, node.EdgeCluster)
@@ -13345,6 +14164,8 @@ func (m *NodeMutation) EdgeCleared(name string) bool {
 		return m.cleareddeploy_tasks
 	case node.EdgeRealServers:
 		return m.clearedreal_servers
+	case node.EdgeJoinTokens:
+		return m.clearedjoin_tokens
 	case node.EdgeCluster:
 		return m.clearedcluster
 	}
@@ -13383,6 +14204,9 @@ func (m *NodeMutation) ResetEdge(name string) error {
 		return nil
 	case node.EdgeRealServers:
 		m.ResetRealServers()
+		return nil
+	case node.EdgeJoinTokens:
+		m.ResetJoinTokens()
 		return nil
 	case node.EdgeCluster:
 		m.ResetCluster()

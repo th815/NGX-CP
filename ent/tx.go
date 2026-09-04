@@ -40,6 +40,8 @@ type Tx struct {
 	DeployNodeLock *DeployNodeLockClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
+	// JoinToken is the client for interacting with the JoinToken builders.
+	JoinToken *JoinTokenClient
 	// Node is the client for interacting with the Node builders.
 	Node *NodeClient
 	// NodeCapability is the client for interacting with the NodeCapability builders.
@@ -195,6 +197,7 @@ func (tx *Tx) init() {
 	tx.ConfigVariable = NewConfigVariableClient(tx.config)
 	tx.DeployNodeLock = NewDeployNodeLockClient(tx.config)
 	tx.DeployTask = NewDeployTaskClient(tx.config)
+	tx.JoinToken = NewJoinTokenClient(tx.config)
 	tx.Node = NewNodeClient(tx.config)
 	tx.NodeCapability = NewNodeCapabilityClient(tx.config)
 	tx.NodeConfigFile = NewNodeConfigFileClient(tx.config)

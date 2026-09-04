@@ -14,6 +14,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
 	"github.com/th/ngxcp/ent/nodeconfigfile"
@@ -262,6 +263,21 @@ func (_u *NodeUpdate) AddRealServers(v ...*RealServer) *NodeUpdate {
 	return _u.AddRealServerIDs(ids...)
 }
 
+// AddJoinTokenIDs adds the "join_tokens" edge to the JoinToken entity by IDs.
+func (_u *NodeUpdate) AddJoinTokenIDs(ids ...int) *NodeUpdate {
+	_u.mutation.AddJoinTokenIDs(ids...)
+	return _u
+}
+
+// AddJoinTokens adds the "join_tokens" edges to the JoinToken entity.
+func (_u *NodeUpdate) AddJoinTokens(v ...*JoinToken) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddJoinTokenIDs(ids...)
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
 func (_u *NodeUpdate) SetClusterID(id int) *NodeUpdate {
 	_u.mutation.SetClusterID(id)
@@ -410,6 +426,27 @@ func (_u *NodeUpdate) RemoveRealServers(v ...*RealServer) *NodeUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveRealServerIDs(ids...)
+}
+
+// ClearJoinTokens clears all "join_tokens" edges to the JoinToken entity.
+func (_u *NodeUpdate) ClearJoinTokens() *NodeUpdate {
+	_u.mutation.ClearJoinTokens()
+	return _u
+}
+
+// RemoveJoinTokenIDs removes the "join_tokens" edge to JoinToken entities by IDs.
+func (_u *NodeUpdate) RemoveJoinTokenIDs(ids ...int) *NodeUpdate {
+	_u.mutation.RemoveJoinTokenIDs(ids...)
+	return _u
+}
+
+// RemoveJoinTokens removes "join_tokens" edges to JoinToken entities.
+func (_u *NodeUpdate) RemoveJoinTokens(v ...*JoinToken) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveJoinTokenIDs(ids...)
 }
 
 // ClearCluster clears the "cluster" edge to the Cluster entity.
@@ -787,6 +824,51 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.JoinTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.JoinTokensTable,
+			Columns: []string{node.JoinTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedJoinTokensIDs(); len(nodes) > 0 && !_u.mutation.JoinTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.JoinTokensTable,
+			Columns: []string{node.JoinTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.JoinTokensIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.JoinTokensTable,
+			Columns: []string{node.JoinTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ClusterCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -1063,6 +1145,21 @@ func (_u *NodeUpdateOne) AddRealServers(v ...*RealServer) *NodeUpdateOne {
 	return _u.AddRealServerIDs(ids...)
 }
 
+// AddJoinTokenIDs adds the "join_tokens" edge to the JoinToken entity by IDs.
+func (_u *NodeUpdateOne) AddJoinTokenIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.AddJoinTokenIDs(ids...)
+	return _u
+}
+
+// AddJoinTokens adds the "join_tokens" edges to the JoinToken entity.
+func (_u *NodeUpdateOne) AddJoinTokens(v ...*JoinToken) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddJoinTokenIDs(ids...)
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
 func (_u *NodeUpdateOne) SetClusterID(id int) *NodeUpdateOne {
 	_u.mutation.SetClusterID(id)
@@ -1211,6 +1308,27 @@ func (_u *NodeUpdateOne) RemoveRealServers(v ...*RealServer) *NodeUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveRealServerIDs(ids...)
+}
+
+// ClearJoinTokens clears all "join_tokens" edges to the JoinToken entity.
+func (_u *NodeUpdateOne) ClearJoinTokens() *NodeUpdateOne {
+	_u.mutation.ClearJoinTokens()
+	return _u
+}
+
+// RemoveJoinTokenIDs removes the "join_tokens" edge to JoinToken entities by IDs.
+func (_u *NodeUpdateOne) RemoveJoinTokenIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.RemoveJoinTokenIDs(ids...)
+	return _u
+}
+
+// RemoveJoinTokens removes "join_tokens" edges to JoinToken entities.
+func (_u *NodeUpdateOne) RemoveJoinTokens(v ...*JoinToken) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveJoinTokenIDs(ids...)
 }
 
 // ClearCluster clears the "cluster" edge to the Cluster entity.
@@ -1611,6 +1729,51 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(realserver.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.JoinTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.JoinTokensTable,
+			Columns: []string{node.JoinTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedJoinTokensIDs(); len(nodes) > 0 && !_u.mutation.JoinTokensCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.JoinTokensTable,
+			Columns: []string{node.JoinTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.JoinTokensIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.JoinTokensTable,
+			Columns: []string{node.JoinTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(jointoken.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

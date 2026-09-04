@@ -16,6 +16,7 @@ import (
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/ent"
+	entjointoken "github.com/th/ngxcp/ent/jointoken"
 	entnode "github.com/th/ngxcp/ent/node"
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
 	entncf "github.com/th/ngxcp/ent/nodeconfigfile"
@@ -26,7 +27,12 @@ import (
 	"github.com/th/ngxcp/internal/pkg/apperr"
 )
 
-// Service 持有 ent 客户端与接入令牌内存表（令牌持久化随 T014 落地）。
+// Service 持有 ent 客户端与接入令牌逻辑。
+//
+// Join Token 采用「节点绑定 + 服务端 join_tokens 表」模型（仿妙妙屋X 的 token→节点 映射）：
+// 令牌原文仅在签发时返回一次，库内只存 SHA-256 哈希 + 绑定节点 + 过期 + 吊销标志；
+// 持久化于 Agent 侧（systemd EnvironmentFile）。支持单独吊销（revoked 即时失效），
+// 满足「1 agent = 1 token、无审批直接纳管、可审计可吊销」。
 type Service struct {
 	client *ent.Client
 
@@ -40,10 +46,6 @@ type Service struct {
 	mu     sync.RWMutex
 	tokens map[string]*enrollToken
 
-	// joinTokens 是自注册 Join Token 内存表（与 tokens 同源：持久化随 T014 落地）。
-	// 与 enrollToken 的区别：不绑定具体节点，仅授权「可加入」，注册时由控制面按令牌内嵌角色自动建节点。
-	joinTokens map[string]*joinToken
-
 	// compMu / compReports 缓存各节点最近一次合规自检报告（M1 内存态，无独立表；
 	// 与 clock_skew 同理，真实持久化随 T018/T019 后续里程碑）。
 	compMu      sync.RWMutex
@@ -54,13 +56,12 @@ type Service struct {
 	fsReports map[int]*agentv1.FsProbeReport
 }
 
-// New 构造节点服务。cfgStore 为 T021 配置版本化存储（可传 nil，见 Service.cfgStore 说明）。
+// New 构造节点服务。cfgStore 为 T021 配置版本化存储（可传 nil）。
 func New(client *ent.Client, cfgStore *config.ConfigStore) *Service {
 	return &Service{
 		client:      client,
 		cfgStore:    cfgStore,
 		tokens:      make(map[string]*enrollToken),
-		joinTokens:  make(map[string]*joinToken),
 		compReports: make(map[int]*agentv1.ComplianceReport),
 		fsReports:   make(map[int]*agentv1.FsProbeReport),
 	}
@@ -80,14 +81,6 @@ type enrollToken struct {
 	nodeID    int
 	expiresAt time.Time
 	used      bool
-}
-
-// joinToken 自注册令牌记录（只存哈希，原文仅生成时返回一次）。
-// role 内嵌在令牌中，Agent 持令牌自注册时控制面按此角色自动建节点。
-type joinToken struct {
-	role       string
-	expiresAt  time.Time
-	used       bool
 }
 
 // NodeOut 是节点的对外视图（脱敏后的 DTO）。
@@ -399,7 +392,9 @@ func (s *Service) VerifyEnrollToken(ctx context.Context, raw string) (int, error
 }
 
 // MarkEnrolled 将节点从 enrolling 标记为 online（T014 Agent 注册成功回写）。
-// 仅当节点当前处于 enrolling 才允许跳转，避免把已上线节点误置为 online。
+// 仅当节点当前处于 enrolling 才翻转，避免把已上线节点误置为 online；
+// 节点已非 enrolling（已 online/degraded/offline，如证书丢失后重新注册）时目标态已达成，
+// 视为 no-op 而非报错，从而使「凭同一令牌重建证书」可成功。
 func (s *Service) MarkEnrolled(ctx context.Context, id int) error {
 	_, err := s.client.Node.UpdateOneID(id).
 		Where(entnode.StatusEQ(entnode.StatusEnrolling)).
@@ -407,57 +402,94 @@ func (s *Service) MarkEnrolled(ctx context.Context, id int) error {
 		Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return apperr.New(apperr.CodeNotFound, "节点不存在")
+			return nil // 已非 enrolling → 目标态已达成（重新注册场景）
 		}
 		return apperr.Wrap(apperr.CodeInternal, "标记节点已注册失败", err)
 	}
 	return nil
 }
 
-// IssueJoinToken 生成一次性自注册令牌（格式 ngxcp_<24B base62>），仅返回原文一次。
-// 库内只存 SHA-256 哈希与内嵌角色；默认 1h 有效。role 非法返回 CodeInvalid。
-// 与 IssueEnrollToken 不同：Join Token 不绑定节点，注册时由控制面自动建节点。
-func (s *Service) IssueJoinToken(ctx context.Context, role string, ttl time.Duration) (string, time.Time, error) {
+// joinTokenPrefix 是节点绑定自注册令牌的前缀（仅用于可读性 / 防误用，不参与安全）。
+const joinTokenPrefix = "ngxcpj_"
+
+// IssueJoinToken 为指定节点签发「节点绑定」自注册令牌（仿 mmw：token→node 入库）。
+// 先确保节点存在 → 生成随机令牌（原文仅返回一次）→ 库内只存 SHA-256 哈希 + 绑定节点
+// + 过期 + role。控制面不存明文；Agent 侧持久化（/etc/ngxcp-agent.env，systemd EnvironmentFile）。
+// role 非法返回 CodeInvalid。旧令牌不会在此自动吊销——轮换请走 RevokeNodeJoinTokens。
+func (s *Service) IssueJoinToken(ctx context.Context, nodeID int, role string, ttl time.Duration) (string, time.Time, error) {
+	if _, err := s.Get(ctx, nodeID); err != nil {
+		return "", time.Time{}, err
+	}
 	r := entnode.Role(role)
 	if err := entnode.RoleValidator(r); err != nil {
 		return "", time.Time{}, apperr.New(apperr.CodeInvalid, "非法 role: "+role)
 	}
 	if ttl <= 0 {
-		ttl = time.Hour
+		ttl = 24 * time.Hour
 	}
-	raw, err := newToken()
+	raw, err := newJoinToken()
 	if err != nil {
-		return "", time.Time{}, apperr.Wrap(apperr.CodeInternal, "生成令牌失败", err)
+		return "", time.Time{}, apperr.Wrap(apperr.CodeInternal, "生成 Join Token 失败", err)
 	}
-	sum := hashToken(raw)
 	exp := time.Now().Add(ttl)
-	s.mu.Lock()
-	s.joinTokens[sum] = &joinToken{role: role, expiresAt: exp}
-	s.mu.Unlock()
+	if _, err := s.client.JoinToken.Create().
+		SetTokenHash(hashToken(raw)).
+		SetRole(entjointoken.Role(r)).
+		SetExpiresAt(exp).
+		SetNodeID(nodeID).
+		Save(ctx); err != nil {
+		return "", time.Time{}, apperr.Wrap(apperr.CodeInternal, "写入 Join Token 失败", err)
+	}
 	return raw, exp, nil
 }
 
-// VerifyJoinToken 校验自注册令牌：存在 + 未使用 + 未过期，成功后标记已用（一次性）。
-// 返回令牌内嵌角色，供 T014 自注册流程按角色自动建节点。
-// 接受 ctx 以便后续令牌持久化（落库）时传递超时/取消。
-func (s *Service) VerifyJoinToken(ctx context.Context, raw string) (string, error) {
-	sum := hashToken(raw)
-	s.mu.RLock()
-	t, ok := s.joinTokens[sum]
-	s.mu.RUnlock()
-	if !ok {
-		return "", apperr.New(apperr.CodeUnauthorized, "令牌无效")
+// VerifyJoinToken 校验「节点绑定」自注册令牌（仿 mmw：按令牌哈希反查节点）。
+// 查 join_tokens 表：存在 + 未吊销 + （enrolling 阶段未过期）→ 返回绑定 nodeID。
+// 已纳管节点（online/degraded）凭令牌重建证书时不受过期约束，但 revoked 始终拒绝
+// （例如 /var/lib/ngxcp 下客户端证书丢失需重新注册）。保证 1 token = 1 node。
+func (s *Service) VerifyJoinToken(ctx context.Context, raw string) (int, error) {
+	t, err := s.client.JoinToken.Query().
+		Where(entjointoken.TokenHashEQ(hashToken(raw))).
+		WithNode().
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return 0, apperr.New(apperr.CodeUnauthorized, "令牌无效")
+		}
+		return 0, apperr.Wrap(apperr.CodeInternal, "查询 Join Token 失败", err)
 	}
-	if t.used {
-		return "", apperr.New(apperr.CodeUnauthorized, "令牌已使用")
+	if t.Revoked {
+		return 0, apperr.New(apperr.CodeUnauthorized, "令牌已吊销")
 	}
-	if time.Now().After(t.expiresAt) {
-		return "", apperr.New(apperr.CodeUnauthorized, "令牌已过期")
+	n, nerr := t.QueryNode().Only(ctx)
+	if nerr != nil {
+		if ent.IsNotFound(nerr) {
+			return 0, apperr.New(apperr.CodeUnauthorized, "令牌绑定节点不存在")
+		}
+		return 0, apperr.Wrap(apperr.CodeInternal, "查询节点失败", err)
 	}
-	s.mu.Lock()
-	t.used = true
-	s.mu.Unlock()
-	return t.role, nil
+	if t.ExpiresAt.Before(time.Now()) && n.Status == entnode.StatusEnrolling {
+		return 0, apperr.New(apperr.CodeUnauthorized, "令牌已过期，请在控制台重新签发")
+	}
+	// 审计：尽力记录最近一次成功使用（注册频率低，写库可接受；失败不阻断注册）。
+	_ = s.client.JoinToken.UpdateOneID(t.ID).SetLastUsedAt(time.Now()).Exec(ctx)
+	return n.ID, nil
+}
+
+// RevokeNodeJoinTokens 吊销该节点所有尚未吊销的 Join Token（旋转即吊销旧令牌）。
+// 用于「轮换令牌」与「令牌疑似泄漏」场景——吊销即时生效，无需等过期。
+func (s *Service) RevokeNodeJoinTokens(ctx context.Context, nodeID int) error {
+	_, err := s.client.JoinToken.Update().
+		Where(
+			entjointoken.HasNodeWith(entnode.ID(nodeID)),
+			entjointoken.RevokedEQ(false),
+		).
+		SetRevoked(true).
+		Save(ctx)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "吊销 Join Token 失败", err)
+	}
+	return nil
 }
 
 // ---- T015：心跳与会话状态机 ----
@@ -959,6 +991,15 @@ func newToken() (string, error) {
 		return "", err
 	}
 	return "ngxcp_" + base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// newJoinToken 生成随机「节点绑定」自注册令牌（前缀 ngxcpj_ + 24B base62url）。
+func newJoinToken() (string, error) {
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return joinTokenPrefix + base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func hashToken(raw string) string {

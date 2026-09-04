@@ -177,6 +177,18 @@ func (f DeployTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeployTaskMutation", m)
 }
 
+// The JoinTokenFunc type is an adapter to allow the use of ordinary
+// function as JoinToken mutator.
+type JoinTokenFunc func(context.Context, *ent.JoinTokenMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f JoinTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.JoinTokenMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.JoinTokenMutation", m)
+}
+
 // The NodeFunc type is an adapter to allow the use of ordinary
 // function as Node mutator.
 type NodeFunc func(context.Context, *ent.NodeMutation) (ent.Value, error)

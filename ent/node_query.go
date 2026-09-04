@@ -15,6 +15,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/nodecapability"
 	"github.com/th/ngxcp/ent/nodeconfigfile"
@@ -36,6 +37,7 @@ type NodeQuery struct {
 	withSnapshots    *ConfigSnapshotQuery
 	withDeployTasks  *DeployTaskQuery
 	withRealServers  *RealServerQuery
+	withJoinTokens   *JoinTokenQuery
 	withCluster      *ClusterQuery
 	withFKs          bool
 	// intermediate query (i.e. traversal path).
@@ -199,6 +201,28 @@ func (_q *NodeQuery) QueryRealServers() *RealServerQuery {
 			sqlgraph.From(node.Table, node.FieldID, selector),
 			sqlgraph.To(realserver.Table, realserver.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, node.RealServersTable, node.RealServersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryJoinTokens chains the current query on the "join_tokens" edge.
+func (_q *NodeQuery) QueryJoinTokens() *JoinTokenQuery {
+	query := (&JoinTokenClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, selector),
+			sqlgraph.To(jointoken.Table, jointoken.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.JoinTokensTable, node.JoinTokensColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -426,6 +450,7 @@ func (_q *NodeQuery) Clone() *NodeQuery {
 		withSnapshots:    _q.withSnapshots.Clone(),
 		withDeployTasks:  _q.withDeployTasks.Clone(),
 		withRealServers:  _q.withRealServers.Clone(),
+		withJoinTokens:   _q.withJoinTokens.Clone(),
 		withCluster:      _q.withCluster.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -496,6 +521,17 @@ func (_q *NodeQuery) WithRealServers(opts ...func(*RealServerQuery)) *NodeQuery 
 		opt(query)
 	}
 	_q.withRealServers = query
+	return _q
+}
+
+// WithJoinTokens tells the query-builder to eager-load the nodes that are connected to
+// the "join_tokens" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NodeQuery) WithJoinTokens(opts ...func(*JoinTokenQuery)) *NodeQuery {
+	query := (&JoinTokenClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withJoinTokens = query
 	return _q
 }
 
@@ -589,13 +625,14 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		nodes       = []*Node{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [7]bool{
+		loadedTypes = [8]bool{
 			_q.withCapabilities != nil,
 			_q.withConfigFiles != nil,
 			_q.withLogTargets != nil,
 			_q.withSnapshots != nil,
 			_q.withDeployTasks != nil,
 			_q.withRealServers != nil,
+			_q.withJoinTokens != nil,
 			_q.withCluster != nil,
 		}
 	)
@@ -662,6 +699,13 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		if err := _q.loadRealServers(ctx, query, nodes,
 			func(n *Node) { n.Edges.RealServers = []*RealServer{} },
 			func(n *Node, e *RealServer) { n.Edges.RealServers = append(n.Edges.RealServers, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withJoinTokens; query != nil {
+		if err := _q.loadJoinTokens(ctx, query, nodes,
+			func(n *Node) { n.Edges.JoinTokens = []*JoinToken{} },
+			func(n *Node, e *JoinToken) { n.Edges.JoinTokens = append(n.Edges.JoinTokens, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -855,6 +899,37 @@ func (_q *NodeQuery) loadRealServers(ctx context.Context, query *RealServerQuery
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "node_real_servers" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *NodeQuery) loadJoinTokens(ctx context.Context, query *JoinTokenQuery, nodes []*Node, init func(*Node), assign func(*Node, *JoinToken)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Node)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.JoinToken(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(node.JoinTokensColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.node_join_tokens
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "node_join_tokens" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "node_join_tokens" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

@@ -47,6 +47,8 @@ const (
 	EdgeDeployTasks = "deploy_tasks"
 	// EdgeRealServers holds the string denoting the real_servers edge name in mutations.
 	EdgeRealServers = "real_servers"
+	// EdgeJoinTokens holds the string denoting the join_tokens edge name in mutations.
+	EdgeJoinTokens = "join_tokens"
 	// EdgeCluster holds the string denoting the cluster edge name in mutations.
 	EdgeCluster = "cluster"
 	// Table holds the table name of the node in the database.
@@ -93,6 +95,13 @@ const (
 	RealServersInverseTable = "real_servers"
 	// RealServersColumn is the table column denoting the real_servers relation/edge.
 	RealServersColumn = "node_real_servers"
+	// JoinTokensTable is the table that holds the join_tokens relation/edge.
+	JoinTokensTable = "join_tokens"
+	// JoinTokensInverseTable is the table name for the JoinToken entity.
+	// It exists in this package in order to avoid circular dependency with the "jointoken" package.
+	JoinTokensInverseTable = "join_tokens"
+	// JoinTokensColumn is the table column denoting the join_tokens relation/edge.
+	JoinTokensColumn = "node_join_tokens"
 	// ClusterTable is the table that holds the cluster relation/edge.
 	ClusterTable = "nodes"
 	// ClusterInverseTable is the table name for the Cluster entity.
@@ -344,6 +353,20 @@ func ByRealServers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByJoinTokensCount orders the results by join_tokens count.
+func ByJoinTokensCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newJoinTokensStep(), opts...)
+	}
+}
+
+// ByJoinTokens orders the results by join_tokens terms.
+func ByJoinTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newJoinTokensStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByClusterField orders the results by cluster field.
 func ByClusterField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -390,6 +413,13 @@ func newRealServersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(RealServersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, RealServersTable, RealServersColumn),
+	)
+}
+func newJoinTokensStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(JoinTokensInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, JoinTokensTable, JoinTokensColumn),
 	)
 }
 func newClusterStep() *sqlgraph.Step {
