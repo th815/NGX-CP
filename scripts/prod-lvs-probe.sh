@@ -13,17 +13,21 @@
 #       输出 PASS / FLAG 报告。FLAG 项需人工确认，但本脚本本身不修复、不改任何东西。
 #
 # 用法：bash scripts/prod-lvs-probe.sh
-# 前置：~/.ssh/config 已配置 192.168.5.6-9 的 root 免密（本机已配）。
+#       （目标主机经环境变量传入，不在脚本内硬编码内网地址）
+# 前置：~/.ssh/config 已配置 LVS/RS 节点的 root 免密；运行前 export
+#       LVS_HOSTS / NGX_HOSTS / VIP（例如 export LVS_HOSTS="10.0.0.6 10.0.0.7"
+#       NGX_HOSTS="10.0.0.8 10.0.0.9" VIP="10.0.0.5"），或直接用 ssh 别名。
 
 # 注意：故意不使用 set -e / set -u —— 任一检查失败都应继续产出完整报告，
 # 且只读探测绝不应因某条命令无输出而中断。
 # 统一 locale，避免远程 `ip -br addr` 等输出产生乱码。
 export LC_ALL=C LANG=C
 
-# ── 生产环境拓扑（用户提供，只读探测用）─────────────────────────────────
-LVS_HOSTS=(192.168.5.6 192.168.5.7)
-NGX_HOSTS=(192.168.5.8 192.168.5.9)
-VIP="192.168.5.5"
+# ── 生产环境拓扑（经环境变量传入，不在脚本内硬编码内网地址）─────────────
+# 默认值仅为示例占位；真实地址通过环境变量覆盖（见上方“前置”说明）。
+LVS_HOSTS=(${LVS_HOSTS:-lvs1 lvs2})
+NGX_HOSTS=(${NGX_HOSTS:-rs1 rs2})
+VIP="${VIP:-192.0.2.5}"
 
 PASS=0
 FLAG=0

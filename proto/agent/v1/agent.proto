@@ -327,7 +327,7 @@ message RollbackTask {
 // SetRealServerWeightTask 是 T035 SET_RS_WEIGHT 命令携带的权重调整任务（Agent 端 IPVSExecutor 执行）。
 message SetRealServerWeightTask {
   string task_id = 1;          // 幂等键，结果回传时原样带回
-  string vip = 2;             // 虚拟 IP，如 192.168.5.5
+  string vip = 2;             // 虚拟 IP，如 192.0.2.5
   int32 vip_port = 3;         // 虚拟服务端口，如 80 / 443
   string proto = 4;           // TCP / UDP
   string rs_addr = 5;         // 真实服务器地址

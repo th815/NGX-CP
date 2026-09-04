@@ -41,15 +41,15 @@ func (f fakeProber) Probe(context.Context) (*probe.ProbeResult, error) {
 	return &probe.ProbeResult{OK: f.ok}, nil
 }
 
-// sampleVSS 模拟生产环境的真实拓扑：一台 backend(192.168.5.8) 挂在 80/443(tcp)/443(udp) 三条 VS。
+// sampleVSS 模拟生产环境的真实拓扑：一台 backend(192.0.2.8) 挂在 80/443(tcp)/443(udp) 三条 VS。
 func sampleVSS() []VirtualServer {
 	return []VirtualServer{
-		{Ref: VirtualServerRef{Proto: "TCP", Address: "192.168.5.5", Port: 80}, Scheduler: "wrr",
-			RealServers: []RealServer{{Ref: RealServerRef{Address: "192.168.5.8", Port: 80}, Forward: "Route", Weight: 1}}},
-		{Ref: VirtualServerRef{Proto: "TCP", Address: "192.168.5.5", Port: 443}, Scheduler: "wrr",
-			RealServers: []RealServer{{Ref: RealServerRef{Address: "192.168.5.8", Port: 443}, Forward: "Route", Weight: 1}}},
-		{Ref: VirtualServerRef{Proto: "UDP", Address: "192.168.5.5", Port: 443}, Scheduler: "wrr",
-			RealServers: []RealServer{{Ref: RealServerRef{Address: "192.168.5.8", Port: 443}, Forward: "Route", Weight: 1}}},
+		{Ref: VirtualServerRef{Proto: "TCP", Address: "192.0.2.5", Port: 80}, Scheduler: "wrr",
+			RealServers: []RealServer{{Ref: RealServerRef{Address: "192.0.2.8", Port: 80}, Forward: "Route", Weight: 1}}},
+		{Ref: VirtualServerRef{Proto: "TCP", Address: "192.0.2.5", Port: 443}, Scheduler: "wrr",
+			RealServers: []RealServer{{Ref: RealServerRef{Address: "192.0.2.8", Port: 443}, Forward: "Route", Weight: 1}}},
+		{Ref: VirtualServerRef{Proto: "UDP", Address: "192.0.2.5", Port: 443}, Scheduler: "wrr",
+			RealServers: []RealServer{{Ref: RealServerRef{Address: "192.0.2.8", Port: 443}, Forward: "Route", Weight: 1}}},
 	}
 }
 
@@ -75,15 +75,15 @@ func TestParseIPVS_RealOutput(t *testing.T) {
 	raw := `IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-TCP  192.168.5.5:80 wrr persistent 60
-  -> 192.168.5.8:80               Route   1      0          0
-  -> 192.168.5.9:80               Route   1      0          0
-TCP  192.168.5.5:443 wrr persistent 60
-  -> 192.168.5.8:443              Route   1      1          0
-  -> 192.168.5.9:443             Route   1      0          0
-UDP  192.168.5.5:443 wrr persistent 60
-  -> 192.168.5.8:443             Route   1      0          0
-  -> 192.168.5.9:443             Route   1      0          0`
+TCP  192.0.2.5:80 wrr persistent 60
+  -> 192.0.2.8:80               Route   1      0          0
+  -> 192.0.2.9:80               Route   1      0          0
+TCP  192.0.2.5:443 wrr persistent 60
+  -> 192.0.2.8:443              Route   1      1          0
+  -> 192.0.2.9:443             Route   1      0          0
+UDP  192.0.2.5:443 wrr persistent 60
+  -> 192.0.2.8:443             Route   1      0          0
+  -> 192.0.2.9:443             Route   1      0          0`
 	vss, err := ParseIPVS(raw)
 	require.NoError(t, err)
 	require.Len(t, vss, 3)
@@ -119,7 +119,7 @@ func TestGracefulDeploy_Happy_ZeroesThenRestoresAllVS(t *testing.T) {
 	gd := newGraceful(setter, func(context.Context, int) error { deployed++; return nil },
 		[]probe.Prober{fakeProber{ok: true}})
 
-	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.168.5.8"})
+	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.0.2.8"})
 	require.NoError(t, err)
 	assert.Equal(t, 1, deployed)
 
@@ -136,7 +136,7 @@ func TestGracefulDeploy_DeployFails_StillRestoresWeight(t *testing.T) {
 	gd := newGraceful(setter, func(context.Context, int) error { return assert.AnError },
 		[]probe.Prober{fakeProber{ok: true}})
 
-	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.168.5.8"})
+	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.0.2.8"})
 	require.Error(t, err, "变更失败应返回错误")
 	// 即使变更失败，defer 也必须把权重加回原值（绝不能把节点留在池外）
 	cw := countByWeight(setter.calls)
@@ -156,7 +156,7 @@ func TestGracefulDeploy_DrainTimeout_RestoresWeight(t *testing.T) {
 	gd := newGraceful(setter, func(context.Context, int) error { return nil },
 		[]probe.Prober{fakeProber{ok: true}})
 
-	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.168.5.8"})
+	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.0.2.8"})
 	require.Error(t, err, "排空超时必须返回错误")
 	cw := countByWeight(setter.calls)
 	assert.Equal(t, 3, cw[0])
@@ -169,7 +169,7 @@ func TestGracefulDeploy_ProbeFails_RestoresWeight(t *testing.T) {
 	gd := newGraceful(setter, func(context.Context, int) error { deployed++; return nil },
 		[]probe.Prober{fakeProber{ok: false}})
 
-	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.168.5.8"})
+	err := gd.DeployOne(context.Background(), 8, BackendRef{Address: "192.0.2.8"})
 	require.Error(t, err, "探活失败必须返回错误")
 	assert.Equal(t, 1, deployed, "变更应已执行")
 	cw := countByWeight(setter.calls)

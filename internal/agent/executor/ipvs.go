@@ -30,7 +30,7 @@ func NewIPVSExecutor(run hostexec.CommandExecutor) *IPVSExecutor {
 
 // SetRealServerWeightRequest 对应 proto 的 SetRealServerWeightTask（生成前先用本地结构）。
 type SetRealServerWeightRequest struct {
-	VIP     string // 虚拟 IP，如 192.168.5.5
+	VIP     string // 虚拟 IP，如 192.0.2.5
 	VIPPort int    // 虚拟服务端口，如 80 / 443
 	Proto   string // TCP / UDP
 	RSAddr  string // 真实服务器地址

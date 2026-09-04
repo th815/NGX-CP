@@ -2,26 +2,26 @@
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-TCP  192.168.5.5:80 wrr persistent 60
-  -> 192.168.5.8:80               Route   1      0          0         
-  -> 192.168.5.9:80               Route   1      0          0         
-TCP  192.168.5.5:443 wrr persistent 60
-  -> 192.168.5.8:443              Route   1      1          0         
-  -> 192.168.5.9:443              Route   1      2          1         
-UDP  192.168.5.5:443 wrr persistent 60
-  -> 192.168.5.8:443              Route   1      0          0         
-  -> 192.168.5.9:443              Route   1      0          0         
+TCP  192.0.2.5:80 wrr persistent 60
+  -> 192.0.2.8:80               Route   1      0          0         
+  -> 192.0.2.9:80               Route   1      0          0         
+TCP  192.0.2.5:443 wrr persistent 60
+  -> 192.0.2.8:443              Route   1      1          0         
+  -> 192.0.2.9:443              Route   1      2          1         
+UDP  192.0.2.5:443 wrr persistent 60
+  -> 192.0.2.8:443              Route   1      0          0         
+  -> 192.0.2.9:443              Route   1      0          0         
 
 ===== ipvsadm -Ln @ .7 (BACKUP) =====
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-TCP  192.168.5.5:80 wrr persistent 60
-  -> 192.168.5.8:80               Route   1      0          0         
-  -> 192.168.5.9:80               Route   1      0          0         
-TCP  192.168.5.5:443 wrr persistent 60
-  -> 192.168.5.8:443              Route   1      0          0         
-  -> 192.168.5.9:443              Route   1      0          0         
-UDP  192.168.5.5:443 wrr persistent 60
-  -> 192.168.5.8:443              Route   1      0          0         
-  -> 192.168.5.9:443              Route   1      0          0         
+TCP  192.0.2.5:80 wrr persistent 60
+  -> 192.0.2.8:80               Route   1      0          0         
+  -> 192.0.2.9:80               Route   1      0          0         
+TCP  192.0.2.5:443 wrr persistent 60
+  -> 192.0.2.8:443              Route   1      0          0         
+  -> 192.0.2.9:443              Route   1      0          0         
+UDP  192.0.2.5:443 wrr persistent 60
+  -> 192.0.2.8:443              Route   1      0          0         
+  -> 192.0.2.9:443              Route   1      0          0         

@@ -55,15 +55,15 @@ const (
 	invalidNginxT = "nginx: [emerg] unexpected end of file\nnginx: configuration file /etc/nginx/nginx.conf test failed"
 )
 
-// sampleVSS2 含两台 backend（192.168.5.8 / 192.168.5.9），各挂 80/443tcp/443udp。
+// sampleVSS2 含两台 backend（192.0.2.8 / 192.0.2.9），各挂 80/443tcp/443udp。
 func sampleVSS2() []lvs.VirtualServer {
 	mk := func(proto string, port int) lvs.VirtualServer {
 		return lvs.VirtualServer{
-			Ref:       lvs.VirtualServerRef{Proto: proto, Address: "192.168.5.5", Port: port},
+			Ref:       lvs.VirtualServerRef{Proto: proto, Address: "192.0.2.5", Port: port},
 			Scheduler: "wrr",
 			RealServers: []lvs.RealServer{
-				{Ref: lvs.RealServerRef{Address: "192.168.5.8", Port: port}, Forward: "Route", Weight: 1},
-				{Ref: lvs.RealServerRef{Address: "192.168.5.9", Port: port}, Forward: "Route", Weight: 1},
+				{Ref: lvs.RealServerRef{Address: "192.0.2.8", Port: port}, Forward: "Route", Weight: 1},
+				{Ref: lvs.RealServerRef{Address: "192.0.2.9", Port: port}, Forward: "Route", Weight: 1},
 			},
 		}
 	}
@@ -86,7 +86,7 @@ func TestLVSStrategy_DeployNodeCanary_EndToEnd(t *testing.T) {
 		ObserveWindow: 5 * time.Millisecond,
 	}
 
-	err := strat.DeployNodeCanary(context.Background(), 8, lvs.BackendRef{Address: "192.168.5.8"}, req)
+	err := strat.DeployNodeCanary(context.Background(), 8, lvs.BackendRef{Address: "192.0.2.8"}, req)
 	require.NoError(t, err)
 
 	// 9 步落盘确实生效：文件落到 prefix
@@ -115,7 +115,7 @@ func TestLVSStrategy_DeployNodeCanary_ChangeFailsRestoresWeight(t *testing.T) {
 		ObserveWindow: 5 * time.Millisecond,
 	}
 
-	err := strat.DeployNodeCanary(context.Background(), 8, lvs.BackendRef{Address: "192.168.5.8"}, req)
+	err := strat.DeployNodeCanary(context.Background(), 8, lvs.BackendRef{Address: "192.0.2.8"}, req)
 	require.Error(t, err, "nginx -t 失败应使灰度返回错误")
 	cw := countByWeight(setter.calls)
 	assert.Equal(t, 3, cw[0])
@@ -139,7 +139,7 @@ func TestLVSStrategy_DeployAll_Sequential(t *testing.T) {
 	// 先摘 .8 做完，再摘 .9；两台各自 3×0 + 3×1
 	err := strat.DeployAll(context.Background(),
 		[]int{8, 9},
-		[]lvs.BackendRef{{Address: "192.168.5.8"}, {Address: "192.168.5.9"}},
+		[]lvs.BackendRef{{Address: "192.0.2.8"}, {Address: "192.0.2.9"}},
 		req)
 	require.NoError(t, err)
 	cw := countByWeight(setter.calls)

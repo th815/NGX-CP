@@ -24,7 +24,7 @@ import (
 // VirtualServerRef 唯一定位一个虚拟服务（协议 + 地址 + 端口）。
 type VirtualServerRef struct {
 	Proto   string // TCP / UDP
-	Address string // 如 192.168.5.5
+	Address string // 如 192.0.2.5
 	Port    int
 }
 
