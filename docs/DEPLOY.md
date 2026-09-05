@@ -97,7 +97,7 @@ bash scripts/deploy-agent.sh
 
 生产环境首选：无需手工建节点 / 拉令牌。控制台「新建节点并生成接入命令」即完成登记与令牌签发。
 
-1. 浏览器打开控制面 `https://<控制面>/agent/`，填管理员 Bearer 令牌（与 API 写接口同一令牌）。
+1. 浏览器打开控制面 `http://<控制面>:8080/agent/`，填管理员 Bearer 令牌（与 API 写接口同一令牌）。
 2. 填节点名称（唯一标识，如 `nginx-rs-01`）、选节点角色（`real_server` / `director` / `director_and_rs`）
    →「新建节点并生成接入命令」。
    控制面**先建节点（enrolling）**，再为该节点签发**节点绑定 Join Token**（内嵌 nodeID + 角色，
@@ -105,9 +105,12 @@ bash scripts/deploy-agent.sh
 3. 复制给出的单行命令，到目标节点以 root 执行：
 
    ```bash
-   curl -fsSL https://<控制面>/agent/install.sh | sudo bash -s -- \
-     --cp https://<控制面> --grpc <控制面:9443> --token <JOIN_TOKEN>
+   curl -fsSL http://<控制面>:8080/agent/install.sh | sudo bash -s -- \
+     --cp http://<控制面>:8080 --grpc <控制面:9443> --token <JOIN_TOKEN>
    ```
+
+   > **注意**：控制面 HTTP 默认**明文监听 `:8080`**（仅 Agent gRPC `:9443` 走 mTLS，已加密）。
+   > 生产若需 HTTPS 控制台，在前面挂你们自己管的 Nginx / Cloudflare 反代即可（产品本身就是管 Nginx 的，可自反代自身），无需改控制面代码。
 
    脚本会：拉取引导 CA → 按架构（amd64 / arm64）下载 Agent 二进制 → 写 systemd 单元
    （机密走 `/etc/ngxcp/agent.conf`，`chmod 600`，不进 unit、不出现在 `ps`）→ `enable --now`。
@@ -163,7 +166,7 @@ NGXCP_DEPLOY_HOST=root@<控制面IP> bash scripts/deploy.sh
 - 回滚：`ssh root@<控制面IP> 'systemctl stop ngxcp-server; cp -f /opt/ngxcp/backups/ngxcp-server.<时间戳> /opt/ngxcp/ngxcp-server; systemctl start ngxcp-server'`。
 
 ### 8.3 纳管节点（二选一）
-**A. Web 一键（推荐，无审批，契合架构选型）**：浏览器开 `https://<控制面>/agent/`，填 admin 令牌 →
+**A. Web 一键（推荐，无审批，契合架构选型）**：浏览器开 `http://<控制面>:8080/agent/`，填 admin 令牌 →
 填节点名/角色 →「新建节点并生成接入命令」→ 到每台目标节点以 root 执行该命令即上线。逐台操作即天然灰度。
 
 **B. 批量（enroll token，适合一次性铺多台）**：
@@ -171,13 +174,13 @@ NGXCP_DEPLOY_HOST=root@<控制面IP> bash scripts/deploy.sh
 ```bash
 TOKEN=$(ssh root@<控制面IP> 'grep auth_admin_token /opt/ngxcp/config.yaml' | awk '{print $2}')
 for H in rs1 rs2 director1 director2; do
-  NID=$(curl -fsS -X POST https://<控制面>/api/v1/nodes -H "Authorization: Bearer $TOKEN" \
+  NID=$(curl -fsS -X POST http://<控制面>:8080/api/v1/nodes -H "Authorization: Bearer $TOKEN" \
     -d "{\"name\":\"$H\",\"role\":\"real_server\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["id"])')
-  curl -fsS -X POST "https://<控制面>/api/v1/nodes/$NID/enroll-token?ttl=24h" -H "Authorization: Bearer $TOKEN" \
+  curl -fsS -X POST "http://<控制面>:8080/api/v1/nodes/$NID/enroll-token?ttl=24h" -H "Authorization: Bearer $TOKEN" \
     | python3 -c 'import sys,json;print("'"$H"'="+json.load(sys.stdin)["data"]["token"])' >> .agent-tokens
 done
 ```
-2) 取 CA：`curl -fsS https://<控制面>/agent/ca.crt -o pki/ca.crt`
+2) 取 CA：`curl -fsS http://<控制面>:8080/agent/ca.crt -o pki/ca.crt`
 3) 推 Agent（逐节点灰度：一台失败自动回滚该节点、不继续推后续）：
 ```bash
 NGXCP_AGENT_HOSTS="root@rs1 root@rs2 root@director1 root@director2" \
@@ -190,7 +193,7 @@ bash scripts/deploy-agent.sh
 
 ### 8.4 校验
 ```bash
-curl -s https://<控制面>/api/v1/nodes -H "Authorization: Bearer $TOKEN"
+curl -s http://<控制面>:8080/api/v1/nodes -H "Authorization: Bearer $TOKEN"
 # 所有节点 status=online 即完成。Agent 重启复用 /var/lib/ngxcp 持久化证书，免重注册。
 ```
 
