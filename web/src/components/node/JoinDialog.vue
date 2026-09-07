@@ -21,7 +21,14 @@ import {
   type NodeRole
 } from '@/api/nodes'
 
-const props = defineProps<{ show: boolean }>()
+// 两种用法：
+//   - 不传 nodeId：新建节点（填表单）→ 签发 Join Token → 给出安装命令
+//   - 传 nodeId：对已有节点重新生成接入命令（轮换会作废旧令牌，需确认）
+const props = defineProps<{
+  show: boolean
+  nodeId?: number | null
+  nodeName?: string
+}>()
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void
   (e: 'created', node: NodeOut): void
@@ -42,6 +49,13 @@ const expiresAt = ref('')
 const origin = ref('')
 const grpcAddr = ref('')
 const binaryReady = ref(true)
+
+const isExisting = computed(() => !!props.nodeId)
+const title = computed(() =>
+  isExisting.value
+    ? `重新生成接入命令${props.nodeName ? ' · ' + props.nodeName : ''}`
+    : '添加节点'
+)
 
 const roleOptions = [
   { label: 'Nginx 真实服务器 (RS)', value: 'real_server' },
@@ -67,7 +81,6 @@ const command = computed(() => {
   return `curl -fsSL ${cpAddr.value}/agent/install.sh | sudo bash -s -- --cp ${cpAddr.value} --grpc ${grpc.value} --token ${token.value}`
 })
 
-// 弹窗打开时拉取引导信息，使命令自带正确的控制面地址与 gRPC 端口。
 watch(
   () => props.show,
   async (v) => {
@@ -87,7 +100,24 @@ function close() {
   emit('update:show', false)
 }
 
+// issueFor 为指定节点签发 Join Token（新建后调用，或对已有节点轮换）。
+async function issueFor(id: number) {
+  submitting.value = true
+  try {
+    const tk = await issueJoinToken(id, form.ttl)
+    token.value = tk.token
+    expiresAt.value = tk.expires_at
+    nodeId.value = id
+  } finally {
+    submitting.value = false
+  }
+}
+
 async function submit() {
+  if (props.nodeId) {
+    await issueFor(props.nodeId)
+    return
+  }
   if (!form.name) {
     message.warning('请填写节点名称')
     return
@@ -95,10 +125,7 @@ async function submit() {
   submitting.value = true
   try {
     const node = await createNode({ name: form.name, address: form.address, role: form.role })
-    const tk = await issueJoinToken(node.id, form.ttl)
-    token.value = tk.token
-    expiresAt.value = tk.expires_at
-    nodeId.value = node.id
+    await issueFor(node.id)
     message.success('节点已登记并签发接入令牌')
     emit('created', node)
   } finally {
@@ -131,32 +158,50 @@ function reset() {
   <n-modal
     :show="props.show"
     preset="card"
-    title="添加节点"
+    :title="title"
     style="width: 680px"
     @update:show="(v: boolean) => emit('update:show', v)"
     @after-leave="reset"
   >
-    <n-form v-if="!token" :model="form" label-placement="top">
-      <n-form-item label="节点名称（唯一标识）" required>
-        <n-input v-model:value="form.name" placeholder="如 nginx-rs-01" />
-      </n-form-item>
-      <n-form-item label="管理地址（可选）">
-        <n-input v-model:value="form.address" placeholder="如 192.168.5.7:22" />
-      </n-form-item>
-      <n-form-item label="节点角色">
-        <n-select v-model:value="form.role" :options="roleOptions" />
-      </n-form-item>
-      <n-form-item label="令牌有效期（该窗口内须执行安装）">
-        <n-select v-model:value="form.ttl" :options="ttlOptions" />
-      </n-form-item>
+    <!-- 尚未签发：新建走表单，已有节点走确认 -->
+    <template v-if="!token">
+      <n-alert
+        v-if="isExisting"
+        type="warning"
+        title="重新生成会使旧令牌立即失效"
+        style="margin-bottom: 16px"
+      >
+        该节点此前签发的 Join Token 会被吊销。已上线节点不受影响（证书已持久化在 Agent 侧），
+        但旧令牌将无法再用于重建证书。
+      </n-alert>
+
+      <n-form v-if="!isExisting" :model="form" label-placement="top">
+        <n-form-item label="节点名称（唯一标识）" required>
+          <n-input v-model:value="form.name" placeholder="如 nginx-rs-01" />
+        </n-form-item>
+        <n-form-item label="管理地址（可选）">
+          <n-input v-model:value="form.address" placeholder="如 192.168.5.8:22" />
+        </n-form-item>
+        <n-form-item label="节点角色">
+          <n-select v-model:value="form.role" :options="roleOptions" />
+        </n-form-item>
+      </n-form>
+
+      <n-form :model="form" label-placement="top">
+        <n-form-item label="令牌有效期（该窗口内须执行安装）">
+          <n-select v-model:value="form.ttl" :options="ttlOptions" />
+        </n-form-item>
+      </n-form>
+
       <n-space justify="end">
         <n-button @click="close">取消</n-button>
         <n-button type="primary" :loading="submitting" @click="submit">
-          登记并生成安装命令
+          {{ isExisting ? '生成新命令' : '登记并生成安装命令' }}
         </n-button>
       </n-space>
-    </n-form>
+    </template>
 
+    <!-- 已签发：展示命令 -->
     <div v-else>
       <n-space vertical :size="12">
         <n-alert v-if="!binaryReady" type="warning" title="控制面未启用 Agent 二进制分发">
@@ -164,9 +209,7 @@ function reset() {
           <code>NGXCP_DEPLOY_HOST=root@&lt;控制面&gt; bash scripts/enable-agent-dist.sh</code>
         </n-alert>
 
-        <div>
-          在目标节点以 <strong>root</strong> 执行（复制后直接粘贴即可）：
-        </div>
+        <div>在目标节点以 <strong>root</strong> 执行（复制后直接粘贴即可）：</div>
         <n-input-group>
           <n-input :value="command" readonly />
           <n-button type="primary" @click="copy">复制</n-button>

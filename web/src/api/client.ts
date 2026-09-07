@@ -36,7 +36,9 @@ client.interceptors.response.use(
     const status = e.response?.status
     const msg = e.response?.data?.message || e.message || '网络错误'
     if (status === 401) {
-      message.error('未授权：请检查访问令牌（系统设置中修改）')
+      // 不在此处直接弹 UI（模块非组件上下文）；派发事件由布局层弹出令牌录入框，
+      // 避免用户去「系统设置」空页面里找不到入口。
+      window.dispatchEvent(new CustomEvent('ngxcp:unauthorized'))
     } else if (status === 403) {
       message.error('权限不足')
     } else {

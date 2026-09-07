@@ -20,7 +20,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'monitor', name: 'monitor', component: () => import('@/views/Placeholder.vue'), meta: { title: '监控中心', group: '观测' } },
       { path: 'build', name: 'build', component: () => import('@/views/Placeholder.vue'), meta: { title: '构建与升级', group: '运维' } },
       { path: 'audit', name: 'audit', component: () => import('@/views/Placeholder.vue'), meta: { title: '审计日志', group: '运维' } },
-      { path: 'settings', name: 'settings', component: () => import('@/views/Placeholder.vue'), meta: { title: '系统设置', group: '运维' } }
+      { path: 'settings', name: 'settings', component: () => import('@/views/Settings.vue'), meta: { title: '系统设置', group: '运维' } }
     ]
   },
   { path: '/:pathMatch(.*)*', redirect: '/dashboard' }

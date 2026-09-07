@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref, watch } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import {
   NLayout,
@@ -12,6 +12,7 @@ import {
   NInput,
   NTag,
   NIcon,
+  useDialog,
   type MenuOption
 } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
@@ -24,6 +25,39 @@ const collapsed = ref(false)
 const tokenDraft = ref(app.token)
 
 watch(tokenDraft, (v) => app.setToken(v))
+
+const dialog = useDialog()
+
+// 令牌缺失 / 失效时（API 返回 401）直接弹出录入框，免去用户去「系统设置」空页找入口。
+function openTokenDialog() {
+  const draft = ref(app.token || '')
+  dialog.warning({
+    title: '需要管理员令牌',
+    content: () =>
+      h('div', { style: 'margin-top: 8px' }, [
+        h(
+          'div',
+          { style: 'margin-bottom: 10px; font-size: 13px; opacity: .8' },
+          '在控制面主机执行：grep auth_admin_token /opt/ngxcp/config.yaml，把值粘贴到下面'
+        ),
+        h(NInput, {
+          value: draft.value,
+          'onUpdate:value': (v: string) => (draft.value = v),
+          placeholder: 'auth_admin_token 的值'
+        })
+      ]),
+    positiveText: '保存',
+    negativeText: '取消',
+    onPositiveClick: () => {
+      app.setToken(draft.value.trim())
+      tokenDraft.value = draft.value.trim()
+    }
+  })
+}
+
+// 由 api/client.ts 在 401 时派发，统一在此弹窗，避免各页面重复处理。
+onMounted(() => window.addEventListener('ngxcp:unauthorized', openTokenDialog))
+onUnmounted(() => window.removeEventListener('ngxcp:unauthorized', openTokenDialog))
 
 // 导航：按 group 分组，key 即路由 name。
 const groups: { label: string; routes: { name: string; title: string }[] }[] = [
@@ -111,10 +145,12 @@ function goHome() {
           <n-input
             v-model:value="tokenDraft"
             size="small"
-            placeholder="访问令牌"
-            style="width: 180px"
+            placeholder="管理员令牌（Bearer）"
+            style="width: 220px"
           />
-          <n-tag :bordered="false" type="info" size="small">开发态</n-tag>
+          <n-tag :bordered="false" :type="tokenDraft ? 'success' : 'warning'" size="small">
+            {{ tokenDraft ? '令牌已配置' : '未配置令牌' }}
+          </n-tag>
           <n-button size="small" tertiary @click="app.toggleDark()">
             {{ app.dark ? '☀ 亮色' : '🌙 暗色' }}
           </n-button>

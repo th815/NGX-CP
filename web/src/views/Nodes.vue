@@ -18,6 +18,7 @@ import {
   NEmpty,
   NSpin,
   NText,
+  useDialog,
   useMessage,
   type DataTableColumns
 } from 'naive-ui'
@@ -25,6 +26,7 @@ import NodeCard from '@/components/node/NodeCard.vue'
 import CapabilityPanel from '@/components/node/CapabilityPanel.vue'
 import CompliancePanel from '@/components/node/CompliancePanel.vue'
 import JoinDialog from '@/components/node/JoinDialog.vue'
+import NodeEditDialog from '@/components/node/NodeEditDialog.vue'
 import {
   listNodes,
   getNode,
@@ -32,6 +34,7 @@ import {
   getConfigFiles,
   getLogTargets,
   refreshCapability,
+  deleteNode,
   type NodeOut,
   type CapabilityView,
   type ConfigFileView,
@@ -62,7 +65,43 @@ const statusOptions = [
   { label: '接入中', value: 'enrolling' }
 ]
 
+const dialog = useDialog()
+
 const showEnroll = ref(false)
+// joinTarget 为空 = 新建节点；有值 = 对已有节点重新生成接入命令。
+const joinTarget = ref<{ id: number; name: string } | null>(null)
+const showEdit = ref(false)
+const editTarget = ref<NodeOut | null>(null)
+
+function onAdd() {
+  joinTarget.value = null
+  showEnroll.value = true
+}
+
+function onJoin(n: NodeOut) {
+  joinTarget.value = { id: n.id, name: n.name }
+  showEnroll.value = true
+}
+
+function onEdit(n: NodeOut) {
+  editTarget.value = n
+  showEdit.value = true
+}
+
+function onDelete(n: NodeOut) {
+  dialog.warning({
+    title: '删除节点',
+    content: `确认删除节点「${n.name}」？该节点的接入令牌会一并失效，已上线的 Agent 需重新接入。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await deleteNode(n.id)
+      message.success('节点已删除')
+      await loadNodes()
+    }
+  })
+}
+
 const drawerOpen = ref(false)
 const detailId = ref<number | null>(null)
 const detailLoading = ref(false)
@@ -186,7 +225,7 @@ onMounted(loadNodes)
           <n-select v-model:value="filters.role" :options="roleOptions" style="width: 150px" />
           <n-select v-model:value="filters.status" :options="statusOptions" style="width: 140px" />
           <n-button tertiary @click="loadNodes">刷新</n-button>
-          <n-button type="primary" @click="showEnroll = true">添加节点</n-button>
+          <n-button type="primary" @click="onAdd">添加节点</n-button>
         </n-space>
       </n-space>
     </n-card>
@@ -196,7 +235,14 @@ onMounted(loadNodes)
         <n-empty v-if="!loading && nodes.length === 0" description="暂无节点，点击「添加节点」开始接入" />
         <n-grid v-else :cols="3" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
           <n-gi v-for="n in nodes" :key="n.id" span="24 m:12 l:8">
-            <node-card :node="n" :nginx-version="versions[n.id]" @open="openDetail" />
+            <node-card
+              :node="n"
+              :nginx-version="versions[n.id]"
+              @open="openDetail"
+              @join="onJoin"
+              @edit="onEdit"
+              @delete="onDelete"
+            />
           </n-gi>
         </n-grid>
       </n-spin>
@@ -288,7 +334,13 @@ onMounted(loadNodes)
       </n-drawer-content>
     </n-drawer>
 
-    <join-dialog v-model:show="showEnroll" @created="loadNodes" />
+    <join-dialog
+      v-model:show="showEnroll"
+      :node-id="joinTarget?.id ?? null"
+      :node-name="joinTarget?.name"
+      @created="loadNodes"
+    />
+    <node-edit-dialog v-model:show="showEdit" :node="editTarget" @updated="loadNodes" />
   </div>
 </template>
 

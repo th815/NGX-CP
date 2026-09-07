@@ -41,6 +41,8 @@
   显示 `curl … | bash` 一行命令（控制面地址与 gRPC 端口由 `GET /api/v1/agent/bootstrap-info` 自动填充）；
   独立页 `/agent/` 保留为备用入口。控制面须启用二进制分发（`agent_dist_dir`）：`deploy.sh` 自动构建上传并幂等补齐
   配置；存量控制面可跑 `scripts/enable-agent-dist.sh` 一次性补救（修复 `[2/5] 下载 Agent 二进制 404`）。
+  节点卡片提供 **详情 / 接入命令（重新签发） / 编辑 / 删除**；管理员令牌在顶栏右上角「管理员令牌」框
+  或「系统设置」页录入（API 401 时自动弹窗引导填写），系统设置页另提供连通性自检与分发状态。
   节点自拉二进制 + CA、装 systemd、用 Join Token + 本地 CSR 自注册，**复用既有节点**无审批直接上线
   （令牌持久化于 Agent 侧 `/etc/ngxcp/agent.conf`）。`POST /api/v1/nodes` 新建并签发，`POST /api/v1/nodes/:id/join-token` 轮换（吊销旧令牌），亦可经 `POST /api/v1/nodes/:id/join-token/revoke` 独立吊销（只吊销不签发，安全事件响应）。
   另保留**预建节点一次性 Enroll Token**路径（`POST /api/v1/nodes/:id/enroll-token`，可经 `POST /api/v1/nodes/:id/enroll-token/revoke` 主动吊销），

@@ -155,6 +155,21 @@ export async function deleteNode(id: number): Promise<void> {
   await client.delete(`/nodes/${id}`)
 }
 
+// 局部更新：仅传需要改的字段（后端 UpdateNodeIn 全为指针字段）。
+export interface UpdateNodeIn {
+  name?: string
+  address?: string
+  role?: NodeRole
+  status?: NodeStatus
+  lvs_weight?: number
+  lvs_enabled?: boolean
+}
+
+export async function updateNode(id: number, inp: UpdateNodeIn): Promise<NodeOut> {
+  const r = await client.patch<{ data: NodeOut }>(`/nodes/${id}`, inp)
+  return r.data.data
+}
+
 export async function refreshCapability(id: number): Promise<void> {
   await client.post(`/nodes/${id}/refresh`)
 }

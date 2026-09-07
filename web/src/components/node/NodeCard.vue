@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NCard, NTag, NThing, NSpace, NText } from 'naive-ui'
+import { NButton, NCard, NTag, NThing, NSpace, NText } from 'naive-ui'
 import type { NodeOut, NodeStatus, NodeRole } from '@/api/nodes'
 
 const props = defineProps<{
@@ -8,7 +8,12 @@ const props = defineProps<{
   nginxVersion?: string
 }>()
 
-const emit = defineEmits<{ (e: 'open', id: number): void }>()
+const emit = defineEmits<{
+  (e: 'open', id: number): void
+  (e: 'join', n: NodeOut): void
+  (e: 'edit', n: NodeOut): void
+  (e: 'delete', n: NodeOut): void
+}>()
 
 const statusMeta: Record<NodeStatus, { label: string; color: string; bg: string }> = {
   online: { label: '在线', color: '#18a058', bg: 'rgba(24,160,88,0.12)' },
@@ -66,6 +71,14 @@ const lastHb = computed(() => {
           <span class="status-pill" :style="{ color: sm.color, background: sm.bg }">{{ sm.label }}</span>
         </div>
       </n-space>
+
+      <!-- 操作区：阻止冒泡，避免触发整卡的「打开详情」 -->
+      <div class="actions" @click.stop>
+        <n-button size="tiny" tertiary @click="emit('open', node.id)">详情</n-button>
+        <n-button size="tiny" tertiary @click="emit('join', node)">接入命令</n-button>
+        <n-button size="tiny" tertiary @click="emit('edit', node)">编辑</n-button>
+        <n-button size="tiny" type="error" quaternary @click="emit('delete', node)">删除</n-button>
+      </div>
     </n-thing>
   </n-card>
 </template>
@@ -104,5 +117,12 @@ const lastHb = computed(() => {
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
+}
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--n-border-color);
 }
 </style>
