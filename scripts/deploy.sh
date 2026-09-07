@@ -126,4 +126,5 @@ echo "[6/6] 冒烟测试 /health + /api/v1/version + SPA 首页 ..."
 sleep 2
 ssh $SSH_OPTS "$HOST" 'curl -fsS http://127.0.0.1:8080/health && echo && curl -fsS http://127.0.0.1:8080/api/v1/version && echo && curl -fsS -o /dev/null -w "SPA / -> HTTP %{http_code}\n" http://127.0.0.1:8080/'
 echo
-echo "部署完成。查看 live token： ssh $HOST 'grep auth_admin_token /opt/ngxcp/config.yaml'"
+echo "部署完成。导出管理员令牌（已去除 YAML 引号）："
+echo "  ssh $HOST 'grep auth_admin_token /opt/ngxcp/config.yaml' | sed -E 's/.*:[[:space:]]*\"?([^\"]*)\"?.*/\1/'"

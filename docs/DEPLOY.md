@@ -176,7 +176,7 @@ NGXCP_DEPLOY_HOST=root@<控制面IP> bash scripts/deploy.sh
 ```
 - 首次生成 `/opt/ngxcp/config.yaml`（**sqlite + 随机 admin token**，文件 600，未入库）。
 - 脚本自带冒烟：`/health`、`/api/v1/version`、SPA `/` 全绿即成功。
-- 取管理员令牌：`ssh root@<控制面IP> 'grep auth_admin_token /opt/ngxcp/config.yaml'`。
+- 取管理员令牌（去除 YAML 引号）：`TOKEN=$(ssh root@<控制面IP> 'grep auth_admin_token /opt/ngxcp/config.yaml' | sed -E 's/.*:[[:space:]]*"?([^"]*)"?.*/\1/')`
 - 回滚：`ssh root@<控制面IP> 'systemctl stop ngxcp-server; cp -f /opt/ngxcp/backups/ngxcp-server.<时间戳> /opt/ngxcp/ngxcp-server; systemctl start ngxcp-server'`。
 
 ### 8.3 纳管节点（二选一）
@@ -186,7 +186,7 @@ NGXCP_DEPLOY_HOST=root@<控制面IP> bash scripts/deploy.sh
 **B. 批量（enroll token，适合一次性铺多台）**：
 1) 控制面建节点 + 发 enroll token（前缀 `ngxcp_`），每条对应一台，写入 `.agent-tokens`：
 ```bash
-TOKEN=$(ssh root@<控制面IP> 'grep auth_admin_token /opt/ngxcp/config.yaml' | awk '{print $2}')
+TOKEN=$(ssh root@<控制面IP> 'grep auth_admin_token /opt/ngxcp/config.yaml' | sed -E 's/.*:[[:space:]]*"?([^"]*)"?.*/\1/')
 for H in rs1 rs2 director1 director2; do
   NID=$(curl -fsS -X POST http://<控制面>:8080/api/v1/nodes -H "Authorization: Bearer $TOKEN" \
     -d "{\"name\":\"$H\",\"role\":\"real_server\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["id"])')

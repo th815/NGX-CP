@@ -48,6 +48,7 @@
   另保留**预建节点一次性 Enroll Token**路径（`POST /api/v1/nodes/:id/enroll-token`，可经 `POST /api/v1/nodes/:id/enroll-token/revoke` 主动吊销），
   同样入库 `enroll_tokens` 表、**持久化（重启不丢）且可主动吊销**。两类令牌控制面都只存 SHA-256 哈希 + 绑定节点 + 过期 + 吊销/已用标志，原文仅签发时返回一次。
   旧的手工 `enroll-agent.sh` 已移除（那套「先建节点再逐台发令牌」不是自注册）。
+  批量一次性纳管 2+2 现成脚本：`scripts/enroll-cluster.sh`（免手动取令牌——自动从控制面读 `auth_admin_token` 并去 YAML 引号；建节点 + 签发一次性 Enroll Token + 调 `deploy-agent.sh` 一条命令完成；节点清单/控制面地址见脚本顶部可配置区）。
 - 🟡 **M4 证书管理**：进行中 —— T040 证书数据模型与加密存储 已完成；T041 DNS Provider / T042 ACME / T043 手动上传+6 项校验 / T044 分发 / T045 自动续期 / T046 UI 待做。
 - ⬜ **M5–M9**：LVS 管理 / 日志与安全 / 监控 / 构建升级 / 备份运维（增值模块，可边用边做）。
 
