@@ -54,7 +54,8 @@
   **生产落地（2026-09-07）**：`192.168.5.50` 控制面已部署，`192.168.5.6/.7`(director) + `192.168.5.8/.9`(real_server) 4 台经 `enroll-cluster.sh` 全量 `online`、角色正确——最小可用闭环首次在真机跑通，M0–M3 不再只是引擎级闭环。
   **节点删除 5000 修复（2026-09-07）**：`DELETE /api/v1/nodes/:id` 原直接硬删节点，被 ent 的 RESTRICT 外键拦下（残留 enroll_tokens 等子记录）→ 报 `{"code":5000}` 删不了。已在 `node.Service.Delete` 内改事务级联清理 8 张子表（enroll_tokens / join_tokens / node_capabilities / node_config_files / node_log_targets / config_snapshots / deploy_tasks / real_servers）再删节点本体，附单测 `TestDeleteCascade` 锁定不回归。残留的 `nginx-rs-01`(id=1) 现可正常删除。
   **首跑令牌免 SSH 获取（2026-09-07）**：针对"生产谁会去 grep auth_admin_token"的痛点，新增首次设置通道——`GET /api/v1/admin/setup-token`（免鉴权，仅未确认时返回当前令牌一次）+ `POST /api/v1/admin/setup-acknowledge`（凭有效令牌确认，落标记文件后前者改返回 410 锁定）。Web「系统设置」页与 401 弹窗首跑自动显示一次性明文令牌，点「完成首次设置」即锁定，全程无需登服务器。控制面启动未确认时打 WARN 日志提示。信任边界：仅"未确认前"暴露，与 config 文件本地可读一致。
-- 🟡 **M4 证书管理**：进行中 —— T040 证书数据模型与加密存储 已完成；T041 DNS Provider / T042 ACME / T043 手动上传+6 项校验 / T044 分发 / T045 自动续期 / T046 UI 待做。
+  **M4 证书管理 · T043 手动上传+6 项校验（2026-09-12）**：完成证书安全库存闭环——`internal/cert/validate.go` 实现 6 项校验（私钥/证书模数匹配、链完整+顺序不含 root、SAN 覆盖、有效期过期拒/<7天警告、弱签名算法拒绝），单测 `validate_test.go` 覆盖 6 类失败样本+成功样本；`internal/domain/cert/service.go` 上传走校验+KMS 信封加密入库（私钥/链 AES-GCM 加密，API 永不回传），并事务级联删分发记录；`internal/server/handler/cert.go` + 路由 `/api/v1/certs`（GET 列表/详情、POST 上传校验、DELETE 级联）+ server 注入 KMS；前端 `views/certs/Certs.vue`（列表到期色阶、上传表单实时回显 6 项结果）。`deploy.sh` 补齐生成 `/etc/ngxcp/master.key` 主密钥。`service_test.go` 锁定加密入库+级联删除。vue-tsc/vite build/go test 全过。下一步：T041 DNS Provider / T042 ACME / T044 分发（依赖 Agent 端 DeployCert，待做）。
+- 🟡 **M4 证书管理**：T040 数据模型+加密存储 ✅、T043 手动上传+6 项校验+UI ✅；T041 DNS Provider / T042 ACME / T044 分发 / T045 自动续期 待做。
 - ⬜ **M5–M9**：LVS 管理 / 日志与安全 / 监控 / 构建升级 / 备份运维（增值模块，可边用边做）。
 
 > 完成 M0–M3 即达成「最小可用闭环」：已能安全地把配置变更做成「可校验、可灰度、可观测、可回滚」的流水线，可投入实际使用再迭代。

@@ -108,6 +108,17 @@ else
   echo "保留现有 agent_dist_dir 配置"
 fi
 
+# 证书信封加密主密钥：缺失则生成 32 字节 hex 写入 /etc/ngxcp/master.key (0600)。
+# 控制面以 AES-256-GCM 信封加密存储私钥，主密钥绝不进代码/配置，只落本地文件。
+if [ ! -f /etc/ngxcp/master.key ]; then
+  mkdir -p /etc/ngxcp
+  openssl rand -hex 32 > /etc/ngxcp/master.key
+  chmod 600 /etc/ngxcp/master.key
+  echo "已生成证书加密主密钥 /etc/ngxcp/master.key"
+else
+  echo "保留现有主密钥 /etc/ngxcp/master.key"
+fi
+
 # 启动前配置自检
 /opt/ngxcp/ngxcp-server --config /opt/ngxcp/config.yaml --check-config >/dev/null && echo "config check OK"
 

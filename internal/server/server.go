@@ -13,6 +13,8 @@ import (
 	"github.com/th/ngxcp/internal/config"
 	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/config/rules"
+	"github.com/th/ngxcp/internal/crypto"
+	certdom "github.com/th/ngxcp/internal/domain/cert"
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/apperr"
@@ -48,6 +50,13 @@ func Run(cfg *config.Config) error {
 	// T021 配置版本化存储复用同一 ent 客户端，注入节点服务以在 SaveConfigTree 时同步版本链。
 	cfgStore := configstore.New(client)
 	nodeSvc := node.New(client, cfgStore)
+
+	// 证书信封加密主密钥：缺失时证书上传/解密不可用，但其余功能照常。
+	kms, kmsErr := crypto.NewKMSFromEnv()
+	if kmsErr != nil {
+		logging.Ctx(nil).Warn().Err(kmsErr).Msg("未配置主密钥，证书上传/解密暂不可用（设置 NGXCP_MASTER_KEY 或写入 /etc/ngxcp/master.key）")
+	}
+	certSvc := certdom.New(client, kms)
 
 	// T015 会话管理：会话表 + 心跳超时扫描器。
 	sessions := session.NewSessionManager(slog.Default())
@@ -138,7 +147,7 @@ func Run(cfg *config.Config) error {
 
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub)
+	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc)
 
 	// 首跑提示：尚未完成首次设置时，告知可从 Web 免 SSH 获取令牌（消除 grep config.yaml 痛点）。
 	if cfg.AuthAdminToken != "" && cfg.AuthAdminTokenAckFile != "" {
