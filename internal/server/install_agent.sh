@@ -69,6 +69,7 @@ ExecStart=/usr/local/bin/ngxcp-agent \\
   -control-plane \${NGXCP_AGENT_CONTROL_PLANE} \\
   -ca-cert \${NGXCP_AGENT_CA_CERT} \\
   -join-token \${NGXCP_AGENT_JOIN_TOKEN} \\
+  -server-name ngxcp-server \
   -data-dir \${NGXCP_AGENT_DATA_DIR}
 Restart=always
 RestartSec=2
@@ -92,6 +93,7 @@ NGXCP_AGENT_CONTROL_PLANE=$GRPC
 NGXCP_AGENT_CA_CERT=$DATA_DIR/ca.crt
 NGXCP_AGENT_JOIN_TOKEN=$TOKEN
 NGXCP_AGENT_DATA_DIR=$DATA_DIR
+NGXCP_AGENT_SERVER_NAME=ngxcp-server
 EOF
   chmod 600 "$ENV_FILE"
 else

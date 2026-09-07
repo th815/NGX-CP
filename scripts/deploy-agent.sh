@@ -28,6 +28,9 @@ CP_ADDR="${NGXCP_AGENT_CONTROL_PLANE:?请设置 NGXCP_AGENT_CONTROL_PLANE（控�
 CA_CERT="${NGXCP_AGENT_CA_CERT:?请设置 NGXCP_AGENT_CA_CERT（本地 CA 证书路径）}"
 TOKENS_FILE="${NGXCP_AGENT_TOKENS_FILE:?请设置 NGXCP_AGENT_TOKENS_FILE（每行 host=token）}"
 ROLLBACK="${NGXCP_AGENT_ROLLBACK:-0}"
+# mTLS ServerName：须匹配控制面服务端证书 SAN（internal/pkg/pki/ca.go 固定为 ngxcp-server）。
+# Agent 默认 server-name 取控制面地址 host（如 192.168.5.50），与 SAN 不符必失败，故显式给出。
+SERVER_NAME="${NGXCP_AGENT_SERVER_NAME:-ngxcp-server}"
 
 BIN_DIR="/opt/ngxcp"
 ENV_DIR="/etc/ngxcp"
@@ -109,6 +112,8 @@ for HOST in $HOSTS; do
   echo "[3/5] 写入环境文件（仅首次；enroll token 一次性，绝不覆盖已有凭据）..."
   if ssh $SSH_OPTS "$HOST" "test -f $ENV_DIR/agent.conf"; then
     echo "  保留现有 $ENV_DIR/agent.conf（Agent 已用持久化客户端证书，无需重新注册）"
+    # 幂等补全 server-name：控制面证书 SAN 固定 ngxcp-server，Agent 必须用它做 mTLS 校验
+    ssh $SSH_OPTS "$HOST" "grep -q '^NGXCP_AGENT_SERVER_NAME=' $ENV_DIR/agent.conf || echo 'NGXCP_AGENT_SERVER_NAME=$SERVER_NAME' >> $ENV_DIR/agent.conf"
   else
     TMPENV="$(mktemp)"
     {
@@ -116,6 +121,7 @@ for HOST in $HOSTS; do
       printf 'NGXCP_AGENT_CA_CERT=%s/ca.crt\n' "$ENV_DIR"
       printf 'NGXCP_AGENT_ENROLL_TOKEN=%s\n' "$TOKEN"
       printf 'NGXCP_AGENT_DATA_DIR=/var/lib/ngxcp\n'
+      printf 'NGXCP_AGENT_SERVER_NAME=%s\n' "$SERVER_NAME"
     } > "$TMPENV"
     scp $SSH_OPTS "$TMPENV" "$HOST:$ENV_DIR/agent.conf" >/dev/null
     ssh $SSH_OPTS "$HOST" "chmod 600 $ENV_DIR/agent.conf"
