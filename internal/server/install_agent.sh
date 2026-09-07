@@ -100,6 +100,19 @@ else
   echo "[3/5] 配置文件已存在，保留既有凭据（如需轮换请手动编辑 $ENV_FILE）"
 fi
 
+# ProtectSystem=full 会把 ReadWritePaths 里的路径 bind mount 进命名空间；
+# 路径不存在则命名空间搭建失败（exit 226/NAMESPACE），Agent 起不来。
+# Director 节点无 /etc/nginx、/var/log/nginx，必须预先建好（tmpfiles.d 覆盖开机场景）。
+echo "[3.5/5] 预建 Agent 可写目录 + tmpfiles.d ..."
+install -d -m 755 /etc/nginx /etc/keepalived /var/log/nginx /var/lib/ngxcp
+cat > /usr/lib/tmpfiles.d/ngxcp-agent.conf <<'EOF'
+d /etc/nginx 0755 root root -
+d /etc/keepalived 0755 root root -
+d /var/log/nginx 0755 root root -
+d /var/lib/ngxcp 0700 root root -
+EOF
+systemd-tmpfiles --create /usr/lib/tmpfiles.d/ngxcp-agent.conf 2>/dev/null || true
+
 echo "[4/5] 重载并启动 ..."
 systemctl daemon-reload
 systemctl enable --now ngxcp-agent

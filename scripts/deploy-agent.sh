@@ -104,9 +104,14 @@ for HOST in $HOSTS; do
   fi
 
   echo "[2/5] 远端建目录 + 传二进制 / unit / CA 证书 ..."
-  ssh $SSH_OPTS "$HOST" "mkdir -p $BIN_DIR/backups $ENV_DIR /var/lib/ngxcp"
+  # ProtectSystem=full 会把 ReadWritePaths 里的路径 bind mount 进命名空间；
+  # 路径不存在则命名空间搭建失败（exit 226/NAMESPACE），Agent 起不来。
+  # Director 节点无 /etc/nginx、/var/log/nginx，必须预先建好（tmpfiles.d 覆盖开机场景）。
+  ssh $SSH_OPTS "$HOST" "mkdir -p $BIN_DIR/backups $ENV_DIR /var/lib/ngxcp /etc/nginx /etc/keepalived /var/log/nginx"
   scp $SSH_OPTS bin/ngxcp-agent "$HOST:$BIN_DIR/ngxcp-agent.new" >/dev/null
   scp $SSH_OPTS scripts/ngxcp-agent.service "$HOST:/etc/systemd/system/ngxcp-agent.service" >/dev/null
+  scp $SSH_OPTS scripts/ngxcp-agent.tmpfiles "$HOST:/usr/lib/tmpfiles.d/ngxcp-agent.conf" >/dev/null
+  ssh $SSH_OPTS "$HOST" "systemd-tmpfiles --create /usr/lib/tmpfiles.d/ngxcp-agent.conf" >/dev/null 2>&1 || true
   scp $SSH_OPTS "$CA_CERT" "$HOST:$ENV_DIR/ca.crt" >/dev/null
 
   echo "[3/5] 写入环境文件（仅首次；enroll token 一次性，绝不覆盖已有凭据）..."
@@ -148,7 +153,9 @@ REMOTE
 
   echo "[5/5] 校验服务状态 ..."
   if ! ssh $SSH_OPTS "$HOST" 'systemctl is-active --quiet ngxcp-agent'; then
-    echo "  !! 启动校验失败，自动回滚" >&2
+    echo "  !! 启动校验失败，输出诊断信息（agent 日志 + unit 状态）：" >&2
+    ssh $SSH_OPTS "$HOST" 'systemctl status ngxcp-agent --no-pager | head -n 20; echo "---- journal (最后 40 行) ----"; journalctl -u ngxcp-agent -n 40 --no-pager' >&2
+    echo "  !! 自动回滚到上次备份" >&2
     restore_last_backup "$HOST"
     exit 1
   fi

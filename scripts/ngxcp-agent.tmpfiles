@@ -1,0 +1,9 @@
+# NGX-CP Agent 需要的可写目录。
+# 单元使用 ProtectSystem=full，systemd 在启动时会把 ReadWritePaths 里的路径
+# bind mount 进服务命名空间；若路径不存在则命名空间搭建失败（exit 226/NAMESPACE），
+# 进程在二进制执行前即死。Director 节点（仅 Keepalived）没有 /etc/nginx、/var/log/nginx，
+# 故必须用 tmpfiles.d 在开机早期建好这些目录，保证 Agent 无论 nginx 是否安装都能启动。
+d /etc/nginx 0755 root root -
+d /etc/keepalived 0755 root root -
+d /var/log/nginx 0755 root root -
+d /var/lib/ngxcp 0700 root root -
