@@ -17,6 +17,7 @@ import (
 	certdom "github.com/th/ngxcp/internal/domain/cert"
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/domain/node"
+	"github.com/th/ngxcp/internal/lvs"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/logging"
 	"github.com/th/ngxcp/internal/pkg/pki"
@@ -57,6 +58,9 @@ func Run(cfg *config.Config) error {
 		logging.Ctx(nil).Warn().Err(kmsErr).Msg("未配置主密钥，证书上传/解密暂不可用（设置 NGXCP_MASTER_KEY 或写入 /etc/ngxcp/master.key）")
 	}
 	certSvc := certdom.New(client, kms)
+
+	// M5 LVS 拓扑/渲染/门禁服务（复用同一 ent 客户端）。
+	lvsSvc := lvs.New(client)
 
 	// T015 会话管理：会话表 + 心跳超时扫描器。
 	sessions := session.NewSessionManager(slog.Default())
@@ -147,7 +151,7 @@ func Run(cfg *config.Config) error {
 
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc)
+	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc, lvsSvc)
 
 	// 首跑提示：尚未完成首次设置时，告知可从 Web 免 SSH 获取令牌（消除 grep config.yaml 痛点）。
 	if cfg.AuthAdminToken != "" && cfg.AuthAdminTokenAckFile != "" {

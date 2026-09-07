@@ -51,6 +51,8 @@ const (
 	EdgeJoinTokens = "join_tokens"
 	// EdgeEnrollTokens holds the string denoting the enroll_tokens edge name in mutations.
 	EdgeEnrollTokens = "enroll_tokens"
+	// EdgeDirectors holds the string denoting the directors edge name in mutations.
+	EdgeDirectors = "directors"
 	// EdgeCluster holds the string denoting the cluster edge name in mutations.
 	EdgeCluster = "cluster"
 	// Table holds the table name of the node in the database.
@@ -111,6 +113,13 @@ const (
 	EnrollTokensInverseTable = "enroll_tokens"
 	// EnrollTokensColumn is the table column denoting the enroll_tokens relation/edge.
 	EnrollTokensColumn = "node_enroll_tokens"
+	// DirectorsTable is the table that holds the directors relation/edge.
+	DirectorsTable = "directors"
+	// DirectorsInverseTable is the table name for the Director entity.
+	// It exists in this package in order to avoid circular dependency with the "director" package.
+	DirectorsInverseTable = "directors"
+	// DirectorsColumn is the table column denoting the directors relation/edge.
+	DirectorsColumn = "node_directors"
 	// ClusterTable is the table that holds the cluster relation/edge.
 	ClusterTable = "nodes"
 	// ClusterInverseTable is the table name for the Cluster entity.
@@ -390,6 +399,20 @@ func ByEnrollTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByDirectorsCount orders the results by directors count.
+func ByDirectorsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDirectorsStep(), opts...)
+	}
+}
+
+// ByDirectors orders the results by directors terms.
+func ByDirectors(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDirectorsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByClusterField orders the results by cluster field.
 func ByClusterField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -450,6 +473,13 @@ func newEnrollTokensStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(EnrollTokensInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, EnrollTokensTable, EnrollTokensColumn),
+	)
+}
+func newDirectorsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DirectorsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DirectorsTable, DirectorsColumn),
 	)
 }
 func newClusterStep() *sqlgraph.Step {

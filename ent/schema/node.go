@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"entgo.io/ent"
-	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/edge"
+	"entgo.io/ent/schema/field"
 )
 
 // Node 表示一个被纳管的节点（Nginx 真实服务器 / LVS Director / 两者兼具）。
@@ -41,6 +41,7 @@ func (Node) Edges() []ent.Edge {
 		edge.To("real_servers", RealServer.Type),
 		edge.To("join_tokens", JoinToken.Type),
 		edge.To("enroll_tokens", EnrollToken.Type),
+		edge.To("directors", Director.Type),
 		edge.From("cluster", Cluster.Type).
 			Ref("nodes").
 			Unique(),

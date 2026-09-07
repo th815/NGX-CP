@@ -15,6 +15,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/director"
 	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
@@ -40,6 +41,7 @@ type NodeQuery struct {
 	withRealServers  *RealServerQuery
 	withJoinTokens   *JoinTokenQuery
 	withEnrollTokens *EnrollTokenQuery
+	withDirectors    *DirectorQuery
 	withCluster      *ClusterQuery
 	withFKs          bool
 	// intermediate query (i.e. traversal path).
@@ -247,6 +249,28 @@ func (_q *NodeQuery) QueryEnrollTokens() *EnrollTokenQuery {
 			sqlgraph.From(node.Table, node.FieldID, selector),
 			sqlgraph.To(enrolltoken.Table, enrolltoken.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, node.EnrollTokensTable, node.EnrollTokensColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDirectors chains the current query on the "directors" edge.
+func (_q *NodeQuery) QueryDirectors() *DirectorQuery {
+	query := (&DirectorClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, selector),
+			sqlgraph.To(director.Table, director.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.DirectorsTable, node.DirectorsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -476,6 +500,7 @@ func (_q *NodeQuery) Clone() *NodeQuery {
 		withRealServers:  _q.withRealServers.Clone(),
 		withJoinTokens:   _q.withJoinTokens.Clone(),
 		withEnrollTokens: _q.withEnrollTokens.Clone(),
+		withDirectors:    _q.withDirectors.Clone(),
 		withCluster:      _q.withCluster.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -571,6 +596,17 @@ func (_q *NodeQuery) WithEnrollTokens(opts ...func(*EnrollTokenQuery)) *NodeQuer
 	return _q
 }
 
+// WithDirectors tells the query-builder to eager-load the nodes that are connected to
+// the "directors" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NodeQuery) WithDirectors(opts ...func(*DirectorQuery)) *NodeQuery {
+	query := (&DirectorClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDirectors = query
+	return _q
+}
+
 // WithCluster tells the query-builder to eager-load the nodes that are connected to
 // the "cluster" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *NodeQuery) WithCluster(opts ...func(*ClusterQuery)) *NodeQuery {
@@ -661,7 +697,7 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		nodes       = []*Node{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [9]bool{
+		loadedTypes = [10]bool{
 			_q.withCapabilities != nil,
 			_q.withConfigFiles != nil,
 			_q.withLogTargets != nil,
@@ -670,6 +706,7 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 			_q.withRealServers != nil,
 			_q.withJoinTokens != nil,
 			_q.withEnrollTokens != nil,
+			_q.withDirectors != nil,
 			_q.withCluster != nil,
 		}
 	)
@@ -750,6 +787,13 @@ func (_q *NodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Node, e
 		if err := _q.loadEnrollTokens(ctx, query, nodes,
 			func(n *Node) { n.Edges.EnrollTokens = []*EnrollToken{} },
 			func(n *Node, e *EnrollToken) { n.Edges.EnrollTokens = append(n.Edges.EnrollTokens, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDirectors; query != nil {
+		if err := _q.loadDirectors(ctx, query, nodes,
+			func(n *Node) { n.Edges.Directors = []*Director{} },
+			func(n *Node, e *Director) { n.Edges.Directors = append(n.Edges.Directors, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1005,6 +1049,37 @@ func (_q *NodeQuery) loadEnrollTokens(ctx context.Context, query *EnrollTokenQue
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "node_enroll_tokens" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *NodeQuery) loadDirectors(ctx context.Context, query *DirectorQuery, nodes []*Node, init func(*Node), assign func(*Node, *Director)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Node)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.Director(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(node.DirectorsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.node_directors
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "node_directors" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "node_directors" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

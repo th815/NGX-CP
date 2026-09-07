@@ -25,6 +25,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/director"
 	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
@@ -34,6 +35,7 @@ import (
 	"github.com/th/ngxcp/ent/predicate"
 	"github.com/th/ngxcp/ent/realserver"
 	"github.com/th/ngxcp/ent/schema"
+	"github.com/th/ngxcp/ent/virtualservice"
 )
 
 const (
@@ -59,6 +61,7 @@ const (
 	TypeConfigVariable = "ConfigVariable"
 	TypeDeployNodeLock = "DeployNodeLock"
 	TypeDeployTask     = "DeployTask"
+	TypeDirector       = "Director"
 	TypeEnrollToken    = "EnrollToken"
 	TypeJoinToken      = "JoinToken"
 	TypeNode           = "Node"
@@ -66,6 +69,7 @@ const (
 	TypeNodeConfigFile = "NodeConfigFile"
 	TypeNodeLogTarget  = "NodeLogTarget"
 	TypeRealServer     = "RealServer"
+	TypeVirtualService = "VirtualService"
 )
 
 // ApprovalMutation represents an operation that mutates the Approval nodes in the graph.
@@ -11939,6 +11943,1093 @@ func (m *DeployTaskMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown DeployTask edge %s", name)
 }
 
+// DirectorMutation represents an operation that mutates the Director nodes in the graph.
+type DirectorMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *int
+	state                   *director.State
+	priority                *int
+	addpriority             *int
+	virtual_router_id       *int
+	addvirtual_router_id    *int
+	unicast_src_ip          *string
+	unicast_peer_ip         *string
+	iface                   *string
+	mode                    *director.Mode
+	vip                     *string
+	holding_vip             *bool
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	node                    *int
+	clearednode             bool
+	virtual_services        map[int]struct{}
+	removedvirtual_services map[int]struct{}
+	clearedvirtual_services bool
+	done                    bool
+	oldValue                func(context.Context) (*Director, error)
+	predicates              []predicate.Director
+}
+
+var _ ent.Mutation = (*DirectorMutation)(nil)
+
+// directorOption allows management of the mutation configuration using functional options.
+type directorOption func(*DirectorMutation)
+
+// newDirectorMutation creates new mutation for the Director entity.
+func newDirectorMutation(c config, op Op, opts ...directorOption) *DirectorMutation {
+	m := &DirectorMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDirector,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDirectorID sets the ID field of the mutation.
+func withDirectorID(id int) directorOption {
+	return func(m *DirectorMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Director
+		)
+		m.oldValue = func(ctx context.Context) (*Director, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Director.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDirector sets the old Director of the mutation.
+func withDirector(node *Director) directorOption {
+	return func(m *DirectorMutation) {
+		m.oldValue = func(context.Context) (*Director, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DirectorMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DirectorMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DirectorMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DirectorMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Director.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetState sets the "state" field.
+func (m *DirectorMutation) SetState(d director.State) {
+	m.state = &d
+}
+
+// State returns the value of the "state" field in the mutation.
+func (m *DirectorMutation) State() (r director.State, exists bool) {
+	v := m.state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldState returns the old "state" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldState(ctx context.Context) (v director.State, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldState: %w", err)
+	}
+	return oldValue.State, nil
+}
+
+// ResetState resets all changes to the "state" field.
+func (m *DirectorMutation) ResetState() {
+	m.state = nil
+}
+
+// SetPriority sets the "priority" field.
+func (m *DirectorMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *DirectorMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *DirectorMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *DirectorMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *DirectorMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
+}
+
+// SetVirtualRouterID sets the "virtual_router_id" field.
+func (m *DirectorMutation) SetVirtualRouterID(i int) {
+	m.virtual_router_id = &i
+	m.addvirtual_router_id = nil
+}
+
+// VirtualRouterID returns the value of the "virtual_router_id" field in the mutation.
+func (m *DirectorMutation) VirtualRouterID() (r int, exists bool) {
+	v := m.virtual_router_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVirtualRouterID returns the old "virtual_router_id" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldVirtualRouterID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVirtualRouterID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVirtualRouterID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVirtualRouterID: %w", err)
+	}
+	return oldValue.VirtualRouterID, nil
+}
+
+// AddVirtualRouterID adds i to the "virtual_router_id" field.
+func (m *DirectorMutation) AddVirtualRouterID(i int) {
+	if m.addvirtual_router_id != nil {
+		*m.addvirtual_router_id += i
+	} else {
+		m.addvirtual_router_id = &i
+	}
+}
+
+// AddedVirtualRouterID returns the value that was added to the "virtual_router_id" field in this mutation.
+func (m *DirectorMutation) AddedVirtualRouterID() (r int, exists bool) {
+	v := m.addvirtual_router_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVirtualRouterID resets all changes to the "virtual_router_id" field.
+func (m *DirectorMutation) ResetVirtualRouterID() {
+	m.virtual_router_id = nil
+	m.addvirtual_router_id = nil
+}
+
+// SetUnicastSrcIP sets the "unicast_src_ip" field.
+func (m *DirectorMutation) SetUnicastSrcIP(s string) {
+	m.unicast_src_ip = &s
+}
+
+// UnicastSrcIP returns the value of the "unicast_src_ip" field in the mutation.
+func (m *DirectorMutation) UnicastSrcIP() (r string, exists bool) {
+	v := m.unicast_src_ip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnicastSrcIP returns the old "unicast_src_ip" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldUnicastSrcIP(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnicastSrcIP is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnicastSrcIP requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnicastSrcIP: %w", err)
+	}
+	return oldValue.UnicastSrcIP, nil
+}
+
+// ResetUnicastSrcIP resets all changes to the "unicast_src_ip" field.
+func (m *DirectorMutation) ResetUnicastSrcIP() {
+	m.unicast_src_ip = nil
+}
+
+// SetUnicastPeerIP sets the "unicast_peer_ip" field.
+func (m *DirectorMutation) SetUnicastPeerIP(s string) {
+	m.unicast_peer_ip = &s
+}
+
+// UnicastPeerIP returns the value of the "unicast_peer_ip" field in the mutation.
+func (m *DirectorMutation) UnicastPeerIP() (r string, exists bool) {
+	v := m.unicast_peer_ip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnicastPeerIP returns the old "unicast_peer_ip" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldUnicastPeerIP(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnicastPeerIP is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnicastPeerIP requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnicastPeerIP: %w", err)
+	}
+	return oldValue.UnicastPeerIP, nil
+}
+
+// ResetUnicastPeerIP resets all changes to the "unicast_peer_ip" field.
+func (m *DirectorMutation) ResetUnicastPeerIP() {
+	m.unicast_peer_ip = nil
+}
+
+// SetIface sets the "iface" field.
+func (m *DirectorMutation) SetIface(s string) {
+	m.iface = &s
+}
+
+// Iface returns the value of the "iface" field in the mutation.
+func (m *DirectorMutation) Iface() (r string, exists bool) {
+	v := m.iface
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIface returns the old "iface" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldIface(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIface is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIface requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIface: %w", err)
+	}
+	return oldValue.Iface, nil
+}
+
+// ResetIface resets all changes to the "iface" field.
+func (m *DirectorMutation) ResetIface() {
+	m.iface = nil
+}
+
+// SetMode sets the "mode" field.
+func (m *DirectorMutation) SetMode(d director.Mode) {
+	m.mode = &d
+}
+
+// Mode returns the value of the "mode" field in the mutation.
+func (m *DirectorMutation) Mode() (r director.Mode, exists bool) {
+	v := m.mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMode returns the old "mode" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldMode(ctx context.Context) (v director.Mode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMode: %w", err)
+	}
+	return oldValue.Mode, nil
+}
+
+// ResetMode resets all changes to the "mode" field.
+func (m *DirectorMutation) ResetMode() {
+	m.mode = nil
+}
+
+// SetVip sets the "vip" field.
+func (m *DirectorMutation) SetVip(s string) {
+	m.vip = &s
+}
+
+// Vip returns the value of the "vip" field in the mutation.
+func (m *DirectorMutation) Vip() (r string, exists bool) {
+	v := m.vip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVip returns the old "vip" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldVip(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVip is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVip requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVip: %w", err)
+	}
+	return oldValue.Vip, nil
+}
+
+// ResetVip resets all changes to the "vip" field.
+func (m *DirectorMutation) ResetVip() {
+	m.vip = nil
+}
+
+// SetHoldingVip sets the "holding_vip" field.
+func (m *DirectorMutation) SetHoldingVip(b bool) {
+	m.holding_vip = &b
+}
+
+// HoldingVip returns the value of the "holding_vip" field in the mutation.
+func (m *DirectorMutation) HoldingVip() (r bool, exists bool) {
+	v := m.holding_vip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHoldingVip returns the old "holding_vip" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldHoldingVip(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHoldingVip is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHoldingVip requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHoldingVip: %w", err)
+	}
+	return oldValue.HoldingVip, nil
+}
+
+// ResetHoldingVip resets all changes to the "holding_vip" field.
+func (m *DirectorMutation) ResetHoldingVip() {
+	m.holding_vip = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DirectorMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DirectorMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DirectorMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DirectorMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DirectorMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Director entity.
+// If the Director object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DirectorMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DirectorMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetNodeID sets the "node" edge to the Node entity by id.
+func (m *DirectorMutation) SetNodeID(id int) {
+	m.node = &id
+}
+
+// ClearNode clears the "node" edge to the Node entity.
+func (m *DirectorMutation) ClearNode() {
+	m.clearednode = true
+}
+
+// NodeCleared reports if the "node" edge to the Node entity was cleared.
+func (m *DirectorMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeID returns the "node" edge ID in the mutation.
+func (m *DirectorMutation) NodeID() (id int, exists bool) {
+	if m.node != nil {
+		return *m.node, true
+	}
+	return
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *DirectorMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *DirectorMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// AddVirtualServiceIDs adds the "virtual_services" edge to the VirtualService entity by ids.
+func (m *DirectorMutation) AddVirtualServiceIDs(ids ...int) {
+	if m.virtual_services == nil {
+		m.virtual_services = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.virtual_services[ids[i]] = struct{}{}
+	}
+}
+
+// ClearVirtualServices clears the "virtual_services" edge to the VirtualService entity.
+func (m *DirectorMutation) ClearVirtualServices() {
+	m.clearedvirtual_services = true
+}
+
+// VirtualServicesCleared reports if the "virtual_services" edge to the VirtualService entity was cleared.
+func (m *DirectorMutation) VirtualServicesCleared() bool {
+	return m.clearedvirtual_services
+}
+
+// RemoveVirtualServiceIDs removes the "virtual_services" edge to the VirtualService entity by IDs.
+func (m *DirectorMutation) RemoveVirtualServiceIDs(ids ...int) {
+	if m.removedvirtual_services == nil {
+		m.removedvirtual_services = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.virtual_services, ids[i])
+		m.removedvirtual_services[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedVirtualServices returns the removed IDs of the "virtual_services" edge to the VirtualService entity.
+func (m *DirectorMutation) RemovedVirtualServicesIDs() (ids []int) {
+	for id := range m.removedvirtual_services {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// VirtualServicesIDs returns the "virtual_services" edge IDs in the mutation.
+func (m *DirectorMutation) VirtualServicesIDs() (ids []int) {
+	for id := range m.virtual_services {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetVirtualServices resets all changes to the "virtual_services" edge.
+func (m *DirectorMutation) ResetVirtualServices() {
+	m.virtual_services = nil
+	m.clearedvirtual_services = false
+	m.removedvirtual_services = nil
+}
+
+// Where appends a list predicates to the DirectorMutation builder.
+func (m *DirectorMutation) Where(ps ...predicate.Director) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DirectorMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DirectorMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Director, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DirectorMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DirectorMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Director).
+func (m *DirectorMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DirectorMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.state != nil {
+		fields = append(fields, director.FieldState)
+	}
+	if m.priority != nil {
+		fields = append(fields, director.FieldPriority)
+	}
+	if m.virtual_router_id != nil {
+		fields = append(fields, director.FieldVirtualRouterID)
+	}
+	if m.unicast_src_ip != nil {
+		fields = append(fields, director.FieldUnicastSrcIP)
+	}
+	if m.unicast_peer_ip != nil {
+		fields = append(fields, director.FieldUnicastPeerIP)
+	}
+	if m.iface != nil {
+		fields = append(fields, director.FieldIface)
+	}
+	if m.mode != nil {
+		fields = append(fields, director.FieldMode)
+	}
+	if m.vip != nil {
+		fields = append(fields, director.FieldVip)
+	}
+	if m.holding_vip != nil {
+		fields = append(fields, director.FieldHoldingVip)
+	}
+	if m.created_at != nil {
+		fields = append(fields, director.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, director.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DirectorMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case director.FieldState:
+		return m.State()
+	case director.FieldPriority:
+		return m.Priority()
+	case director.FieldVirtualRouterID:
+		return m.VirtualRouterID()
+	case director.FieldUnicastSrcIP:
+		return m.UnicastSrcIP()
+	case director.FieldUnicastPeerIP:
+		return m.UnicastPeerIP()
+	case director.FieldIface:
+		return m.Iface()
+	case director.FieldMode:
+		return m.Mode()
+	case director.FieldVip:
+		return m.Vip()
+	case director.FieldHoldingVip:
+		return m.HoldingVip()
+	case director.FieldCreatedAt:
+		return m.CreatedAt()
+	case director.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DirectorMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case director.FieldState:
+		return m.OldState(ctx)
+	case director.FieldPriority:
+		return m.OldPriority(ctx)
+	case director.FieldVirtualRouterID:
+		return m.OldVirtualRouterID(ctx)
+	case director.FieldUnicastSrcIP:
+		return m.OldUnicastSrcIP(ctx)
+	case director.FieldUnicastPeerIP:
+		return m.OldUnicastPeerIP(ctx)
+	case director.FieldIface:
+		return m.OldIface(ctx)
+	case director.FieldMode:
+		return m.OldMode(ctx)
+	case director.FieldVip:
+		return m.OldVip(ctx)
+	case director.FieldHoldingVip:
+		return m.OldHoldingVip(ctx)
+	case director.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case director.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Director field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DirectorMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case director.FieldState:
+		v, ok := value.(director.State)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetState(v)
+		return nil
+	case director.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
+	case director.FieldVirtualRouterID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVirtualRouterID(v)
+		return nil
+	case director.FieldUnicastSrcIP:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnicastSrcIP(v)
+		return nil
+	case director.FieldUnicastPeerIP:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnicastPeerIP(v)
+		return nil
+	case director.FieldIface:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIface(v)
+		return nil
+	case director.FieldMode:
+		v, ok := value.(director.Mode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMode(v)
+		return nil
+	case director.FieldVip:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVip(v)
+		return nil
+	case director.FieldHoldingVip:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHoldingVip(v)
+		return nil
+	case director.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case director.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Director field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DirectorMutation) AddedFields() []string {
+	var fields []string
+	if m.addpriority != nil {
+		fields = append(fields, director.FieldPriority)
+	}
+	if m.addvirtual_router_id != nil {
+		fields = append(fields, director.FieldVirtualRouterID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DirectorMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case director.FieldPriority:
+		return m.AddedPriority()
+	case director.FieldVirtualRouterID:
+		return m.AddedVirtualRouterID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DirectorMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case director.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
+		return nil
+	case director.FieldVirtualRouterID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVirtualRouterID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Director numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DirectorMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DirectorMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DirectorMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Director nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DirectorMutation) ResetField(name string) error {
+	switch name {
+	case director.FieldState:
+		m.ResetState()
+		return nil
+	case director.FieldPriority:
+		m.ResetPriority()
+		return nil
+	case director.FieldVirtualRouterID:
+		m.ResetVirtualRouterID()
+		return nil
+	case director.FieldUnicastSrcIP:
+		m.ResetUnicastSrcIP()
+		return nil
+	case director.FieldUnicastPeerIP:
+		m.ResetUnicastPeerIP()
+		return nil
+	case director.FieldIface:
+		m.ResetIface()
+		return nil
+	case director.FieldMode:
+		m.ResetMode()
+		return nil
+	case director.FieldVip:
+		m.ResetVip()
+		return nil
+	case director.FieldHoldingVip:
+		m.ResetHoldingVip()
+		return nil
+	case director.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case director.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Director field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DirectorMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.node != nil {
+		edges = append(edges, director.EdgeNode)
+	}
+	if m.virtual_services != nil {
+		edges = append(edges, director.EdgeVirtualServices)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DirectorMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case director.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	case director.EdgeVirtualServices:
+		ids := make([]ent.Value, 0, len(m.virtual_services))
+		for id := range m.virtual_services {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DirectorMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedvirtual_services != nil {
+		edges = append(edges, director.EdgeVirtualServices)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DirectorMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case director.EdgeVirtualServices:
+		ids := make([]ent.Value, 0, len(m.removedvirtual_services))
+		for id := range m.removedvirtual_services {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DirectorMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearednode {
+		edges = append(edges, director.EdgeNode)
+	}
+	if m.clearedvirtual_services {
+		edges = append(edges, director.EdgeVirtualServices)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DirectorMutation) EdgeCleared(name string) bool {
+	switch name {
+	case director.EdgeNode:
+		return m.clearednode
+	case director.EdgeVirtualServices:
+		return m.clearedvirtual_services
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DirectorMutation) ClearEdge(name string) error {
+	switch name {
+	case director.EdgeNode:
+		m.ClearNode()
+		return nil
+	}
+	return fmt.Errorf("unknown Director unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DirectorMutation) ResetEdge(name string) error {
+	switch name {
+	case director.EdgeNode:
+		m.ResetNode()
+		return nil
+	case director.EdgeVirtualServices:
+		m.ResetVirtualServices()
+		return nil
+	}
+	return fmt.Errorf("unknown Director edge %s", name)
+}
+
 // EnrollTokenMutation represents an operation that mutates the EnrollToken nodes in the graph.
 type EnrollTokenMutation struct {
 	config
@@ -13459,6 +14550,9 @@ type NodeMutation struct {
 	enroll_tokens        map[int]struct{}
 	removedenroll_tokens map[int]struct{}
 	clearedenroll_tokens bool
+	directors            map[int]struct{}
+	removeddirectors     map[int]struct{}
+	cleareddirectors     bool
 	cluster              *int
 	clearedcluster       bool
 	done                 bool
@@ -14402,6 +15496,60 @@ func (m *NodeMutation) ResetEnrollTokens() {
 	m.removedenroll_tokens = nil
 }
 
+// AddDirectorIDs adds the "directors" edge to the Director entity by ids.
+func (m *NodeMutation) AddDirectorIDs(ids ...int) {
+	if m.directors == nil {
+		m.directors = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.directors[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDirectors clears the "directors" edge to the Director entity.
+func (m *NodeMutation) ClearDirectors() {
+	m.cleareddirectors = true
+}
+
+// DirectorsCleared reports if the "directors" edge to the Director entity was cleared.
+func (m *NodeMutation) DirectorsCleared() bool {
+	return m.cleareddirectors
+}
+
+// RemoveDirectorIDs removes the "directors" edge to the Director entity by IDs.
+func (m *NodeMutation) RemoveDirectorIDs(ids ...int) {
+	if m.removeddirectors == nil {
+		m.removeddirectors = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.directors, ids[i])
+		m.removeddirectors[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDirectors returns the removed IDs of the "directors" edge to the Director entity.
+func (m *NodeMutation) RemovedDirectorsIDs() (ids []int) {
+	for id := range m.removeddirectors {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DirectorsIDs returns the "directors" edge IDs in the mutation.
+func (m *NodeMutation) DirectorsIDs() (ids []int) {
+	for id := range m.directors {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDirectors resets all changes to the "directors" edge.
+func (m *NodeMutation) ResetDirectors() {
+	m.directors = nil
+	m.cleareddirectors = false
+	m.removeddirectors = nil
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by id.
 func (m *NodeMutation) SetClusterID(id int) {
 	m.cluster = &id
@@ -14757,7 +15905,7 @@ func (m *NodeMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *NodeMutation) AddedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.capabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -14781,6 +15929,9 @@ func (m *NodeMutation) AddedEdges() []string {
 	}
 	if m.enroll_tokens != nil {
 		edges = append(edges, node.EdgeEnrollTokens)
+	}
+	if m.directors != nil {
+		edges = append(edges, node.EdgeDirectors)
 	}
 	if m.cluster != nil {
 		edges = append(edges, node.EdgeCluster)
@@ -14840,6 +15991,12 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case node.EdgeDirectors:
+		ids := make([]ent.Value, 0, len(m.directors))
+		for id := range m.directors {
+			ids = append(ids, id)
+		}
+		return ids
 	case node.EdgeCluster:
 		if id := m.cluster; id != nil {
 			return []ent.Value{*id}
@@ -14850,7 +16007,7 @@ func (m *NodeMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *NodeMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.removedcapabilities != nil {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -14874,6 +16031,9 @@ func (m *NodeMutation) RemovedEdges() []string {
 	}
 	if m.removedenroll_tokens != nil {
 		edges = append(edges, node.EdgeEnrollTokens)
+	}
+	if m.removeddirectors != nil {
+		edges = append(edges, node.EdgeDirectors)
 	}
 	return edges
 }
@@ -14930,13 +16090,19 @@ func (m *NodeMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case node.EdgeDirectors:
+		ids := make([]ent.Value, 0, len(m.removeddirectors))
+		for id := range m.removeddirectors {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *NodeMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.clearedcapabilities {
 		edges = append(edges, node.EdgeCapabilities)
 	}
@@ -14960,6 +16126,9 @@ func (m *NodeMutation) ClearedEdges() []string {
 	}
 	if m.clearedenroll_tokens {
 		edges = append(edges, node.EdgeEnrollTokens)
+	}
+	if m.cleareddirectors {
+		edges = append(edges, node.EdgeDirectors)
 	}
 	if m.clearedcluster {
 		edges = append(edges, node.EdgeCluster)
@@ -14987,6 +16156,8 @@ func (m *NodeMutation) EdgeCleared(name string) bool {
 		return m.clearedjoin_tokens
 	case node.EdgeEnrollTokens:
 		return m.clearedenroll_tokens
+	case node.EdgeDirectors:
+		return m.cleareddirectors
 	case node.EdgeCluster:
 		return m.clearedcluster
 	}
@@ -15031,6 +16202,9 @@ func (m *NodeMutation) ResetEdge(name string) error {
 		return nil
 	case node.EdgeEnrollTokens:
 		m.ResetEnrollTokens()
+		return nil
+	case node.EdgeDirectors:
+		m.ResetDirectors()
 		return nil
 	case node.EdgeCluster:
 		m.ResetCluster()
@@ -19547,4 +20721,757 @@ func (m *RealServerMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown RealServer edge %s", name)
+}
+
+// VirtualServiceMutation represents an operation that mutates the VirtualService nodes in the graph.
+type VirtualServiceMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	vip             *string
+	port            *int
+	addport         *int
+	protocol        *virtualservice.Protocol
+	scheduler       *virtualservice.Scheduler
+	enabled         *bool
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	director        *int
+	cleareddirector bool
+	done            bool
+	oldValue        func(context.Context) (*VirtualService, error)
+	predicates      []predicate.VirtualService
+}
+
+var _ ent.Mutation = (*VirtualServiceMutation)(nil)
+
+// virtualserviceOption allows management of the mutation configuration using functional options.
+type virtualserviceOption func(*VirtualServiceMutation)
+
+// newVirtualServiceMutation creates new mutation for the VirtualService entity.
+func newVirtualServiceMutation(c config, op Op, opts ...virtualserviceOption) *VirtualServiceMutation {
+	m := &VirtualServiceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeVirtualService,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withVirtualServiceID sets the ID field of the mutation.
+func withVirtualServiceID(id int) virtualserviceOption {
+	return func(m *VirtualServiceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *VirtualService
+		)
+		m.oldValue = func(ctx context.Context) (*VirtualService, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().VirtualService.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withVirtualService sets the old VirtualService of the mutation.
+func withVirtualService(node *VirtualService) virtualserviceOption {
+	return func(m *VirtualServiceMutation) {
+		m.oldValue = func(context.Context) (*VirtualService, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m VirtualServiceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m VirtualServiceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *VirtualServiceMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *VirtualServiceMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().VirtualService.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetVip sets the "vip" field.
+func (m *VirtualServiceMutation) SetVip(s string) {
+	m.vip = &s
+}
+
+// Vip returns the value of the "vip" field in the mutation.
+func (m *VirtualServiceMutation) Vip() (r string, exists bool) {
+	v := m.vip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVip returns the old "vip" field's value of the VirtualService entity.
+// If the VirtualService object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualServiceMutation) OldVip(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVip is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVip requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVip: %w", err)
+	}
+	return oldValue.Vip, nil
+}
+
+// ResetVip resets all changes to the "vip" field.
+func (m *VirtualServiceMutation) ResetVip() {
+	m.vip = nil
+}
+
+// SetPort sets the "port" field.
+func (m *VirtualServiceMutation) SetPort(i int) {
+	m.port = &i
+	m.addport = nil
+}
+
+// Port returns the value of the "port" field in the mutation.
+func (m *VirtualServiceMutation) Port() (r int, exists bool) {
+	v := m.port
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPort returns the old "port" field's value of the VirtualService entity.
+// If the VirtualService object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualServiceMutation) OldPort(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPort is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPort requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPort: %w", err)
+	}
+	return oldValue.Port, nil
+}
+
+// AddPort adds i to the "port" field.
+func (m *VirtualServiceMutation) AddPort(i int) {
+	if m.addport != nil {
+		*m.addport += i
+	} else {
+		m.addport = &i
+	}
+}
+
+// AddedPort returns the value that was added to the "port" field in this mutation.
+func (m *VirtualServiceMutation) AddedPort() (r int, exists bool) {
+	v := m.addport
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPort resets all changes to the "port" field.
+func (m *VirtualServiceMutation) ResetPort() {
+	m.port = nil
+	m.addport = nil
+}
+
+// SetProtocol sets the "protocol" field.
+func (m *VirtualServiceMutation) SetProtocol(v virtualservice.Protocol) {
+	m.protocol = &v
+}
+
+// Protocol returns the value of the "protocol" field in the mutation.
+func (m *VirtualServiceMutation) Protocol() (r virtualservice.Protocol, exists bool) {
+	v := m.protocol
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProtocol returns the old "protocol" field's value of the VirtualService entity.
+// If the VirtualService object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualServiceMutation) OldProtocol(ctx context.Context) (v virtualservice.Protocol, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProtocol is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProtocol requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProtocol: %w", err)
+	}
+	return oldValue.Protocol, nil
+}
+
+// ResetProtocol resets all changes to the "protocol" field.
+func (m *VirtualServiceMutation) ResetProtocol() {
+	m.protocol = nil
+}
+
+// SetScheduler sets the "scheduler" field.
+func (m *VirtualServiceMutation) SetScheduler(v virtualservice.Scheduler) {
+	m.scheduler = &v
+}
+
+// Scheduler returns the value of the "scheduler" field in the mutation.
+func (m *VirtualServiceMutation) Scheduler() (r virtualservice.Scheduler, exists bool) {
+	v := m.scheduler
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScheduler returns the old "scheduler" field's value of the VirtualService entity.
+// If the VirtualService object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualServiceMutation) OldScheduler(ctx context.Context) (v virtualservice.Scheduler, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScheduler is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScheduler requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScheduler: %w", err)
+	}
+	return oldValue.Scheduler, nil
+}
+
+// ResetScheduler resets all changes to the "scheduler" field.
+func (m *VirtualServiceMutation) ResetScheduler() {
+	m.scheduler = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *VirtualServiceMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *VirtualServiceMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the VirtualService entity.
+// If the VirtualService object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualServiceMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *VirtualServiceMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *VirtualServiceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *VirtualServiceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the VirtualService entity.
+// If the VirtualService object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualServiceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *VirtualServiceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *VirtualServiceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *VirtualServiceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the VirtualService entity.
+// If the VirtualService object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VirtualServiceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *VirtualServiceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDirectorID sets the "director" edge to the Director entity by id.
+func (m *VirtualServiceMutation) SetDirectorID(id int) {
+	m.director = &id
+}
+
+// ClearDirector clears the "director" edge to the Director entity.
+func (m *VirtualServiceMutation) ClearDirector() {
+	m.cleareddirector = true
+}
+
+// DirectorCleared reports if the "director" edge to the Director entity was cleared.
+func (m *VirtualServiceMutation) DirectorCleared() bool {
+	return m.cleareddirector
+}
+
+// DirectorID returns the "director" edge ID in the mutation.
+func (m *VirtualServiceMutation) DirectorID() (id int, exists bool) {
+	if m.director != nil {
+		return *m.director, true
+	}
+	return
+}
+
+// DirectorIDs returns the "director" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DirectorID instead. It exists only for internal usage by the builders.
+func (m *VirtualServiceMutation) DirectorIDs() (ids []int) {
+	if id := m.director; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDirector resets all changes to the "director" edge.
+func (m *VirtualServiceMutation) ResetDirector() {
+	m.director = nil
+	m.cleareddirector = false
+}
+
+// Where appends a list predicates to the VirtualServiceMutation builder.
+func (m *VirtualServiceMutation) Where(ps ...predicate.VirtualService) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the VirtualServiceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *VirtualServiceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.VirtualService, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *VirtualServiceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *VirtualServiceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (VirtualService).
+func (m *VirtualServiceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *VirtualServiceMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.vip != nil {
+		fields = append(fields, virtualservice.FieldVip)
+	}
+	if m.port != nil {
+		fields = append(fields, virtualservice.FieldPort)
+	}
+	if m.protocol != nil {
+		fields = append(fields, virtualservice.FieldProtocol)
+	}
+	if m.scheduler != nil {
+		fields = append(fields, virtualservice.FieldScheduler)
+	}
+	if m.enabled != nil {
+		fields = append(fields, virtualservice.FieldEnabled)
+	}
+	if m.created_at != nil {
+		fields = append(fields, virtualservice.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, virtualservice.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *VirtualServiceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case virtualservice.FieldVip:
+		return m.Vip()
+	case virtualservice.FieldPort:
+		return m.Port()
+	case virtualservice.FieldProtocol:
+		return m.Protocol()
+	case virtualservice.FieldScheduler:
+		return m.Scheduler()
+	case virtualservice.FieldEnabled:
+		return m.Enabled()
+	case virtualservice.FieldCreatedAt:
+		return m.CreatedAt()
+	case virtualservice.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *VirtualServiceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case virtualservice.FieldVip:
+		return m.OldVip(ctx)
+	case virtualservice.FieldPort:
+		return m.OldPort(ctx)
+	case virtualservice.FieldProtocol:
+		return m.OldProtocol(ctx)
+	case virtualservice.FieldScheduler:
+		return m.OldScheduler(ctx)
+	case virtualservice.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case virtualservice.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case virtualservice.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown VirtualService field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualServiceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case virtualservice.FieldVip:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVip(v)
+		return nil
+	case virtualservice.FieldPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPort(v)
+		return nil
+	case virtualservice.FieldProtocol:
+		v, ok := value.(virtualservice.Protocol)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProtocol(v)
+		return nil
+	case virtualservice.FieldScheduler:
+		v, ok := value.(virtualservice.Scheduler)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScheduler(v)
+		return nil
+	case virtualservice.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case virtualservice.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case virtualservice.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualService field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *VirtualServiceMutation) AddedFields() []string {
+	var fields []string
+	if m.addport != nil {
+		fields = append(fields, virtualservice.FieldPort)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *VirtualServiceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case virtualservice.FieldPort:
+		return m.AddedPort()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VirtualServiceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case virtualservice.FieldPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPort(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualService numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *VirtualServiceMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *VirtualServiceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *VirtualServiceMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown VirtualService nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *VirtualServiceMutation) ResetField(name string) error {
+	switch name {
+	case virtualservice.FieldVip:
+		m.ResetVip()
+		return nil
+	case virtualservice.FieldPort:
+		m.ResetPort()
+		return nil
+	case virtualservice.FieldProtocol:
+		m.ResetProtocol()
+		return nil
+	case virtualservice.FieldScheduler:
+		m.ResetScheduler()
+		return nil
+	case virtualservice.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case virtualservice.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case virtualservice.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualService field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *VirtualServiceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.director != nil {
+		edges = append(edges, virtualservice.EdgeDirector)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *VirtualServiceMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case virtualservice.EdgeDirector:
+		if id := m.director; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *VirtualServiceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *VirtualServiceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *VirtualServiceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareddirector {
+		edges = append(edges, virtualservice.EdgeDirector)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *VirtualServiceMutation) EdgeCleared(name string) bool {
+	switch name {
+	case virtualservice.EdgeDirector:
+		return m.cleareddirector
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *VirtualServiceMutation) ClearEdge(name string) error {
+	switch name {
+	case virtualservice.EdgeDirector:
+		m.ClearDirector()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualService unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *VirtualServiceMutation) ResetEdge(name string) error {
+	switch name {
+	case virtualservice.EdgeDirector:
+		m.ResetDirector()
+		return nil
+	}
+	return fmt.Errorf("unknown VirtualService edge %s", name)
 }

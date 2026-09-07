@@ -63,11 +63,13 @@ type NodeEdges struct {
 	JoinTokens []*JoinToken `json:"join_tokens,omitempty"`
 	// EnrollTokens holds the value of the enroll_tokens edge.
 	EnrollTokens []*EnrollToken `json:"enroll_tokens,omitempty"`
+	// Directors holds the value of the directors edge.
+	Directors []*Director `json:"directors,omitempty"`
 	// Cluster holds the value of the cluster edge.
 	Cluster *Cluster `json:"cluster,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [9]bool
+	loadedTypes [10]bool
 }
 
 // CapabilitiesOrErr returns the Capabilities value or an error if the edge
@@ -142,12 +144,21 @@ func (e NodeEdges) EnrollTokensOrErr() ([]*EnrollToken, error) {
 	return nil, &NotLoadedError{edge: "enroll_tokens"}
 }
 
+// DirectorsOrErr returns the Directors value or an error if the edge
+// was not loaded in eager-loading.
+func (e NodeEdges) DirectorsOrErr() ([]*Director, error) {
+	if e.loadedTypes[8] {
+		return e.Directors, nil
+	}
+	return nil, &NotLoadedError{edge: "directors"}
+}
+
 // ClusterOrErr returns the Cluster value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e NodeEdges) ClusterOrErr() (*Cluster, error) {
 	if e.Cluster != nil {
 		return e.Cluster, nil
-	} else if e.loadedTypes[8] {
+	} else if e.loadedTypes[9] {
 		return nil, &NotFoundError{label: cluster.Label}
 	}
 	return nil, &NotLoadedError{edge: "cluster"}
@@ -307,6 +318,11 @@ func (_m *Node) QueryJoinTokens() *JoinTokenQuery {
 // QueryEnrollTokens queries the "enroll_tokens" edge of the Node entity.
 func (_m *Node) QueryEnrollTokens() *EnrollTokenQuery {
 	return NewNodeClient(_m.config).QueryEnrollTokens(_m)
+}
+
+// QueryDirectors queries the "directors" edge of the Node entity.
+func (_m *Node) QueryDirectors() *DirectorQuery {
+	return NewNodeClient(_m.config).QueryDirectors(_m)
 }
 
 // QueryCluster queries the "cluster" edge of the Node entity.

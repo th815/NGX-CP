@@ -14,6 +14,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/director"
 	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
@@ -257,6 +258,21 @@ func (_c *NodeCreate) AddEnrollTokens(v ...*EnrollToken) *NodeCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddEnrollTokenIDs(ids...)
+}
+
+// AddDirectorIDs adds the "directors" edge to the Director entity by IDs.
+func (_c *NodeCreate) AddDirectorIDs(ids ...int) *NodeCreate {
+	_c.mutation.AddDirectorIDs(ids...)
+	return _c
+}
+
+// AddDirectors adds the "directors" edges to the Director entity.
+func (_c *NodeCreate) AddDirectors(v ...*Director) *NodeCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDirectorIDs(ids...)
 }
 
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
@@ -555,6 +571,22 @@ func (_c *NodeCreate) createSpec() (*Node, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DirectorsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.DirectorsTable,
+			Columns: []string{node.DirectorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(director.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

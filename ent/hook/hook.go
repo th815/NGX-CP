@@ -177,6 +177,18 @@ func (f DeployTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeployTaskMutation", m)
 }
 
+// The DirectorFunc type is an adapter to allow the use of ordinary
+// function as Director mutator.
+type DirectorFunc func(context.Context, *ent.DirectorMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DirectorFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DirectorMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DirectorMutation", m)
+}
+
 // The EnrollTokenFunc type is an adapter to allow the use of ordinary
 // function as EnrollToken mutator.
 type EnrollTokenFunc func(context.Context, *ent.EnrollTokenMutation) (ent.Value, error)
@@ -259,6 +271,18 @@ func (f RealServerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RealServerMutation", m)
+}
+
+// The VirtualServiceFunc type is an adapter to allow the use of ordinary
+// function as VirtualService mutator.
+type VirtualServiceFunc func(context.Context, *ent.VirtualServiceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VirtualServiceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VirtualServiceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VirtualServiceMutation", m)
 }
 
 // Condition is a hook condition function.

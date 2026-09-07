@@ -18,6 +18,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/director"
 	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
@@ -26,6 +27,7 @@ import (
 	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
 	"github.com/th/ngxcp/ent/schema"
+	"github.com/th/ngxcp/ent/virtualservice"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -204,6 +206,26 @@ func init() {
 	deploytask.DefaultUpdatedAt = deploytaskDescUpdatedAt.Default.(func() time.Time)
 	// deploytask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	deploytask.UpdateDefaultUpdatedAt = deploytaskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	directorFields := schema.Director{}.Fields()
+	_ = directorFields
+	// directorDescIface is the schema descriptor for iface field.
+	directorDescIface := directorFields[5].Descriptor()
+	// director.DefaultIface holds the default value on creation for the iface field.
+	director.DefaultIface = directorDescIface.Default.(string)
+	// directorDescHoldingVip is the schema descriptor for holding_vip field.
+	directorDescHoldingVip := directorFields[8].Descriptor()
+	// director.DefaultHoldingVip holds the default value on creation for the holding_vip field.
+	director.DefaultHoldingVip = directorDescHoldingVip.Default.(bool)
+	// directorDescCreatedAt is the schema descriptor for created_at field.
+	directorDescCreatedAt := directorFields[9].Descriptor()
+	// director.DefaultCreatedAt holds the default value on creation for the created_at field.
+	director.DefaultCreatedAt = directorDescCreatedAt.Default.(func() time.Time)
+	// directorDescUpdatedAt is the schema descriptor for updated_at field.
+	directorDescUpdatedAt := directorFields[10].Descriptor()
+	// director.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	director.DefaultUpdatedAt = directorDescUpdatedAt.Default.(func() time.Time)
+	// director.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	director.UpdateDefaultUpdatedAt = directorDescUpdatedAt.UpdateDefault.(func() time.Time)
 	enrolltokenFields := schema.EnrollToken{}.Fields()
 	_ = enrolltokenFields
 	// enrolltokenDescUsed is the schema descriptor for used field.
@@ -332,4 +354,20 @@ func init() {
 	realserver.DefaultUpdatedAt = realserverDescUpdatedAt.Default.(func() time.Time)
 	// realserver.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	realserver.UpdateDefaultUpdatedAt = realserverDescUpdatedAt.UpdateDefault.(func() time.Time)
+	virtualserviceFields := schema.VirtualService{}.Fields()
+	_ = virtualserviceFields
+	// virtualserviceDescEnabled is the schema descriptor for enabled field.
+	virtualserviceDescEnabled := virtualserviceFields[4].Descriptor()
+	// virtualservice.DefaultEnabled holds the default value on creation for the enabled field.
+	virtualservice.DefaultEnabled = virtualserviceDescEnabled.Default.(bool)
+	// virtualserviceDescCreatedAt is the schema descriptor for created_at field.
+	virtualserviceDescCreatedAt := virtualserviceFields[5].Descriptor()
+	// virtualservice.DefaultCreatedAt holds the default value on creation for the created_at field.
+	virtualservice.DefaultCreatedAt = virtualserviceDescCreatedAt.Default.(func() time.Time)
+	// virtualserviceDescUpdatedAt is the schema descriptor for updated_at field.
+	virtualserviceDescUpdatedAt := virtualserviceFields[6].Descriptor()
+	// virtualservice.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	virtualservice.DefaultUpdatedAt = virtualserviceDescUpdatedAt.Default.(func() time.Time)
+	// virtualservice.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	virtualservice.UpdateDefaultUpdatedAt = virtualserviceDescUpdatedAt.UpdateDefault.(func() time.Time)
 }

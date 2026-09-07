@@ -29,6 +29,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/director"
 	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
@@ -36,6 +37,7 @@ import (
 	"github.com/th/ngxcp/ent/nodeconfigfile"
 	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
+	"github.com/th/ngxcp/ent/virtualservice"
 )
 
 // Client is the client that holds all ent builders.
@@ -71,6 +73,8 @@ type Client struct {
 	DeployNodeLock *DeployNodeLockClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
+	// Director is the client for interacting with the Director builders.
+	Director *DirectorClient
 	// EnrollToken is the client for interacting with the EnrollToken builders.
 	EnrollToken *EnrollTokenClient
 	// JoinToken is the client for interacting with the JoinToken builders.
@@ -85,6 +89,8 @@ type Client struct {
 	NodeLogTarget *NodeLogTargetClient
 	// RealServer is the client for interacting with the RealServer builders.
 	RealServer *RealServerClient
+	// VirtualService is the client for interacting with the VirtualService builders.
+	VirtualService *VirtualServiceClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -110,6 +116,7 @@ func (c *Client) init() {
 	c.ConfigVariable = NewConfigVariableClient(c.config)
 	c.DeployNodeLock = NewDeployNodeLockClient(c.config)
 	c.DeployTask = NewDeployTaskClient(c.config)
+	c.Director = NewDirectorClient(c.config)
 	c.EnrollToken = NewEnrollTokenClient(c.config)
 	c.JoinToken = NewJoinTokenClient(c.config)
 	c.Node = NewNodeClient(c.config)
@@ -117,6 +124,7 @@ func (c *Client) init() {
 	c.NodeConfigFile = NewNodeConfigFileClient(c.config)
 	c.NodeLogTarget = NewNodeLogTargetClient(c.config)
 	c.RealServer = NewRealServerClient(c.config)
+	c.VirtualService = NewVirtualServiceClient(c.config)
 }
 
 type (
@@ -223,6 +231,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ConfigVariable: NewConfigVariableClient(cfg),
 		DeployNodeLock: NewDeployNodeLockClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
+		Director:       NewDirectorClient(cfg),
 		EnrollToken:    NewEnrollTokenClient(cfg),
 		JoinToken:      NewJoinTokenClient(cfg),
 		Node:           NewNodeClient(cfg),
@@ -230,6 +239,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		NodeConfigFile: NewNodeConfigFileClient(cfg),
 		NodeLogTarget:  NewNodeLogTargetClient(cfg),
 		RealServer:     NewRealServerClient(cfg),
+		VirtualService: NewVirtualServiceClient(cfg),
 	}, nil
 }
 
@@ -263,6 +273,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ConfigVariable: NewConfigVariableClient(cfg),
 		DeployNodeLock: NewDeployNodeLockClient(cfg),
 		DeployTask:     NewDeployTaskClient(cfg),
+		Director:       NewDirectorClient(cfg),
 		EnrollToken:    NewEnrollTokenClient(cfg),
 		JoinToken:      NewJoinTokenClient(cfg),
 		Node:           NewNodeClient(cfg),
@@ -270,6 +281,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		NodeConfigFile: NewNodeConfigFileClient(cfg),
 		NodeLogTarget:  NewNodeLogTargetClient(cfg),
 		RealServer:     NewRealServerClient(cfg),
+		VirtualService: NewVirtualServiceClient(cfg),
 	}, nil
 }
 
@@ -301,9 +313,9 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Approval, c.AuditLog, c.CertDeployment, c.Certificate, c.ChangeOrder,
 		c.Cluster, c.ConfigBlob, c.ConfigFile, c.ConfigRevision, c.ConfigSnapshot,
-		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask,
+		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask, c.Director,
 		c.EnrollToken, c.JoinToken, c.Node, c.NodeCapability, c.NodeConfigFile,
-		c.NodeLogTarget, c.RealServer,
+		c.NodeLogTarget, c.RealServer, c.VirtualService,
 	} {
 		n.Use(hooks...)
 	}
@@ -315,9 +327,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Approval, c.AuditLog, c.CertDeployment, c.Certificate, c.ChangeOrder,
 		c.Cluster, c.ConfigBlob, c.ConfigFile, c.ConfigRevision, c.ConfigSnapshot,
-		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask,
+		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask, c.Director,
 		c.EnrollToken, c.JoinToken, c.Node, c.NodeCapability, c.NodeConfigFile,
-		c.NodeLogTarget, c.RealServer,
+		c.NodeLogTarget, c.RealServer, c.VirtualService,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -354,6 +366,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DeployNodeLock.mutate(ctx, m)
 	case *DeployTaskMutation:
 		return c.DeployTask.mutate(ctx, m)
+	case *DirectorMutation:
+		return c.Director.mutate(ctx, m)
 	case *EnrollTokenMutation:
 		return c.EnrollToken.mutate(ctx, m)
 	case *JoinTokenMutation:
@@ -368,6 +382,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.NodeLogTarget.mutate(ctx, m)
 	case *RealServerMutation:
 		return c.RealServer.mutate(ctx, m)
+	case *VirtualServiceMutation:
+		return c.VirtualService.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -2411,6 +2427,171 @@ func (c *DeployTaskClient) mutate(ctx context.Context, m *DeployTaskMutation) (V
 	}
 }
 
+// DirectorClient is a client for the Director schema.
+type DirectorClient struct {
+	config
+}
+
+// NewDirectorClient returns a client for the Director from the given config.
+func NewDirectorClient(c config) *DirectorClient {
+	return &DirectorClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `director.Hooks(f(g(h())))`.
+func (c *DirectorClient) Use(hooks ...Hook) {
+	c.hooks.Director = append(c.hooks.Director, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `director.Intercept(f(g(h())))`.
+func (c *DirectorClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Director = append(c.inters.Director, interceptors...)
+}
+
+// Create returns a builder for creating a Director entity.
+func (c *DirectorClient) Create() *DirectorCreate {
+	mutation := newDirectorMutation(c.config, OpCreate)
+	return &DirectorCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Director entities.
+func (c *DirectorClient) CreateBulk(builders ...*DirectorCreate) *DirectorCreateBulk {
+	return &DirectorCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DirectorClient) MapCreateBulk(slice any, setFunc func(*DirectorCreate, int)) *DirectorCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DirectorCreateBulk{err: fmt.Errorf("calling to DirectorClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DirectorCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DirectorCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Director.
+func (c *DirectorClient) Update() *DirectorUpdate {
+	mutation := newDirectorMutation(c.config, OpUpdate)
+	return &DirectorUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DirectorClient) UpdateOne(_m *Director) *DirectorUpdateOne {
+	mutation := newDirectorMutation(c.config, OpUpdateOne, withDirector(_m))
+	return &DirectorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DirectorClient) UpdateOneID(id int) *DirectorUpdateOne {
+	mutation := newDirectorMutation(c.config, OpUpdateOne, withDirectorID(id))
+	return &DirectorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Director.
+func (c *DirectorClient) Delete() *DirectorDelete {
+	mutation := newDirectorMutation(c.config, OpDelete)
+	return &DirectorDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DirectorClient) DeleteOne(_m *Director) *DirectorDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DirectorClient) DeleteOneID(id int) *DirectorDeleteOne {
+	builder := c.Delete().Where(director.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DirectorDeleteOne{builder}
+}
+
+// Query returns a query builder for Director.
+func (c *DirectorClient) Query() *DirectorQuery {
+	return &DirectorQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDirector},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Director entity by its id.
+func (c *DirectorClient) Get(ctx context.Context, id int) (*Director, error) {
+	return c.Query().Where(director.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DirectorClient) GetX(ctx context.Context, id int) *Director {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryNode queries the node edge of a Director.
+func (c *DirectorClient) QueryNode(_m *Director) *NodeQuery {
+	query := (&NodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(director.Table, director.FieldID, id),
+			sqlgraph.To(node.Table, node.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, director.NodeTable, director.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryVirtualServices queries the virtual_services edge of a Director.
+func (c *DirectorClient) QueryVirtualServices(_m *Director) *VirtualServiceQuery {
+	query := (&VirtualServiceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(director.Table, director.FieldID, id),
+			sqlgraph.To(virtualservice.Table, virtualservice.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, director.VirtualServicesTable, director.VirtualServicesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DirectorClient) Hooks() []Hook {
+	return c.hooks.Director
+}
+
+// Interceptors returns the client interceptors.
+func (c *DirectorClient) Interceptors() []Interceptor {
+	return c.inters.Director
+}
+
+func (c *DirectorClient) mutate(ctx context.Context, m *DirectorMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DirectorCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DirectorUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DirectorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DirectorDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Director mutation op: %q", m.Op())
+	}
+}
+
 // EnrollTokenClient is a client for the EnrollToken schema.
 type EnrollTokenClient struct {
 	config
@@ -2938,6 +3119,22 @@ func (c *NodeClient) QueryEnrollTokens(_m *Node) *EnrollTokenQuery {
 			sqlgraph.From(node.Table, node.FieldID, id),
 			sqlgraph.To(enrolltoken.Table, enrolltoken.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, node.EnrollTokensTable, node.EnrollTokensColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDirectors queries the directors edge of a Node.
+func (c *NodeClient) QueryDirectors(_m *Node) *DirectorQuery {
+	query := (&DirectorClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(node.Table, node.FieldID, id),
+			sqlgraph.To(director.Table, director.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, node.DirectorsTable, node.DirectorsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3582,18 +3779,169 @@ func (c *RealServerClient) mutate(ctx context.Context, m *RealServerMutation) (V
 	}
 }
 
+// VirtualServiceClient is a client for the VirtualService schema.
+type VirtualServiceClient struct {
+	config
+}
+
+// NewVirtualServiceClient returns a client for the VirtualService from the given config.
+func NewVirtualServiceClient(c config) *VirtualServiceClient {
+	return &VirtualServiceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `virtualservice.Hooks(f(g(h())))`.
+func (c *VirtualServiceClient) Use(hooks ...Hook) {
+	c.hooks.VirtualService = append(c.hooks.VirtualService, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `virtualservice.Intercept(f(g(h())))`.
+func (c *VirtualServiceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VirtualService = append(c.inters.VirtualService, interceptors...)
+}
+
+// Create returns a builder for creating a VirtualService entity.
+func (c *VirtualServiceClient) Create() *VirtualServiceCreate {
+	mutation := newVirtualServiceMutation(c.config, OpCreate)
+	return &VirtualServiceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VirtualService entities.
+func (c *VirtualServiceClient) CreateBulk(builders ...*VirtualServiceCreate) *VirtualServiceCreateBulk {
+	return &VirtualServiceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VirtualServiceClient) MapCreateBulk(slice any, setFunc func(*VirtualServiceCreate, int)) *VirtualServiceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VirtualServiceCreateBulk{err: fmt.Errorf("calling to VirtualServiceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VirtualServiceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VirtualServiceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VirtualService.
+func (c *VirtualServiceClient) Update() *VirtualServiceUpdate {
+	mutation := newVirtualServiceMutation(c.config, OpUpdate)
+	return &VirtualServiceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VirtualServiceClient) UpdateOne(_m *VirtualService) *VirtualServiceUpdateOne {
+	mutation := newVirtualServiceMutation(c.config, OpUpdateOne, withVirtualService(_m))
+	return &VirtualServiceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VirtualServiceClient) UpdateOneID(id int) *VirtualServiceUpdateOne {
+	mutation := newVirtualServiceMutation(c.config, OpUpdateOne, withVirtualServiceID(id))
+	return &VirtualServiceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VirtualService.
+func (c *VirtualServiceClient) Delete() *VirtualServiceDelete {
+	mutation := newVirtualServiceMutation(c.config, OpDelete)
+	return &VirtualServiceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VirtualServiceClient) DeleteOne(_m *VirtualService) *VirtualServiceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VirtualServiceClient) DeleteOneID(id int) *VirtualServiceDeleteOne {
+	builder := c.Delete().Where(virtualservice.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VirtualServiceDeleteOne{builder}
+}
+
+// Query returns a query builder for VirtualService.
+func (c *VirtualServiceClient) Query() *VirtualServiceQuery {
+	return &VirtualServiceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVirtualService},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VirtualService entity by its id.
+func (c *VirtualServiceClient) Get(ctx context.Context, id int) (*VirtualService, error) {
+	return c.Query().Where(virtualservice.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VirtualServiceClient) GetX(ctx context.Context, id int) *VirtualService {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryDirector queries the director edge of a VirtualService.
+func (c *VirtualServiceClient) QueryDirector(_m *VirtualService) *DirectorQuery {
+	query := (&DirectorClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(virtualservice.Table, virtualservice.FieldID, id),
+			sqlgraph.To(director.Table, director.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, virtualservice.DirectorTable, virtualservice.DirectorColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *VirtualServiceClient) Hooks() []Hook {
+	return c.hooks.VirtualService
+}
+
+// Interceptors returns the client interceptors.
+func (c *VirtualServiceClient) Interceptors() []Interceptor {
+	return c.inters.VirtualService
+}
+
+func (c *VirtualServiceClient) mutate(ctx context.Context, m *VirtualServiceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VirtualServiceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VirtualServiceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VirtualServiceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VirtualServiceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VirtualService mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
 		Approval, AuditLog, CertDeployment, Certificate, ChangeOrder, Cluster,
 		ConfigBlob, ConfigFile, ConfigRevision, ConfigSnapshot, ConfigTemplate,
-		ConfigVariable, DeployNodeLock, DeployTask, EnrollToken, JoinToken, Node,
-		NodeCapability, NodeConfigFile, NodeLogTarget, RealServer []ent.Hook
+		ConfigVariable, DeployNodeLock, DeployTask, Director, EnrollToken, JoinToken,
+		Node, NodeCapability, NodeConfigFile, NodeLogTarget, RealServer,
+		VirtualService []ent.Hook
 	}
 	inters struct {
 		Approval, AuditLog, CertDeployment, Certificate, ChangeOrder, Cluster,
 		ConfigBlob, ConfigFile, ConfigRevision, ConfigSnapshot, ConfigTemplate,
-		ConfigVariable, DeployNodeLock, DeployTask, EnrollToken, JoinToken, Node,
-		NodeCapability, NodeConfigFile, NodeLogTarget, RealServer []ent.Interceptor
+		ConfigVariable, DeployNodeLock, DeployTask, Director, EnrollToken, JoinToken,
+		Node, NodeCapability, NodeConfigFile, NodeLogTarget, RealServer,
+		VirtualService []ent.Interceptor
 	}
 )

@@ -48,6 +48,9 @@ type DeployNodeLock func(*sql.Selector)
 // DeployTask is the predicate function for deploytask builders.
 type DeployTask func(*sql.Selector)
 
+// Director is the predicate function for director builders.
+type Director func(*sql.Selector)
+
 // EnrollToken is the predicate function for enrolltoken builders.
 type EnrollToken func(*sql.Selector)
 
@@ -68,3 +71,6 @@ type NodeLogTarget func(*sql.Selector)
 
 // RealServer is the predicate function for realserver builders.
 type RealServer func(*sql.Selector)
+
+// VirtualService is the predicate function for virtualservice builders.
+type VirtualService func(*sql.Selector)

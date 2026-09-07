@@ -26,6 +26,7 @@ import (
 	"github.com/th/ngxcp/ent/configvariable"
 	"github.com/th/ngxcp/ent/deploynodelock"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/director"
 	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
@@ -33,6 +34,7 @@ import (
 	"github.com/th/ngxcp/ent/nodeconfigfile"
 	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
+	"github.com/th/ngxcp/ent/virtualservice"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -107,6 +109,7 @@ func checkColumn(t, c string) error {
 			configvariable.Table: configvariable.ValidColumn,
 			deploynodelock.Table: deploynodelock.ValidColumn,
 			deploytask.Table:     deploytask.ValidColumn,
+			director.Table:       director.ValidColumn,
 			enrolltoken.Table:    enrolltoken.ValidColumn,
 			jointoken.Table:      jointoken.ValidColumn,
 			node.Table:           node.ValidColumn,
@@ -114,6 +117,7 @@ func checkColumn(t, c string) error {
 			nodeconfigfile.Table: nodeconfigfile.ValidColumn,
 			nodelogtarget.Table:  nodelogtarget.ValidColumn,
 			realserver.Table:     realserver.ValidColumn,
+			virtualservice.Table: virtualservice.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

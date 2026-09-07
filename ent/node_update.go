@@ -14,6 +14,7 @@ import (
 	"github.com/th/ngxcp/ent/cluster"
 	"github.com/th/ngxcp/ent/configsnapshot"
 	"github.com/th/ngxcp/ent/deploytask"
+	"github.com/th/ngxcp/ent/director"
 	"github.com/th/ngxcp/ent/enrolltoken"
 	"github.com/th/ngxcp/ent/jointoken"
 	"github.com/th/ngxcp/ent/node"
@@ -294,6 +295,21 @@ func (_u *NodeUpdate) AddEnrollTokens(v ...*EnrollToken) *NodeUpdate {
 	return _u.AddEnrollTokenIDs(ids...)
 }
 
+// AddDirectorIDs adds the "directors" edge to the Director entity by IDs.
+func (_u *NodeUpdate) AddDirectorIDs(ids ...int) *NodeUpdate {
+	_u.mutation.AddDirectorIDs(ids...)
+	return _u
+}
+
+// AddDirectors adds the "directors" edges to the Director entity.
+func (_u *NodeUpdate) AddDirectors(v ...*Director) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDirectorIDs(ids...)
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
 func (_u *NodeUpdate) SetClusterID(id int) *NodeUpdate {
 	_u.mutation.SetClusterID(id)
@@ -484,6 +500,27 @@ func (_u *NodeUpdate) RemoveEnrollTokens(v ...*EnrollToken) *NodeUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEnrollTokenIDs(ids...)
+}
+
+// ClearDirectors clears all "directors" edges to the Director entity.
+func (_u *NodeUpdate) ClearDirectors() *NodeUpdate {
+	_u.mutation.ClearDirectors()
+	return _u
+}
+
+// RemoveDirectorIDs removes the "directors" edge to Director entities by IDs.
+func (_u *NodeUpdate) RemoveDirectorIDs(ids ...int) *NodeUpdate {
+	_u.mutation.RemoveDirectorIDs(ids...)
+	return _u
+}
+
+// RemoveDirectors removes "directors" edges to Director entities.
+func (_u *NodeUpdate) RemoveDirectors(v ...*Director) *NodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDirectorIDs(ids...)
 }
 
 // ClearCluster clears the "cluster" edge to the Cluster entity.
@@ -951,6 +988,51 @@ func (_u *NodeUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.DirectorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.DirectorsTable,
+			Columns: []string{node.DirectorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(director.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDirectorsIDs(); len(nodes) > 0 && !_u.mutation.DirectorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.DirectorsTable,
+			Columns: []string{node.DirectorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(director.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DirectorsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.DirectorsTable,
+			Columns: []string{node.DirectorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(director.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ClusterCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -1257,6 +1339,21 @@ func (_u *NodeUpdateOne) AddEnrollTokens(v ...*EnrollToken) *NodeUpdateOne {
 	return _u.AddEnrollTokenIDs(ids...)
 }
 
+// AddDirectorIDs adds the "directors" edge to the Director entity by IDs.
+func (_u *NodeUpdateOne) AddDirectorIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.AddDirectorIDs(ids...)
+	return _u
+}
+
+// AddDirectors adds the "directors" edges to the Director entity.
+func (_u *NodeUpdateOne) AddDirectors(v ...*Director) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDirectorIDs(ids...)
+}
+
 // SetClusterID sets the "cluster" edge to the Cluster entity by ID.
 func (_u *NodeUpdateOne) SetClusterID(id int) *NodeUpdateOne {
 	_u.mutation.SetClusterID(id)
@@ -1447,6 +1544,27 @@ func (_u *NodeUpdateOne) RemoveEnrollTokens(v ...*EnrollToken) *NodeUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEnrollTokenIDs(ids...)
+}
+
+// ClearDirectors clears all "directors" edges to the Director entity.
+func (_u *NodeUpdateOne) ClearDirectors() *NodeUpdateOne {
+	_u.mutation.ClearDirectors()
+	return _u
+}
+
+// RemoveDirectorIDs removes the "directors" edge to Director entities by IDs.
+func (_u *NodeUpdateOne) RemoveDirectorIDs(ids ...int) *NodeUpdateOne {
+	_u.mutation.RemoveDirectorIDs(ids...)
+	return _u
+}
+
+// RemoveDirectors removes "directors" edges to Director entities.
+func (_u *NodeUpdateOne) RemoveDirectors(v ...*Director) *NodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDirectorIDs(ids...)
 }
 
 // ClearCluster clears the "cluster" edge to the Cluster entity.
@@ -1937,6 +2055,51 @@ func (_u *NodeUpdateOne) sqlSave(ctx context.Context) (_node *Node, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(enrolltoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DirectorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.DirectorsTable,
+			Columns: []string{node.DirectorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(director.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDirectorsIDs(); len(nodes) > 0 && !_u.mutation.DirectorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.DirectorsTable,
+			Columns: []string{node.DirectorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(director.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DirectorsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   node.DirectorsTable,
+			Columns: []string{node.DirectorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(director.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

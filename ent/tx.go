@@ -40,6 +40,8 @@ type Tx struct {
 	DeployNodeLock *DeployNodeLockClient
 	// DeployTask is the client for interacting with the DeployTask builders.
 	DeployTask *DeployTaskClient
+	// Director is the client for interacting with the Director builders.
+	Director *DirectorClient
 	// EnrollToken is the client for interacting with the EnrollToken builders.
 	EnrollToken *EnrollTokenClient
 	// JoinToken is the client for interacting with the JoinToken builders.
@@ -54,6 +56,8 @@ type Tx struct {
 	NodeLogTarget *NodeLogTargetClient
 	// RealServer is the client for interacting with the RealServer builders.
 	RealServer *RealServerClient
+	// VirtualService is the client for interacting with the VirtualService builders.
+	VirtualService *VirtualServiceClient
 
 	// lazily loaded.
 	client     *Client
@@ -199,6 +203,7 @@ func (tx *Tx) init() {
 	tx.ConfigVariable = NewConfigVariableClient(tx.config)
 	tx.DeployNodeLock = NewDeployNodeLockClient(tx.config)
 	tx.DeployTask = NewDeployTaskClient(tx.config)
+	tx.Director = NewDirectorClient(tx.config)
 	tx.EnrollToken = NewEnrollTokenClient(tx.config)
 	tx.JoinToken = NewJoinTokenClient(tx.config)
 	tx.Node = NewNodeClient(tx.config)
@@ -206,6 +211,7 @@ func (tx *Tx) init() {
 	tx.NodeConfigFile = NewNodeConfigFileClient(tx.config)
 	tx.NodeLogTarget = NewNodeLogTargetClient(tx.config)
 	tx.RealServer = NewRealServerClient(tx.config)
+	tx.VirtualService = NewVirtualServiceClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

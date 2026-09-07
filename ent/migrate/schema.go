@@ -339,6 +339,36 @@ var (
 			},
 		},
 	}
+	// DirectorsColumns holds the columns for the "directors" table.
+	DirectorsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"MASTER", "BACKUP"}},
+		{Name: "priority", Type: field.TypeInt},
+		{Name: "virtual_router_id", Type: field.TypeInt},
+		{Name: "unicast_src_ip", Type: field.TypeString},
+		{Name: "unicast_peer_ip", Type: field.TypeString},
+		{Name: "iface", Type: field.TypeString, Default: "eth0"},
+		{Name: "mode", Type: field.TypeEnum, Enums: []string{"DR", "NAT", "TUN"}, Default: "DR"},
+		{Name: "vip", Type: field.TypeString},
+		{Name: "holding_vip", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "node_directors", Type: field.TypeInt},
+	}
+	// DirectorsTable holds the schema information for the "directors" table.
+	DirectorsTable = &schema.Table{
+		Name:       "directors",
+		Columns:    DirectorsColumns,
+		PrimaryKey: []*schema.Column{DirectorsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "directors_nodes_directors",
+				Columns:    []*schema.Column{DirectorsColumns[12]},
+				RefColumns: []*schema.Column{NodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// EnrollTokensColumns holds the columns for the "enroll_tokens" table.
 	EnrollTokensColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -557,6 +587,32 @@ var (
 			},
 		},
 	}
+	// VirtualServicesColumns holds the columns for the "virtual_services" table.
+	VirtualServicesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "vip", Type: field.TypeString},
+		{Name: "port", Type: field.TypeInt},
+		{Name: "protocol", Type: field.TypeEnum, Enums: []string{"tcp", "udp"}, Default: "tcp"},
+		{Name: "scheduler", Type: field.TypeEnum, Enums: []string{"rr", "wrr", "lc", "wlc"}, Default: "wrr"},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "director_virtual_services", Type: field.TypeInt},
+	}
+	// VirtualServicesTable holds the schema information for the "virtual_services" table.
+	VirtualServicesTable = &schema.Table{
+		Name:       "virtual_services",
+		Columns:    VirtualServicesColumns,
+		PrimaryKey: []*schema.Column{VirtualServicesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "virtual_services_directors_virtual_services",
+				Columns:    []*schema.Column{VirtualServicesColumns[8]},
+				RefColumns: []*schema.Column{DirectorsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		ApprovalsTable,
@@ -573,6 +629,7 @@ var (
 		ConfigVariablesTable,
 		DeployNodeLocksTable,
 		DeployTasksTable,
+		DirectorsTable,
 		EnrollTokensTable,
 		JoinTokensTable,
 		NodesTable,
@@ -580,6 +637,7 @@ var (
 		NodeConfigFilesTable,
 		NodeLogTargetsTable,
 		RealServersTable,
+		VirtualServicesTable,
 	}
 )
 
@@ -590,6 +648,7 @@ func init() {
 	ConfigSnapshotsTable.ForeignKeys[0].RefTable = NodesTable
 	DeployTasksTable.ForeignKeys[0].RefTable = ChangeOrdersTable
 	DeployTasksTable.ForeignKeys[1].RefTable = NodesTable
+	DirectorsTable.ForeignKeys[0].RefTable = NodesTable
 	EnrollTokensTable.ForeignKeys[0].RefTable = NodesTable
 	JoinTokensTable.ForeignKeys[0].RefTable = NodesTable
 	NodesTable.ForeignKeys[0].RefTable = ClustersTable
@@ -597,4 +656,5 @@ func init() {
 	NodeConfigFilesTable.ForeignKeys[0].RefTable = NodesTable
 	NodeLogTargetsTable.ForeignKeys[0].RefTable = NodesTable
 	RealServersTable.ForeignKeys[0].RefTable = NodesTable
+	VirtualServicesTable.ForeignKeys[0].RefTable = DirectorsTable
 }

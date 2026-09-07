@@ -18,6 +18,7 @@ import (
 	"github.com/th/ngxcp/ent"
 	entconfigsnapshot "github.com/th/ngxcp/ent/configsnapshot"
 	entdeploytask "github.com/th/ngxcp/ent/deploytask"
+	entdirector "github.com/th/ngxcp/ent/director"
 	entenrolltoken "github.com/th/ngxcp/ent/enrolltoken"
 	entjointoken "github.com/th/ngxcp/ent/jointoken"
 	entnode "github.com/th/ngxcp/ent/node"
@@ -367,9 +368,12 @@ func (s *Service) Delete(ctx context.Context, id int) error {
 	if _, e := tx.NodeLogTarget.Delete().Where(entnlt.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
 		return del("node_log_targets", e)
 	}
-	// 3) 配置快照 / 发布任务 / LVS Real Server
+	// 3) 配置快照 / 发布任务 / LVS Real Server / LVS Director
 	if _, e := tx.ConfigSnapshot.Delete().Where(entconfigsnapshot.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
 		return del("config_snapshots", e)
+	}
+	if _, e := tx.Director.Delete().Where(entdirector.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("directors", e)
 	}
 	if _, e := tx.DeployTask.Delete().Where(entdeploytask.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
 		return del("deploy_tasks", e)

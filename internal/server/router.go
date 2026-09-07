@@ -8,6 +8,7 @@ import (
 	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/cert"
 	"github.com/th/ngxcp/internal/domain/deploy"
+	"github.com/th/ngxcp/internal/lvs"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"github.com/th/ngxcp/internal/pkg/version"
@@ -29,7 +30,7 @@ import (
 // tmplSvc 为 T027 模板与三级变量服务（复用 ent 客户端，提供配置模板渲染与变量解析）。
 // agentSrv 为 *transport.Server：既作为 T024 校验触发入口（实现 handler.ConfigValidator，
 // 经心跳命令流驱动 Agent 跑 nginx -t），又作为 T044 证书分发下发通道（实现 cert.Deployer）。
-func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, agentSrv *transport.Server, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub, certSvc *cert.Service) *gin.Engine {
+func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, agentSrv *transport.Server, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub, certSvc *cert.Service, lvsSvc *lvs.Service) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -150,5 +151,10 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	registerAgentDistribution(r, ca, cfg.AgentDistDir, cfg.AgentGRPC, nodeSvc, auth)
 	// 首跑管理员令牌获取（免 SSH+grep）：setup-token 免鉴权一次 / setup-acknowledge 锁定。
 	registerAdmin(r, cfg, auth)
+
+	// M5 LVS / Keepalived 拓扑与虚拟服务（只读聚合）。
+	lvh := handler.NewLVSHandler(lvsSvc)
+	v1.GET("/lvs/topology", lvh.Topology)
+	v1.GET("/lvs/virtual-services", lvh.VirtualServices)
 	return r
 }

@@ -679,6 +679,29 @@ func HasEnrollTokensWith(preds ...predicate.EnrollToken) predicate.Node {
 	})
 }
 
+// HasDirectors applies the HasEdge predicate on the "directors" edge.
+func HasDirectors() predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DirectorsTable, DirectorsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDirectorsWith applies the HasEdge predicate on the "directors" edge with a given conditions (other predicates).
+func HasDirectorsWith(preds ...predicate.Director) predicate.Node {
+	return predicate.Node(func(s *sql.Selector) {
+		step := newDirectorsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasCluster applies the HasEdge predicate on the "cluster" edge.
 func HasCluster() predicate.Node {
 	return predicate.Node(func(s *sql.Selector) {
