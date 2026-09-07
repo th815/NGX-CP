@@ -16,12 +16,15 @@ import (
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/ent"
+	entconfigsnapshot "github.com/th/ngxcp/ent/configsnapshot"
+	entdeploytask "github.com/th/ngxcp/ent/deploytask"
 	entenrolltoken "github.com/th/ngxcp/ent/enrolltoken"
 	entjointoken "github.com/th/ngxcp/ent/jointoken"
 	entnode "github.com/th/ngxcp/ent/node"
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
 	entncf "github.com/th/ngxcp/ent/nodeconfigfile"
 	entnlt "github.com/th/ngxcp/ent/nodelogtarget"
+	entrealserver "github.com/th/ngxcp/ent/realserver"
 	"github.com/th/ngxcp/internal/domain/compliance"
 	"github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/probe"
@@ -324,13 +327,63 @@ func (s *Service) Update(ctx context.Context, id int, in UpdateNodeIn) (*NodeOut
 }
 
 // Delete 删除节点。
+//
+// ent 默认外键为 RESTRICT（非 CASCADE），直接 DeleteOneID 会被子表记录的 FK 约束拦下。
+// 因此在事务内按绑定关系（各子表均有 HasNodeWith 谓词）先清理 8 张子表，再删节点，
+// 避免「删除节点失败」的 5000。全部失败回滚，保证原子性。
 func (s *Service) Delete(ctx context.Context, id int) error {
-	err := s.client.Node.DeleteOneID(id).Exec(ctx)
+	// 先确认节点存在，给出明确的 CodeNotFound（避免事务里删空被误判为成功）。
+	if _, err := s.Get(ctx, id); err != nil {
+		return err
+	}
+
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			return apperr.New(apperr.CodeNotFound, "节点不存在")
+		return apperr.Wrap(apperr.CodeInternal, "开启删除事务失败", err)
+	}
+	// 任何一步失败都回滚并返回包装错误。
+	del := func(step string, e error) error {
+		if e != nil {
+			_ = tx.Rollback()
+			return apperr.Wrap(apperr.CodeInternal, "删除节点失败: "+step, e)
 		}
-		return apperr.Wrap(apperr.CodeInternal, "删除节点失败", err)
+		return nil
+	}
+
+	// 1) 接入令牌（enroll / join）
+	if _, e := tx.EnrollToken.Delete().Where(entenrolltoken.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("enroll_tokens", e)
+	}
+	if _, e := tx.JoinToken.Delete().Where(entjointoken.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("join_tokens", e)
+	}
+	// 2) 能力 / 配置树 / 日志目标
+	if _, e := tx.NodeCapability.Delete().Where(entnodecap.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("node_capabilities", e)
+	}
+	if _, e := tx.NodeConfigFile.Delete().Where(entncf.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("node_config_files", e)
+	}
+	if _, e := tx.NodeLogTarget.Delete().Where(entnlt.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("node_log_targets", e)
+	}
+	// 3) 配置快照 / 发布任务 / LVS Real Server
+	if _, e := tx.ConfigSnapshot.Delete().Where(entconfigsnapshot.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("config_snapshots", e)
+	}
+	if _, e := tx.DeployTask.Delete().Where(entdeploytask.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("deploy_tasks", e)
+	}
+	if _, e := tx.RealServer.Delete().Where(entrealserver.HasNodeWith(entnode.ID(id))).Exec(ctx); e != nil {
+		return del("real_servers", e)
+	}
+
+	// 4) 最后删节点本体。
+	if e := tx.Node.DeleteOneID(id).Exec(ctx); e != nil {
+		return del("node", e)
+	}
+	if err := tx.Commit(); err != nil {
+		return apperr.Wrap(apperr.CodeInternal, "提交删除事务失败", err)
 	}
 	return nil
 }
