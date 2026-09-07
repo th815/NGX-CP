@@ -131,5 +131,7 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 
 	// T040 节点自注册分发：安装脚本 / 引导 CA / 二进制下载 / web 接入控制台 / Join Token 签发。
 	registerAgentDistribution(r, ca, cfg.AgentDistDir, cfg.AgentGRPC, nodeSvc, auth)
+	// 首跑管理员令牌获取（免 SSH+grep）：setup-token 免鉴权一次 / setup-acknowledge 锁定。
+	registerAdmin(r, cfg, auth)
 	return r
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -138,6 +139,15 @@ func Run(cfg *config.Config) error {
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
 	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub)
+
+	// 首跑提示：尚未完成首次设置时，告知可从 Web 免 SSH 获取令牌（消除 grep config.yaml 痛点）。
+	if cfg.AuthAdminToken != "" && cfg.AuthAdminTokenAckFile != "" {
+		if _, statErr := os.Stat(cfg.AuthAdminTokenAckFile); statErr != nil {
+			logging.Ctx(nil).Warn().
+				Msg("首跑未确认：打开 Web 控制台 →「系统设置」可一键获取管理员令牌（或 GET /api/v1/admin/setup-token）；获取后点「完成首次设置」即锁定，无需 SSH")
+		}
+	}
+
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
 }

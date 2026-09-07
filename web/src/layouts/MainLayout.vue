@@ -12,10 +12,13 @@ import {
   NInput,
   NTag,
   NIcon,
+  NAlert,
   useDialog,
+  useMessage,
   type MenuOption
 } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import { acknowledgeSetup, getSetupToken, type SetupToken } from '@/api/nodes'
 
 const router = useRouter()
 const route = useRoute()
@@ -27,25 +30,66 @@ const tokenDraft = ref(app.token)
 watch(tokenDraft, (v) => app.setToken(v))
 
 const dialog = useDialog()
+const message = useMessage()
 
 // 令牌缺失 / 失效时（API 返回 401）直接弹出录入框，免去用户去「系统设置」空页找入口。
-function openTokenDialog() {
+// 首跑会先尝试免鉴权取一次性令牌，若服务端尚未确认则直接在弹窗内展示（无需 SSH+grep）。
+async function openTokenDialog() {
+  const setup: SetupToken | null = await getSetupToken().catch(() => null)
   const draft = ref(app.token || '')
+
+  const finishSetup = async () => {
+    if (!setup) return
+    try {
+      app.setToken(setup.token.trim())
+      tokenDraft.value = setup.token.trim()
+      await acknowledgeSetup()
+      message.success('首次设置完成，令牌已锁定')
+    } catch (e: unknown) {
+      const err = e as { message?: string }
+      message.error('确认失败：' + (err?.message || '未知错误'))
+    }
+  }
+
+  const children: unknown[] = [
+    h(
+      'div',
+      { style: 'margin-bottom: 10px; font-size: 13px; opacity: .8' },
+      '打开「系统设置」页，首跑会直接显示你的管理员令牌（无需登服务器）；若未出现卡片，再到控制面执行：'
+    ),
+    h('div', { class: 'cmd', style: 'margin-bottom:10px;padding:8px 10px;border-radius:6px;background:rgba(0,0,0,.04);font-family:monospace;font-size:12px;word-break:break-all' }, 'grep auth_admin_token /opt/ngxcp/config.yaml'),
+    h(NInput, {
+      value: draft.value,
+      'onUpdate:value': (v: string) => (draft.value = v),
+      placeholder: 'auth_admin_token 的值'
+    })
+  ]
+
+  // 首跑一次性明文令牌：在弹窗内直接给出 + 复制 + 完成设置。
+  if (setup) {
+    children.unshift(
+      h(
+        NAlert,
+        { type: 'warning', title: '首次设置：你的管理员令牌（一次性）', style: 'margin-bottom: 10px' },
+        {
+          default: () =>
+            h('div', {}, [
+              h('div', { class: 'cmd', style: 'margin:4px 0 10px;padding:8px 10px;border-radius:6px;background:rgba(0,0,0,.04);font-family:monospace;font-size:12px;word-break:break-all' }, setup.token),
+              h(NSpace, {}, {
+                default: () => [
+                  h(NButton, { size: 'small', onClick: () => navigator.clipboard.writeText(setup.token) }, { default: () => '复制' }),
+                  h(NButton, { type: 'primary', size: 'small', onClick: finishSetup }, { default: () => '完成首次设置' })
+                ]
+              })
+            ])
+        }
+      )
+    )
+  }
+
   dialog.warning({
     title: '需要管理员令牌',
-    content: () =>
-      h('div', { style: 'margin-top: 8px' }, [
-        h(
-          'div',
-          { style: 'margin-bottom: 10px; font-size: 13px; opacity: .8' },
-          '在控制面主机执行：grep auth_admin_token /opt/ngxcp/config.yaml，把值粘贴到下面'
-        ),
-        h(NInput, {
-          value: draft.value,
-          'onUpdate:value': (v: string) => (draft.value = v),
-          placeholder: 'auth_admin_token 的值'
-        })
-      ]),
+    content: () => h('div', { style: 'margin-top: 8px' }, children as never),
     positiveText: '保存',
     negativeText: '取消',
     onPositiveClick: () => {

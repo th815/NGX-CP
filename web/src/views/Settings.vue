@@ -14,14 +14,18 @@ import {
   useMessage
 } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
-import { getBootstrapInfo, listNodes } from '@/api/nodes'
+import { acknowledgeSetup, getBootstrapInfo, getSetupToken, listNodes, type SetupToken } from '@/api/nodes'
 
 const app = useAppStore()
 const message = useMessage()
 
 const token = ref(app.token)
 const checking = ref(false)
+const acknowledging = ref(false)
 const origin = window.location.origin
+
+// 首跑一次性明文令牌（未确认时由控制面返回，已确认/未配置则为 null）。
+const setup = ref<SetupToken | null>(null)
 
 interface CheckResult {
   ok: boolean
@@ -35,6 +39,40 @@ const result = ref<CheckResult | null>(null)
 function save() {
   app.setToken(token.value.trim())
   message.success('令牌已保存')
+}
+
+function copySetup(t: string) {
+  navigator.clipboard.writeText(t)
+  message.success('已复制')
+}
+
+// 首跑：尝试免鉴权获取一次性令牌，供页面直接展示（无需 SSH+grep）。
+async function tryRevealSetupToken() {
+  if (app.token) return // 本地已有令牌，无需揭示
+  try {
+    setup.value = await getSetupToken()
+  } catch {
+    setup.value = null
+  }
+}
+
+// 完成首次设置：写入令牌 → 调用确认端点锁定（此后 setup-token 不再泄露）→ 刷新自检。
+async function finishSetup() {
+  if (!setup.value) return
+  acknowledging.value = true
+  try {
+    app.setToken(setup.value.token.trim())
+    token.value = setup.value.token.trim()
+    await acknowledgeSetup()
+    setup.value = null
+    message.success('首次设置完成，令牌已锁定')
+    await check()
+  } catch (e: unknown) {
+    const err = e as { message?: string }
+    message.error('确认失败：' + (err?.message || '未知错误'))
+  } finally {
+    acknowledging.value = false
+  }
 }
 
 // 自检：拉引导信息 + 列节点，验证「控制面可达 + 令牌有效 + 二进制分发就绪」三件事。
@@ -59,12 +97,29 @@ async function check() {
   }
 }
 
-onMounted(check)
+onMounted(async () => {
+  await tryRevealSetupToken()
+  await check()
+})
 </script>
 
 <template>
   <div class="page">
     <n-card :bordered="false" title="系统设置">
+      <n-alert
+        v-if="setup"
+        type="warning"
+        title="首次设置：这是你的管理员令牌（一次性明文，已确认后不再显示）"
+        style="max-width: 640px; margin-bottom: 16px"
+      >
+        <p style="margin: 0 0 10px">装完控制面第一次打开网页就能拿到，不用登服务器 grep。复制保存好，点「完成首次设置」即锁定：</p>
+        <div class="cmd">{{ setup.token }}</div>
+        <n-space style="margin-top: 12px">
+          <n-button size="small" @click="copySetup(setup.token)">复制</n-button>
+          <n-button type="primary" size="small" :loading="acknowledging" @click="finishSetup">完成首次设置</n-button>
+        </n-space>
+      </n-alert>
+
       <n-form label-placement="top" style="max-width: 640px">
         <n-form-item label="管理员令牌（Bearer）">
           <n-input v-model:value="token" type="password" show-password-on="click" placeholder="auth_admin_token 的值" />
@@ -78,7 +133,8 @@ onMounted(check)
       </n-form>
 
       <n-alert type="info" title="令牌从哪来" style="max-width: 640px">
-        在控制面主机执行下面这条命令，把输出的值填到上面（顶栏右上角的「管理员令牌」框也可以填）：
+        首跑直接在上方「首次设置」卡片一键获取并锁定（推荐，无需登服务器）。
+        若页面未出现该卡片（例如已确认过、或手动改了 config 里的令牌），再到控制面主机取：
         <div class="cmd">grep auth_admin_token /opt/ngxcp/config.yaml</div>
       </n-alert>
     </n-card>

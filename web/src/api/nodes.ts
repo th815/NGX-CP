@@ -211,3 +211,28 @@ export async function getBootstrapInfo(): Promise<BootstrapInfo> {
   const r = await client.get<{ data: BootstrapInfo }>('/agent/bootstrap-info')
   return r.data.data
 }
+
+// ---- 首跑管理员令牌获取（免 SSH+grep） ----
+
+export interface SetupToken {
+  token: string
+  acknowledged: boolean
+}
+
+// 首跑一次性获取管理员令牌（免鉴权，仅未确认时服务端返回）。
+// 已确认(410)/未配置令牌(409) → 返回 null（无可展示）。
+export async function getSetupToken(): Promise<SetupToken | null> {
+  try {
+    const r = await client.get<{ data: SetupToken }>('/admin/setup-token')
+    return r.data.data
+  } catch (e: unknown) {
+    const err = e as { response?: { status?: number } }
+    if (err?.response?.status === 410 || err?.response?.status === 409) return null
+    return null
+  }
+}
+
+// 完成首次设置：携带（已写入 store 的）有效令牌确认，锁定 setup-token。
+export async function acknowledgeSetup(): Promise<void> {
+  await client.post('/admin/setup-acknowledge')
+}

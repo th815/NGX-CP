@@ -126,5 +126,8 @@ echo "[6/6] 冒烟测试 /health + /api/v1/version + SPA 首页 ..."
 sleep 2
 ssh $SSH_OPTS "$HOST" 'curl -fsS http://127.0.0.1:8080/health && echo && curl -fsS http://127.0.0.1:8080/api/v1/version && echo && curl -fsS -o /dev/null -w "SPA / -> HTTP %{http_code}\n" http://127.0.0.1:8080/'
 echo
-echo "部署完成。导出管理员令牌（已去除 YAML 引号）："
+echo "部署完成。"
+echo "★ 管理员令牌首跑免 SSH 获取：打开 http://$HOST:8080/ 的「系统设置」页（或触发 401 弹窗），"
+echo "  页面会直接显示一次性令牌，点「完成首次设置」即锁定。无需再登服务器 grep。"
+echo "  兜底（仅当页面无卡片时）："
 echo "  ssh $HOST 'grep auth_admin_token /opt/ngxcp/config.yaml' | sed -E 's/.*:[[:space:]]*\"?([^\"]*)\"?.*/\1/'"

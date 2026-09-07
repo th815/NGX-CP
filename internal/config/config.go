@@ -52,6 +52,11 @@ type Config struct {
 	// AuthAdminToken 是 M1 最小可用鉴权：Bearer 令牌（本地账号 + 多角色留到 M9）。
 	// 留空 = 禁用所有写接口（返回 401）；开发态在 config 里填一个值即可。
 	AuthAdminToken string `mapstructure:"auth_admin_token"`
+	// AuthAdminTokenAckFile 是首跑「一次性明文展示」的确认标记文件：
+	// 文件不存在 = 尚未完成首次设置，GET /api/v1/admin/setup-token 可免鉴权取一次令牌；
+	// 文件存在 = 已确认，该端点返回 410 不再泄露。完成「首次设置」后由服务端创建。
+	// 默认置于控制面数据目录，确保重启后状态保留、不会反复泄露。
+	AuthAdminTokenAckFile string `mapstructure:"auth_admin_token_ack_file"`
 	// DBAutoMigrate 开发态自动建表；生产置 false 并改用 make migrate-dev。
 	DBAutoMigrate bool `mapstructure:"db_auto_migrate"`
 
@@ -99,6 +104,7 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("storage_snapshots_dir", "/var/lib/ngxcp/snapshots")
 	v.SetDefault("storage_artifacts_dir", "/var/lib/ngxcp/artifacts")
 	v.SetDefault("auth_admin_token", "") // 留空 = 禁用写接口；开发态在 config 里填值
+	v.SetDefault("auth_admin_token_ack_file", "/opt/ngxcp/.token-acknowledged") // 首次设置确认标记
 	v.SetDefault("db_auto_migrate", true) // M1 开发态自动建表；生产置 false 并改用 make migrate-dev
 
 	// T015 心跳 / 会话默认值（与 proto ServerConfig 一致）。

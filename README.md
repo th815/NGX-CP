@@ -53,6 +53,7 @@
   单元启用 `ProtectSystem=full`：systemd 启动时会把 `ReadWritePaths`(/etc/nginx /etc/keepalived /var/lib/ngxcp /var/log/nginx) bind mount 进服务命名空间，**路径不存在则命名空间搭建失败（exit 226/NAMESPACE）、Agent 二进制执行前即死**。Director 节点无 nginx 故缺 `/etc/nginx`、`/var/log/nginx`——部署脚本现已 `mkdir -p` 预建这些目录，并落 `tmpfiles.d/ngxcp-agent.conf`（开机早期建目录，防重启后 Agent 起不来）。
   **生产落地（2026-09-07）**：`192.168.5.50` 控制面已部署，`192.168.5.6/.7`(director) + `192.168.5.8/.9`(real_server) 4 台经 `enroll-cluster.sh` 全量 `online`、角色正确——最小可用闭环首次在真机跑通，M0–M3 不再只是引擎级闭环。
   **节点删除 5000 修复（2026-09-07）**：`DELETE /api/v1/nodes/:id` 原直接硬删节点，被 ent 的 RESTRICT 外键拦下（残留 enroll_tokens 等子记录）→ 报 `{"code":5000}` 删不了。已在 `node.Service.Delete` 内改事务级联清理 8 张子表（enroll_tokens / join_tokens / node_capabilities / node_config_files / node_log_targets / config_snapshots / deploy_tasks / real_servers）再删节点本体，附单测 `TestDeleteCascade` 锁定不回归。残留的 `nginx-rs-01`(id=1) 现可正常删除。
+  **首跑令牌免 SSH 获取（2026-09-07）**：针对"生产谁会去 grep auth_admin_token"的痛点，新增首次设置通道——`GET /api/v1/admin/setup-token`（免鉴权，仅未确认时返回当前令牌一次）+ `POST /api/v1/admin/setup-acknowledge`（凭有效令牌确认，落标记文件后前者改返回 410 锁定）。Web「系统设置」页与 401 弹窗首跑自动显示一次性明文令牌，点「完成首次设置」即锁定，全程无需登服务器。控制面启动未确认时打 WARN 日志提示。信任边界：仅"未确认前"暴露，与 config 文件本地可读一致。
 - 🟡 **M4 证书管理**：进行中 —— T040 证书数据模型与加密存储 已完成；T041 DNS Provider / T042 ACME / T043 手动上传+6 项校验 / T044 分发 / T045 自动续期 / T046 UI 待做。
 - ⬜ **M5–M9**：LVS 管理 / 日志与安全 / 监控 / 构建升级 / 备份运维（增值模块，可边用边做）。
 
