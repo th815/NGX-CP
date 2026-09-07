@@ -156,5 +156,9 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	lvh := handler.NewLVSHandler(lvsSvc)
 	v1.GET("/lvs/topology", lvh.Topology)
 	v1.GET("/lvs/virtual-services", lvh.VirtualServices)
+	// T054：RS 权重编排（摘除/恢复/设权），受 T055 门禁约束。
+	v1.POST("/lvs/real-servers/:id/drain", lvh.Drain)
+	v1.POST("/lvs/real-servers/:id/restore", lvh.Restore)
+	v1.POST("/lvs/real-servers/:id/weight", lvh.SetWeight)
 	return r
 }

@@ -74,6 +74,10 @@ func Run(cfg *config.Config) error {
 
 	// Agent gRPC 服务：注册（TLS+token）走 Register RPC，其余 RPC 强制 mTLS；Heartbeat/ReportCapability 落库。
 	agentSrv := transport.NewServer(nil, ca, nodeSvc, nodeSvc, sessions, hbCfg)
+
+	// M5 T054/T055：注入远程权重执行器（经 Agent SET_RS_WEIGHT 通道）与发布前门禁。
+	lvsSvc.SetWeightSetter(lvs.NewRemoteSetter(agentSrv, lvs.ResolveDirectorNode(client)))
+	lvsSvc.SetGate(lvs.NewGate(lvs.NodeStatusCompliance(client)))
 	tlsCfg, err := ca.GRPCServerTLSConfig()
 	if err != nil {
 		return apperr.Wrap(apperr.CodeInternal, "构造 Agent gRPC TLS 配置失败", err)

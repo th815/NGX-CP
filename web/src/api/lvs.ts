@@ -24,6 +24,7 @@ export interface VirtualServiceView {
 }
 
 export interface RealServerNode {
+  id: number
   rip: string
   rport: number
   weight: number
@@ -32,6 +33,19 @@ export interface RealServerNode {
   node_id: number
   address: string
   vs_key: string
+}
+
+// 摘除：将该 RS 在其所属全部 VS 上的 LVS 权重置 0（流量不再命中），模型标记禁用。
+export async function drainRealServer(id: number): Promise<void> {
+  await client.post(`/lvs/real-servers/${id}/drain`)
+}
+// 恢复：下发基线权重并启用。
+export async function restoreRealServer(id: number): Promise<void> {
+  await client.post(`/lvs/real-servers/${id}/restore`)
+}
+// 设置基线权重并下发（>0 启用，=0 等效摘除）。
+export async function setRealServerWeight(id: number, weight: number): Promise<void> {
+  await client.post(`/lvs/real-servers/${id}/weight`, { weight })
 }
 
 export interface Topology {
