@@ -12,15 +12,16 @@ import (
 	"github.com/th/ngxcp/internal/server/response"
 )
 
-// CertHandler 证书相关处理器（M4 T043：只读列表/详情 + 上传校验 + 删除）。
+// CertHandler 证书相关处理器（M4 T043/T044：只读列表/详情 + 上传校验 + 删除 + 分发）。
 // 安全红线：任何响应都不含私钥（service 层已隔离）。
 type CertHandler struct {
-	svc *cert.Service
+	svc      *cert.Service
+	deployer cert.Deployer // T044 下发通道（transport.Server），可为 nil
 }
 
-// NewCertHandler 构造证书处理器。
-func NewCertHandler(svc *cert.Service) *CertHandler {
-	return &CertHandler{svc: svc}
+// NewCertHandler 构造证书处理器。deployer 为 T044 证书下发通道，可为 nil（仅查询可用）。
+func NewCertHandler(svc *cert.Service, deployer cert.Deployer) *CertHandler {
+	return &CertHandler{svc: svc, deployer: deployer}
 }
 
 type certUploadBody struct {
@@ -101,4 +102,56 @@ func (h *CertHandler) Delete(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"deleted": id})
+}
+
+type certDistributeBody struct {
+	NodeIDs          []int  `json:"node_ids"`
+	SSLDir           string `json:"ssl_dir"`
+	NginxPath        string `json:"nginx_path"`
+	Reload           *bool  `json:"reload"`
+	ObserveWindowSec int64  `json:"observe_window_sec"`
+	ProbeURL         string `json:"probe_url"`
+}
+
+// Distribute 把证书分发到一组节点（写操作，需鉴权，T044）。
+// 逐节点结果返回：成功/失败及原因；私钥明文仅在本请求作用域内经 mTLS 下发。
+func (h *CertHandler) Distribute(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	var b certDistributeBody
+	if err := c.ShouldBindJSON(&b); err != nil {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "请求体解析失败："+err.Error()))
+		return
+	}
+	res, err := h.svc.Distribute(c.Request.Context(), id, cert.DistributeRequest{
+		NodeIDs:          b.NodeIDs,
+		SSLDir:           b.SSLDir,
+		NginxPath:        b.NginxPath,
+		Reload:           b.Reload,
+		ObserveWindowSec: b.ObserveWindowSec,
+		ProbeURL:         b.ProbeURL,
+	}, h.deployer)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, res)
+}
+
+// Deployments 返回某证书在各节点的分发记录（只读）。
+func (h *CertHandler) Deployments(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	items, err := h.svc.GetDeployments(c.Request.Context(), id)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.List(c, items, len(items))
 }

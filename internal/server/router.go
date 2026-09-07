@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/th/ngxcp/internal/agent/session"
+	"github.com/th/ngxcp/internal/agent/transport"
 	"github.com/th/ngxcp/internal/config"
 	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/cert"
@@ -26,7 +27,9 @@ import (
 // semantic 为 T025 语义校验器（复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎）。
 // drift 为 T026 漂移检测器（复用 cfgStore + ent 客户端，在配置树上报时即时检测 + 定时巡检）。
 // tmplSvc 为 T027 模板与三级变量服务（复用 ent 客户端，提供配置模板渲染与变量解析）。
-func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, validator handler.ConfigValidator, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub, certSvc *cert.Service) *gin.Engine {
+// agentSrv 为 *transport.Server：既作为 T024 校验触发入口（实现 handler.ConfigValidator，
+// 经心跳命令流驱动 Agent 跑 nginx -t），又作为 T044 证书分发下发通道（实现 cert.Deployer）。
+func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, agentSrv *transport.Server, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub, certSvc *cert.Service) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -65,13 +68,16 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 			ns.POST("/:id/refresh", auth, nh.RefreshCapability)
 		}
 
-		// T043 证书管理：只读列表/详情 + 上传校验（6 项）+ 删除（级联清分发记录）。
-		ceh := handler.NewCertHandler(certSvc)
+		// T043/T044 证书管理：只读列表/详情 + 上传校验（6 项）+ 删除（级联清分发记录）+ 分发到节点。
+		// agentSrv 同时作为下发通道（cert.Deployer），实现私钥经 mTLS 下发、绝不进浏览器/DB 明文。
+		ceh := handler.NewCertHandler(certSvc, agentSrv)
 		ces := v1.Group("/certs")
 		{
 			ces.GET("", ceh.List)
 			ces.GET("/:id", ceh.Get)
+			ces.GET("/:id/deployments", ceh.Deployments)
 			ces.POST("", auth, ceh.Upload)
+			ces.POST("/:id/distribute", auth, ceh.Distribute)
 			ces.DELETE("/:id", auth, ceh.Delete)
 		}
 
@@ -86,7 +92,7 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 			cs.POST("/:id/manual-edit", auth, ch.ManualEdit) // 编辑→保存为新版本（manual_edit）
 
 			// T024 配置校验：触发目标 Agent 跑 nginx -t（写类操作，需鉴权）。
-			vh := handler.NewValidateHandler(validator)
+			vh := handler.NewValidateHandler(agentSrv)
 			vh.SetSemanticChecker(semantic)
 			cs.POST("/validate", auth, vh.Validate)
 			// T025 语义校验：对节点当前配置跑规则引擎（读类分析，需鉴权）。

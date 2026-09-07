@@ -17,7 +17,17 @@ import {
   useMessage,
   type DataTableColumns
 } from 'naive-ui'
-import { listCerts, deleteCert, uploadCert, type CertView, type ValidationResult } from '@/api/cert'
+import {
+  listCerts,
+  deleteCert,
+  uploadCert,
+  distributeCert,
+  listNodesBrief,
+  type CertView,
+  type ValidationResult,
+  type NodeBrief,
+  type DistributeResult
+} from '@/api/cert'
 
 const message = useMessage()
 const loading = ref(false)
@@ -27,6 +37,14 @@ const submitting = ref(false)
 const form = ref({ domain: '', cert_pem: '', key_pem: '', chain_pem: '', issuer: '' })
 const uploadErrors = ref<string[]>([])
 const uploadWarnings = ref<string[]>([])
+
+// T044 分发状态。
+const showDistribute = ref(false)
+const distributing = ref(false)
+const distNodes = ref<NodeBrief[]>([])
+const selectedNodeIds = ref<number[]>([])
+const distResult = ref<DistributeResult | null>(null)
+const currentCertId = ref<number | null>(null)
 
 function expiryType(notAfter: string): 'success' | 'warning' | 'error' {
   const days = (new Date(notAfter).getTime() - Date.now()) / 86400000
@@ -70,19 +88,26 @@ const columns: DataTableColumns<CertView> = [
     title: '操作',
     key: 'actions',
     render: (r) =>
-      h(
-        NPopconfirm,
-        { onPositiveClick: () => remove(r) },
-        {
-          trigger: () =>
-            h(
-              NButton,
-              { size: 'small', type: 'error', quaternary: true },
-              { default: () => '删除' }
-            ),
-          default: () => '确认删除该证书？私钥将一并销毁且不可恢复。'
-        }
-      )
+      h(NSpace, { size: 4 }, () => [
+        h(
+          NButton,
+          { size: 'small', tertiary: true, onClick: () => openDistribute(r) },
+          { default: () => '分发' }
+        ),
+        h(
+          NPopconfirm,
+          { onPositiveClick: () => remove(r) },
+          {
+            trigger: () =>
+              h(
+                NButton,
+                { size: 'small', type: 'error', quaternary: true },
+                { default: () => '删除' }
+              ),
+            default: () => '确认删除该证书？私钥将一并销毁且不可恢复。'
+          }
+        )
+      ])
   }
 ]
 
@@ -144,6 +169,46 @@ async function remove(r: CertView) {
   } catch (e: any) {
     message.error(e?.response?.data?.message || e?.message || '删除失败')
   }
+}
+
+// ===== T044 分发到节点 =====
+async function openDistribute(r: CertView) {
+  currentCertId.value = r.id
+  selectedNodeIds.value = []
+  distResult.value = null
+  showDistribute.value = true
+  try {
+    distNodes.value = await listNodesBrief()
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || '获取节点列表失败')
+  }
+}
+
+async function doDistribute() {
+  if (currentCertId.value == null) return
+  if (selectedNodeIds.value.length === 0) {
+    message.warning('请至少选择一个目标节点')
+    return
+  }
+  distributing.value = true
+  distResult.value = null
+  try {
+    const res = await distributeCert(currentCertId.value, { node_ids: selectedNodeIds.value })
+    distResult.value = res
+    if (res.failed > 0) {
+      message.warning(`分发完成：${res.deployed} 成功 / ${res.failed} 失败`)
+    } else {
+      message.success(`已分发到 ${res.deployed} 个节点`)
+    }
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || '分发失败')
+  } finally {
+    distributing.value = false
+  }
+}
+
+function resultTagType(status: string): 'success' | 'error' {
+  return status === 'deployed' ? 'success' : 'error'
 }
 
 onMounted(load)
@@ -220,6 +285,50 @@ onMounted(load)
         <n-space justify="end">
           <n-button @click="showUpload = false">取消</n-button>
           <n-button type="primary" :loading="submitting" @click="submit">校验并入库</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showDistribute"
+      title="分发证书到节点"
+      preset="card"
+      style="width: 640px"
+      :mask-closable="false"
+    >
+      <n-alert type="info" title="安全说明" style="margin-bottom: 12px">
+        私钥经 mTLS 下发到 Agent，仅在节点本地原子落盘（key 0600 / crt 0644），浏览器与控制面数据库均不留存明文。
+      </n-alert>
+      <n-form label-placement="top">
+        <n-form-item label="目标节点（多选）">
+          <n-select
+            v-model:value="selectedNodeIds"
+            multiple
+            :options="distNodes.map((n) => ({ label: `${n.name} (${n.address})`, value: n.id }))"
+            placeholder="选择要下发证书的节点"
+          />
+        </n-form-item>
+      </n-form>
+
+      <n-alert
+        v-if="distResult"
+        :type="distResult.failed > 0 ? 'warning' : 'success'"
+        :title="`分发结果：成功 ${distResult.deployed} / 失败 ${distResult.failed} / 共 ${distResult.total}`"
+        style="margin-bottom: 12px"
+      >
+        <n-space vertical :size="4">
+          <div v-for="(it, i) in distResult.items" :key="i" style="display: flex; gap: 8px; align-items: center">
+            <n-tag :type="resultTagType(it.status)" size="small" :bordered="false">{{ it.status }}</n-tag>
+            <span>{{ it.node_name || ('节点#' + it.node_id) }}</span>
+            <span v-if="it.error" style="color: #d03050">{{ it.error }}</span>
+          </div>
+        </n-space>
+      </n-alert>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showDistribute = false">关闭</n-button>
+          <n-button type="primary" :loading="distributing" @click="doDistribute">下发</n-button>
         </n-space>
       </template>
     </n-modal>

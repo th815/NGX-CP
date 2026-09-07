@@ -55,6 +55,7 @@ message HeartbeatRequest {
     SNAPSHOT = 8;                  // T031：快照结果上报（create / restore）
     DEPLOY = 9;                   // T032：原子落盘进度上报
     RS_WEIGHT = 10;               // T035：RS 权重调整结果上报
+    CERT_DEPLOY = 11;             // T044：证书落盘结果上报
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
@@ -68,6 +69,7 @@ message HeartbeatRequest {
   SnapshotResult snapshot_result = 10;  // T031：快照（create / restore）结果
   DeployProgress deploy_progress = 11;  // T032：原子落盘进度（9 步逐步上报）
   SetRealServerWeightResult set_rs_weight_result = 12; // T035：RS 权重调整结果
+  DeployCertResult cert_deploy_result = 13; // T044：证书落盘结果
 }
 
 message HeartbeatResponse {
@@ -81,6 +83,7 @@ message HeartbeatResponse {
     DEPLOY_CONFIG = 6;      // T032：让 Agent 跑 9 步原子落盘（含校验/快照/reload/探活）
     ROLLBACK_CONFIG = 7;    // T034：让 Agent 跑回滚流水线（解压校验→恢复→reload→探活）
     SET_RS_WEIGHT = 8;      // T035：让 Agent 在 LVS Director 上调整 RS 权重（摘除式灰度）
+    DEPLOY_CERT = 9;        // T044：让 Agent 把证书原子落盘到 /etc/nginx/ssl（含 reload/探活）
   }
   Command command = 1;
   string task_id = 2;       // 幂等键，防止重放
@@ -96,6 +99,8 @@ message HeartbeatResponse {
   RollbackTask rollback_task = 7;
   // T035：SET_RS_WEIGHT 命令携带的权重调整任务（目标 RS + 权重，0=摘除）。
   SetRealServerWeightTask set_rs_weight = 8;
+  // T044：DEPLOY_CERT 命令携带的证书落盘任务（私钥明文经 mTLS 下发，绝不下发浏览器/入库明文）。
+  DeployCertTask deploy_cert = 9;
 }
 
 message CapabilityReport {
@@ -351,4 +356,30 @@ message DeployProgress {
   string step = 2;             // transfer|verify_hash|validate|snapshot|switch|reload|wait|probe|report|rollback
   string status = 3;           // running|success|failed
   string message = 4;
+}
+
+// ===== T044：证书分发到节点（Agent 侧原子落盘） =====
+// 复用 DEPLOY_CONFIG 同构的心跳命令通道：控制面经 DEPLOY_CERT 命令下发任务，
+// Agent 落盘后按 task_id 经 CERT_DEPLOY 回传 DeployCertResult。
+// 私钥明文经 mTLS 下发，绝不进浏览器、绝不入库明文（控制面用 KMS 信封加密存储）。
+
+// DeployCertTask 是控制面下发给 Agent 的证书落盘任务。
+message DeployCertTask {
+  string task_id = 1;     // 幂等键，结果回传时原样带回
+  string domain = 2;      // 主域名，用于文件名 <domain>.{crt,key}
+  string cert_pem = 3;    // full chain（leaf + intermediate），明文经 mTLS 下发
+  string key_pem = 4;     // 私钥明文（经 mTLS 下发，绝不进浏览器/DB 明文）
+  string ssl_dir = 5;     // 落盘目录，默认 /etc/nginx/ssl
+  string nginx_path = 6;  // 默认 /usr/sbin/nginx
+  bool reload = 7;        // 落盘后是否 reload，默认 true
+  int64 observe_window_sec = 8; // 落盘后观测窗口，默认 5
+  string probe_url = 9;   // 探活 URL，空则跳过探活（建议 https://<domain> 或 127.0.0.1:443）
+}
+
+// DeployCertResult 是 Agent 回传的证书落盘结果。
+message DeployCertResult {
+  string task_id = 1;
+  bool ok = 2;
+  string error = 3;       // 失败原因（ok=false 时）
+  int64 deployed_at = 4;   // 实际落盘时间（unix 秒，UTC）
 }

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/th/ngxcp/ent"
+	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	entcert "github.com/th/ngxcp/ent/certificate"
 	entcertdep "github.com/th/ngxcp/ent/certdeployment"
 	"github.com/th/ngxcp/internal/cert"
@@ -237,4 +238,194 @@ func (e *ValidationError) Error() string {
 		return "证书校验未通过"
 	}
 	return "证书校验未通过：" + strings.Join(e.Result.Errors, "；")
+}
+
+// ===== T044：证书分发到节点 =====
+
+// Deployer 是控制面向 Agent 下发证书落盘任务的能力抽象（注入 transport.Server）。
+// 私钥明文经 mTLS 下发，绝不进浏览器、绝不入库明文（控制面用 KMS 信封加密存储）。
+type Deployer interface {
+	DeployCert(ctx context.Context, nodeID int, task *agentv1.DeployCertTask) (*agentv1.DeployCertResult, error)
+}
+
+// DistributeRequest 分发请求：把一张证书分发到一组节点。
+type DistributeRequest struct {
+	NodeIDs          []int  // 目标节点 ID 列表
+	SSLDir           string // 落盘目录，默认 /etc/nginx/ssl
+	NginxPath        string // nginx 二进制路径，默认 /usr/sbin/nginx
+	Reload           *bool  // 落盘后是否 reload，默认 true
+	ObserveWindowSec int64  // 落盘后观测窗口（秒），默认 5
+	ProbeURL         string // 探活 URL，空则跳过探活
+}
+
+// DeploymentResult 单个节点的分发结果。
+type DeploymentResult struct {
+	NodeID     int    `json:"node_id"`
+	NodeName   string `json:"node_name"`
+	Status     string `json:"status"` // deployed / failed
+	Error      string `json:"error,omitempty"`
+	DeployedAt int64  `json:"deployed_at,omitempty"` // unix 秒，UTC
+}
+
+// DistributeResult 分发聚合结果。
+type DistributeResult struct {
+	Total    int                `json:"total"`
+	Deployed int                `json:"deployed"`
+	Failed   int                `json:"failed"`
+	Items    []*DeploymentResult `json:"items"`
+}
+
+// Distribute 把证书解密后逐节点下发到 Agent 落盘，并写/更新 cert_deployments 分发记录。
+// 任一节点失败不影响其他节点（逐节点独立结果）。
+func (s *Service) Distribute(ctx context.Context, certID int, req DistributeRequest, deployer Deployer) (*DistributeResult, error) {
+	if deployer == nil {
+		return nil, apperr.New(apperr.CodeUnavailable, "控制面未接入 Agent 下发通道（transport.Server 缺失）")
+	}
+	if s.kms == nil {
+		return nil, apperr.New(apperr.CodeUnavailable, "主密钥未配置，无法解密证书")
+	}
+	if len(req.NodeIDs) == 0 {
+		return nil, apperr.New(apperr.CodeInvalid, "未指定目标节点")
+	}
+
+	// 1) 取证书 + KMS 解密私钥与全链（明文仅本函数作用域内存在，绝不入库/回传）。
+	c, err := s.client.Certificate.Get(ctx, certID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, apperr.New(apperr.CodeNotFound, "证书不存在")
+		}
+		return nil, apperr.Wrap(apperr.CodeInternal, "查询证书失败", err)
+	}
+	keyPEM, err := s.kms.Decrypt(c.EncPrivateKey)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "解密私钥失败", err)
+	}
+	fullChain, err := s.kms.Decrypt(c.EncFullChain)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "解密证书链失败", err)
+	}
+
+	sslDir := req.SSLDir
+	if sslDir == "" {
+		sslDir = "/etc/nginx/ssl"
+	}
+	nginxPath := req.NginxPath
+	if nginxPath == "" {
+		nginxPath = "/usr/sbin/nginx"
+	}
+	reload := true
+	if req.Reload != nil {
+		reload = *req.Reload
+	}
+	observe := req.ObserveWindowSec
+	if observe == 0 {
+		observe = 5
+	}
+
+	res := &DistributeResult{}
+	for _, nodeID := range req.NodeIDs {
+		item := &DeploymentResult{NodeID: nodeID}
+		node, nerr := s.client.Node.Get(ctx, nodeID)
+		if nerr != nil {
+			item.Status = "failed"
+			item.Error = "节点不存在"
+		} else {
+			item.NodeName = node.Name
+			task := &agentv1.DeployCertTask{
+				TaskId:           fmt.Sprintf("cert-%d-node-%d-%d", certID, nodeID, time.Now().UnixNano()),
+				Domain:           c.Domain,
+				CertPem:          string(fullChain),
+				KeyPem:           string(keyPEM),
+				SslDir:           sslDir,
+				NginxPath:        nginxPath,
+				Reload:           reload,
+				ObserveWindowSec: observe,
+				ProbeUrl:         req.ProbeURL,
+			}
+			dr, derr := deployer.DeployCert(ctx, nodeID, task)
+			if derr != nil {
+				item.Status = "failed"
+				item.Error = derr.Error()
+			} else if dr == nil || !dr.GetOk() {
+				item.Status = "failed"
+				if dr != nil && dr.GetError() != "" {
+					item.Error = dr.GetError()
+				} else {
+					item.Error = "Agent 返回失败（无原因）"
+				}
+			} else {
+				item.Status = "deployed"
+				item.DeployedAt = dr.GetDeployedAt()
+			}
+		}
+		// 写/更新分发记录（cert_deployments），便于 UI 展示逐节点状态。
+		s.upsertDeployment(ctx, certID, nodeID, item)
+		if item.Status == "deployed" {
+			res.Deployed++
+		} else {
+			res.Failed++
+		}
+		res.Items = append(res.Items, item)
+		res.Total++
+	}
+	return res, nil
+}
+
+// upsertDeployment 写或更新单条 cert_deployments 记录（certificate_id + node_id 维度 upsert）。
+func (s *Service) upsertDeployment(ctx context.Context, certID, nodeID int, item *DeploymentResult) {
+	existing, qerr := s.client.CertDeployment.Query().
+		Where(
+			entcertdep.HasCertificateWith(entcert.ID(certID)),
+			entcertdep.NodeID(nodeID),
+		).
+		Only(ctx)
+	status := entcertdep.Status(item.Status)
+	if qerr != nil {
+		create := s.client.CertDeployment.Create().
+			SetNodeID(nodeID).
+			SetCertificateID(certID).
+			SetStatus(status)
+		if item.DeployedAt != 0 {
+			create.SetDeployedAt(time.Unix(item.DeployedAt, 0).UTC())
+		}
+		if item.Error != "" {
+			create.SetError(item.Error)
+		}
+		_, _ = create.Save(ctx)
+		return
+	}
+	upd := existing.Update().SetStatus(status)
+	if item.DeployedAt != 0 {
+		upd.SetDeployedAt(time.Unix(item.DeployedAt, 0).UTC())
+	}
+	if item.Error != "" {
+		upd.SetError(item.Error)
+	} else {
+		upd.ClearError()
+	}
+	_, _ = upd.Save(ctx)
+}
+
+// GetDeployments 返回某证书在各节点的分发记录（供 UI 展示逐节点状态）。
+func (s *Service) GetDeployments(ctx context.Context, certID int) ([]*DeploymentResult, error) {
+	ds, err := s.client.CertDeployment.Query().
+		Where(entcertdep.HasCertificateWith(entcert.ID(certID))).
+		Order(entcertdep.ByNodeID()).
+		All(ctx)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "查询分发记录失败", err)
+	}
+	out := make([]*DeploymentResult, 0, len(ds))
+	for _, d := range ds {
+		item := &DeploymentResult{
+			NodeID: d.NodeID,
+			Status: string(d.Status),
+			Error:  d.Error,
+		}
+		if !d.DeployedAt.IsZero() {
+			item.DeployedAt = d.DeployedAt.Unix()
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }

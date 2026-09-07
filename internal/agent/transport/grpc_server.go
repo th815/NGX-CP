@@ -65,6 +65,7 @@ type Server struct {
 	deployChans   map[string]chan *agentv1.DeployProgress            // DEPLOY_CONFIG / ROLLBACK_CONFIG
 	snapshotChans map[string]chan *agentv1.SnapshotResult            // CREATE_SNAPSHOT / RESTORE_SNAPSHOT
 	rsWeightChans map[string]chan *agentv1.SetRealServerWeightResult // SET_RS_WEIGHT
+	certChans     map[string]chan *agentv1.DeployCertResult          // DEPLOY_CERT
 }
 
 // NewServer 构造 gRPC 服务端。
@@ -102,6 +103,7 @@ func NewServer(log *slog.Logger, ca *pki.CA, enroll EnrollBackend, nodeSvc *node
 		deployChans:   make(map[string]chan *agentv1.DeployProgress),
 		snapshotChans: make(map[string]chan *agentv1.SnapshotResult),
 		rsWeightChans: make(map[string]chan *agentv1.SetRealServerWeightResult),
+		certChans:     make(map[string]chan *agentv1.DeployCertResult),
 	}
 }
 
@@ -338,6 +340,9 @@ func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
 		}
 		if rw := req.GetSetRsWeightResult(); rw != nil {
 			s.deliverRSWeightResult(rw.GetTaskId(), rw)
+		}
+		if cr := req.GetCertDeployResult(); cr != nil {
+			s.deliverCertResult(cr.GetTaskId(), cr)
 		}
 
 		if s.nodeSvc != nil {

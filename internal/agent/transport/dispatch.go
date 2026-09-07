@@ -22,6 +22,7 @@ const (
 	deployTimeout   = 120 * time.Second
 	snapshotTimeout = 30 * time.Second
 	rsWeightTimeout = 30 * time.Second
+	certTimeout     = 60 * time.Second
 )
 
 // DeployConfig 经心跳命令流请求目标 Agent 执行 9 步原子落盘（T032），阻塞等待终态 DeployProgress。
@@ -82,6 +83,43 @@ func (s *Server) SetRSWeight(ctx context.Context, nodeID int, task *agentv1.SetR
 		SetRsWeight: task,
 	}
 	return s.waitRSWeightResult(ctx, nodeID, cmd, rsWeightTimeout)
+}
+
+// DeployCert 经心跳命令流请求目标 Agent 原子落盘证书（T044），阻塞等待终态 DeployCertResult。
+func (s *Server) DeployCert(ctx context.Context, nodeID int, task *agentv1.DeployCertTask) (*agentv1.DeployCertResult, error) {
+	taskID := ensureTaskID(task.GetTaskId())
+	task.TaskId = taskID
+	cmd := &agentv1.HeartbeatResponse{
+		Command:    agentv1.HeartbeatResponse_DEPLOY_CERT,
+		TaskId:     taskID,
+		DeployCert: task,
+	}
+	return s.waitCertResult(ctx, nodeID, cmd, certTimeout)
+}
+
+// waitCertResult 注册按 task_id 匹配的 DeployCertResult 通道，下发命令并阻塞等待结果。
+func (s *Server) waitCertResult(ctx context.Context, nodeID int, cmd *agentv1.HeartbeatResponse, timeout time.Duration) (*agentv1.DeployCertResult, error) {
+	taskID := cmd.TaskId
+	ch := make(chan *agentv1.DeployCertResult, 1)
+	s.cmdMu.Lock()
+	s.certChans[taskID] = ch
+	s.cmdMu.Unlock()
+	defer func() {
+		s.cmdMu.Lock()
+		delete(s.certChans, taskID)
+		s.cmdMu.Unlock()
+	}()
+	if err := s.sendCmd(nodeID, cmd); err != nil {
+		return nil, err
+	}
+	select {
+	case res := <-ch:
+		return res, nil
+	case <-ctx.Done():
+		return nil, apperr.New(apperr.CodeUnavailable, "证书分发请求被取消").WithDetail(ctx.Err().Error())
+	case <-time.After(timeout):
+		return nil, apperr.New(apperr.CodeUnavailable, "证书分发超时（Agent 未回传结果）")
+	}
 }
 
 // sendCmd 经会话命令通道下发一条心跳指令，会话满时少量重试；离线/不可达返回 apperr。
@@ -225,6 +263,25 @@ func (s *Server) deliverRSWeightResult(taskID string, res *agentv1.SetRealServer
 	ch, ok := s.rsWeightChans[taskID]
 	if ok {
 		delete(s.rsWeightChans, taskID)
+	}
+	s.cmdMu.Unlock()
+	if ok {
+		select {
+		case ch <- res:
+		default:
+		}
+	}
+}
+
+// deliverCertResult 把 Agent 回传的证书落盘结果投递给等待中的请求（按 task_id 匹配）。
+func (s *Server) deliverCertResult(taskID string, res *agentv1.DeployCertResult) {
+	if taskID == "" {
+		return
+	}
+	s.cmdMu.Lock()
+	ch, ok := s.certChans[taskID]
+	if ok {
+		delete(s.certChans, taskID)
 	}
 	s.cmdMu.Unlock()
 	if ok {

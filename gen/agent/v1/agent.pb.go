@@ -38,6 +38,7 @@ const (
 	HeartbeatRequest_SNAPSHOT        HeartbeatRequest_Type = 8  // T031：快照结果上报（create / restore）
 	HeartbeatRequest_DEPLOY          HeartbeatRequest_Type = 9  // T032：原子落盘进度上报
 	HeartbeatRequest_RS_WEIGHT       HeartbeatRequest_Type = 10 // T035：RS 权重调整结果上报
+	HeartbeatRequest_CERT_DEPLOY     HeartbeatRequest_Type = 11 // T044：证书落盘结果上报
 )
 
 // Enum value maps for HeartbeatRequest_Type.
@@ -54,6 +55,7 @@ var (
 		8:  "SNAPSHOT",
 		9:  "DEPLOY",
 		10: "RS_WEIGHT",
+		11: "CERT_DEPLOY",
 	}
 	HeartbeatRequest_Type_value = map[string]int32{
 		"PING":            0,
@@ -67,6 +69,7 @@ var (
 		"SNAPSHOT":        8,
 		"DEPLOY":          9,
 		"RS_WEIGHT":       10,
+		"CERT_DEPLOY":     11,
 	}
 )
 
@@ -109,6 +112,7 @@ const (
 	HeartbeatResponse_DEPLOY_CONFIG      HeartbeatResponse_Command = 6 // T032：让 Agent 跑 9 步原子落盘（含校验/快照/reload/探活）
 	HeartbeatResponse_ROLLBACK_CONFIG    HeartbeatResponse_Command = 7 // T034：让 Agent 跑回滚流水线（解压校验→恢复→reload→探活）
 	HeartbeatResponse_SET_RS_WEIGHT      HeartbeatResponse_Command = 8 // T035：让 Agent 在 LVS Director 上调整 RS 权重（摘除式灰度）
+	HeartbeatResponse_DEPLOY_CERT        HeartbeatResponse_Command = 9 // T044：让 Agent 把证书原子落盘到 /etc/nginx/ssl（含 reload/探活）
 )
 
 // Enum value maps for HeartbeatResponse_Command.
@@ -123,6 +127,7 @@ var (
 		6: "DEPLOY_CONFIG",
 		7: "ROLLBACK_CONFIG",
 		8: "SET_RS_WEIGHT",
+		9: "DEPLOY_CERT",
 	}
 	HeartbeatResponse_Command_value = map[string]int32{
 		"NONE":               0,
@@ -134,6 +139,7 @@ var (
 		"DEPLOY_CONFIG":      6,
 		"ROLLBACK_CONFIG":    7,
 		"SET_RS_WEIGHT":      8,
+		"DEPLOY_CERT":        9,
 	}
 )
 
@@ -384,6 +390,7 @@ type HeartbeatRequest struct {
 	SnapshotResult    *SnapshotResult            `protobuf:"bytes,10,opt,name=snapshot_result,json=snapshotResult,proto3" json:"snapshot_result,omitempty"`              // T031：快照（create / restore）结果
 	DeployProgress    *DeployProgress            `protobuf:"bytes,11,opt,name=deploy_progress,json=deployProgress,proto3" json:"deploy_progress,omitempty"`              // T032：原子落盘进度（9 步逐步上报）
 	SetRsWeightResult *SetRealServerWeightResult `protobuf:"bytes,12,opt,name=set_rs_weight_result,json=setRsWeightResult,proto3" json:"set_rs_weight_result,omitempty"` // T035：RS 权重调整结果
+	CertDeployResult  *DeployCertResult          `protobuf:"bytes,13,opt,name=cert_deploy_result,json=certDeployResult,proto3" json:"cert_deploy_result,omitempty"`      // T044：证书落盘结果
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -502,6 +509,13 @@ func (x *HeartbeatRequest) GetSetRsWeightResult() *SetRealServerWeightResult {
 	return nil
 }
 
+func (x *HeartbeatRequest) GetCertDeployResult() *DeployCertResult {
+	if x != nil {
+		return x.CertDeployResult
+	}
+	return nil
+}
+
 type HeartbeatResponse struct {
 	state   protoimpl.MessageState    `protogen:"open.v1"`
 	Command HeartbeatResponse_Command `protobuf:"varint,1,opt,name=command,proto3,enum=agent.v1.HeartbeatResponse_Command" json:"command,omitempty"`
@@ -517,7 +531,9 @@ type HeartbeatResponse struct {
 	// T034：ROLLBACK_CONFIG 命令携带的回滚任务（快照路径 + 运行参数）。
 	RollbackTask *RollbackTask `protobuf:"bytes,7,opt,name=rollback_task,json=rollbackTask,proto3" json:"rollback_task,omitempty"`
 	// T035：SET_RS_WEIGHT 命令携带的权重调整任务（目标 RS + 权重，0=摘除）。
-	SetRsWeight   *SetRealServerWeightTask `protobuf:"bytes,8,opt,name=set_rs_weight,json=setRsWeight,proto3" json:"set_rs_weight,omitempty"`
+	SetRsWeight *SetRealServerWeightTask `protobuf:"bytes,8,opt,name=set_rs_weight,json=setRsWeight,proto3" json:"set_rs_weight,omitempty"`
+	// T044：DEPLOY_CERT 命令携带的证书落盘任务（私钥明文经 mTLS 下发，绝不下发浏览器/入库明文）。
+	DeployCert    *DeployCertTask `protobuf:"bytes,9,opt,name=deploy_cert,json=deployCert,proto3" json:"deploy_cert,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -604,6 +620,13 @@ func (x *HeartbeatResponse) GetRollbackTask() *RollbackTask {
 func (x *HeartbeatResponse) GetSetRsWeight() *SetRealServerWeightTask {
 	if x != nil {
 		return x.SetRsWeight
+	}
+	return nil
+}
+
+func (x *HeartbeatResponse) GetDeployCert() *DeployCertTask {
+	if x != nil {
+		return x.DeployCert
 	}
 	return nil
 }
@@ -2660,6 +2683,184 @@ func (x *DeployProgress) GetMessage() string {
 	return ""
 }
 
+// DeployCertTask 是控制面下发给 Agent 的证书落盘任务。
+type DeployCertTask struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	TaskId           string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`                                  // 幂等键，结果回传时原样带回
+	Domain           string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`                                                // 主域名，用于文件名 <domain>.{crt,key}
+	CertPem          string                 `protobuf:"bytes,3,opt,name=cert_pem,json=certPem,proto3" json:"cert_pem,omitempty"`                               // full chain（leaf + intermediate），明文经 mTLS 下发
+	KeyPem           string                 `protobuf:"bytes,4,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`                                  // 私钥明文（经 mTLS 下发，绝不进浏览器/DB 明文）
+	SslDir           string                 `protobuf:"bytes,5,opt,name=ssl_dir,json=sslDir,proto3" json:"ssl_dir,omitempty"`                                  // 落盘目录，默认 /etc/nginx/ssl
+	NginxPath        string                 `protobuf:"bytes,6,opt,name=nginx_path,json=nginxPath,proto3" json:"nginx_path,omitempty"`                         // 默认 /usr/sbin/nginx
+	Reload           bool                   `protobuf:"varint,7,opt,name=reload,proto3" json:"reload,omitempty"`                                               // 落盘后是否 reload，默认 true
+	ObserveWindowSec int64                  `protobuf:"varint,8,opt,name=observe_window_sec,json=observeWindowSec,proto3" json:"observe_window_sec,omitempty"` // 落盘后观测窗口，默认 5
+	ProbeUrl         string                 `protobuf:"bytes,9,opt,name=probe_url,json=probeUrl,proto3" json:"probe_url,omitempty"`                            // 探活 URL，空则跳过探活（建议 https://<domain> 或 127.0.0.1:443）
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DeployCertTask) Reset() {
+	*x = DeployCertTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeployCertTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeployCertTask) ProtoMessage() {}
+
+func (x *DeployCertTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeployCertTask.ProtoReflect.Descriptor instead.
+func (*DeployCertTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *DeployCertTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *DeployCertTask) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *DeployCertTask) GetCertPem() string {
+	if x != nil {
+		return x.CertPem
+	}
+	return ""
+}
+
+func (x *DeployCertTask) GetKeyPem() string {
+	if x != nil {
+		return x.KeyPem
+	}
+	return ""
+}
+
+func (x *DeployCertTask) GetSslDir() string {
+	if x != nil {
+		return x.SslDir
+	}
+	return ""
+}
+
+func (x *DeployCertTask) GetNginxPath() string {
+	if x != nil {
+		return x.NginxPath
+	}
+	return ""
+}
+
+func (x *DeployCertTask) GetReload() bool {
+	if x != nil {
+		return x.Reload
+	}
+	return false
+}
+
+func (x *DeployCertTask) GetObserveWindowSec() int64 {
+	if x != nil {
+		return x.ObserveWindowSec
+	}
+	return 0
+}
+
+func (x *DeployCertTask) GetProbeUrl() string {
+	if x != nil {
+		return x.ProbeUrl
+	}
+	return ""
+}
+
+// DeployCertResult 是 Agent 回传的证书落盘结果。
+type DeployCertResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Ok            bool                   `protobuf:"varint,2,opt,name=ok,proto3" json:"ok,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`                              // 失败原因（ok=false 时）
+	DeployedAt    int64                  `protobuf:"varint,4,opt,name=deployed_at,json=deployedAt,proto3" json:"deployed_at,omitempty"` // 实际落盘时间（unix 秒，UTC）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeployCertResult) Reset() {
+	*x = DeployCertResult{}
+	mi := &file_agent_v1_agent_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeployCertResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeployCertResult) ProtoMessage() {}
+
+func (x *DeployCertResult) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeployCertResult.ProtoReflect.Descriptor instead.
+func (*DeployCertResult) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *DeployCertResult) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *DeployCertResult) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *DeployCertResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *DeployCertResult) GetDeployedAt() int64 {
+	if x != nil {
+		return x.DeployedAt
+	}
+	return 0
+}
+
 var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
@@ -2681,7 +2882,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\fServerConfig\x124\n" +
 	"\x16heartbeat_interval_sec\x18\x01 \x01(\x03R\x14heartbeatIntervalSec\x122\n" +
 	"\x15heartbeat_timeout_sec\x18\x02 \x01(\x03R\x13heartbeatTimeoutSec\x12-\n" +
-	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\xfb\x06\n" +
+	"\x13clock_skew_warn_sec\x18\x03 \x01(\x03R\x10clockSkewWarnSec\"\xd6\a\n" +
 	"\x10HeartbeatRequest\x123\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1f.agent.v1.HeartbeatRequest.TypeR\x04type\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x124\n" +
@@ -2701,7 +2902,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\x0fsnapshot_result\x18\n" +
 	" \x01(\v2\x18.agent.v1.SnapshotResultR\x0esnapshotResult\x12A\n" +
 	"\x0fdeploy_progress\x18\v \x01(\v2\x18.agent.v1.DeployProgressR\x0edeployProgress\x12T\n" +
-	"\x14set_rs_weight_result\x18\f \x01(\v2#.agent.v1.SetRealServerWeightResultR\x11setRsWeightResult\"\xab\x01\n" +
+	"\x14set_rs_weight_result\x18\f \x01(\v2#.agent.v1.SetRealServerWeightResultR\x11setRsWeightResult\x12H\n" +
+	"\x12cert_deploy_result\x18\r \x01(\v2\x1a.agent.v1.DeployCertResultR\x10certDeployResult\"\xbc\x01\n" +
 	"\x04Type\x12\b\n" +
 	"\x04PING\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2717,7 +2919,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"\x06DEPLOY\x10\t\x12\r\n" +
 	"\tRS_WEIGHT\x10\n" +
-	"\"\xb5\x05\n" +
+	"\x12\x0f\n" +
+	"\vCERT_DEPLOY\x10\v\"\x81\x06\n" +
 	"\x11HeartbeatResponse\x12=\n" +
 	"\acommand\x18\x01 \x01(\x0e2#.agent.v1.HeartbeatResponse.CommandR\acommand\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12;\n" +
@@ -2727,7 +2930,9 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\vsync_config\x18\x06 \x01(\v2\x18.agent.v1.SyncConfigTaskR\n" +
 	"syncConfig\x12;\n" +
 	"\rrollback_task\x18\a \x01(\v2\x16.agent.v1.RollbackTaskR\frollbackTask\x12E\n" +
-	"\rset_rs_weight\x18\b \x01(\v2!.agent.v1.SetRealServerWeightTaskR\vsetRsWeight\"\xba\x01\n" +
+	"\rset_rs_weight\x18\b \x01(\v2!.agent.v1.SetRealServerWeightTaskR\vsetRsWeight\x129\n" +
+	"\vdeploy_cert\x18\t \x01(\v2\x18.agent.v1.DeployCertTaskR\n" +
+	"deployCert\"\xcb\x01\n" +
 	"\aCommand\x12\b\n" +
 	"\x04NONE\x10\x00\x12\x16\n" +
 	"\x12REFRESH_CAPABILITY\x10\x01\x12\x12\n" +
@@ -2737,7 +2942,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\x10RESTORE_SNAPSHOT\x10\x05\x12\x11\n" +
 	"\rDEPLOY_CONFIG\x10\x06\x12\x13\n" +
 	"\x0fROLLBACK_CONFIG\x10\a\x12\x11\n" +
-	"\rSET_RS_WEIGHT\x10\b\"a\n" +
+	"\rSET_RS_WEIGHT\x10\b\x12\x0f\n" +
+	"\vDEPLOY_CERT\x10\t\"a\n" +
 	"\x10CapabilityReport\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\x03R\x06nodeId\x124\n" +
 	"\n" +
@@ -2933,7 +3139,24 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x12\n" +
 	"\x04step\x18\x02 \x01(\tR\x04step\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage2\xda\x01\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\x90\x02\n" +
+	"\x0eDeployCertTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x19\n" +
+	"\bcert_pem\x18\x03 \x01(\tR\acertPem\x12\x17\n" +
+	"\akey_pem\x18\x04 \x01(\tR\x06keyPem\x12\x17\n" +
+	"\assl_dir\x18\x05 \x01(\tR\x06sslDir\x12\x1d\n" +
+	"\n" +
+	"nginx_path\x18\x06 \x01(\tR\tnginxPath\x12\x16\n" +
+	"\x06reload\x18\a \x01(\bR\x06reload\x12,\n" +
+	"\x12observe_window_sec\x18\b \x01(\x03R\x10observeWindowSec\x12\x1b\n" +
+	"\tprobe_url\x18\t \x01(\tR\bprobeUrl\"r\n" +
+	"\x10DeployCertResult\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x0e\n" +
+	"\x02ok\x18\x02 \x01(\bR\x02ok\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1f\n" +
+	"\vdeployed_at\x18\x04 \x01(\x03R\n" +
+	"deployedAt2\xda\x01\n" +
 	"\fAgentService\x12A\n" +
 	"\bRegister\x12\x19.agent.v1.RegisterRequest\x1a\x1a.agent.v1.RegisterResponse\x12H\n" +
 	"\tHeartbeat\x12\x1a.agent.v1.HeartbeatRequest\x1a\x1b.agent.v1.HeartbeatResponse(\x010\x01\x12=\n" +
@@ -2952,7 +3175,7 @@ func file_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_agent_v1_agent_proto_goTypes = []any{
 	(HeartbeatRequest_Type)(0),        // 0: agent.v1.HeartbeatRequest.Type
 	(HeartbeatResponse_Command)(0),    // 1: agent.v1.HeartbeatResponse.Command
@@ -2986,7 +3209,9 @@ var file_agent_v1_agent_proto_goTypes = []any{
 	(*SetRealServerWeightTask)(nil),   // 29: agent.v1.SetRealServerWeightTask
 	(*SetRealServerWeightResult)(nil), // 30: agent.v1.SetRealServerWeightResult
 	(*DeployProgress)(nil),            // 31: agent.v1.DeployProgress
-	nil,                               // 32: agent.v1.SystemInfo.DiskFreeEntry
+	(*DeployCertTask)(nil),            // 32: agent.v1.DeployCertTask
+	(*DeployCertResult)(nil),          // 33: agent.v1.DeployCertResult
+	nil,                               // 34: agent.v1.SystemInfo.DiskFreeEntry
 }
 var file_agent_v1_agent_proto_depIdxs = []int32{
 	4,  // 0: agent.v1.RegisterResponse.config:type_name -> agent.v1.ServerConfig
@@ -3000,37 +3225,39 @@ var file_agent_v1_agent_proto_depIdxs = []int32{
 	25, // 8: agent.v1.HeartbeatRequest.snapshot_result:type_name -> agent.v1.SnapshotResult
 	31, // 9: agent.v1.HeartbeatRequest.deploy_progress:type_name -> agent.v1.DeployProgress
 	30, // 10: agent.v1.HeartbeatRequest.set_rs_weight_result:type_name -> agent.v1.SetRealServerWeightResult
-	1,  // 11: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
-	21, // 12: agent.v1.HeartbeatResponse.validate_task:type_name -> agent.v1.ValidateTask
-	23, // 13: agent.v1.HeartbeatResponse.snapshot_create:type_name -> agent.v1.SnapshotCreateTask
-	24, // 14: agent.v1.HeartbeatResponse.snapshot_restore:type_name -> agent.v1.SnapshotRestoreTask
-	27, // 15: agent.v1.HeartbeatResponse.sync_config:type_name -> agent.v1.SyncConfigTask
-	28, // 16: agent.v1.HeartbeatResponse.rollback_task:type_name -> agent.v1.RollbackTask
-	29, // 17: agent.v1.HeartbeatResponse.set_rs_weight:type_name -> agent.v1.SetRealServerWeightTask
-	9,  // 18: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
-	10, // 19: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
-	12, // 20: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
-	15, // 21: agent.v1.Capability.system:type_name -> agent.v1.SystemInfo
-	11, // 22: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
-	13, // 23: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
-	13, // 24: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
-	32, // 25: agent.v1.SystemInfo.disk_free:type_name -> agent.v1.SystemInfo.DiskFreeEntry
-	11, // 26: agent.v1.ConfigTreeReport.files:type_name -> agent.v1.ConfigFile
-	18, // 27: agent.v1.LogTargetsReport.items:type_name -> agent.v1.LogTarget
-	20, // 28: agent.v1.ValidateTask.files:type_name -> agent.v1.ValidateFile
-	19, // 29: agent.v1.ValidateResult.errors:type_name -> agent.v1.NginxError
-	26, // 30: agent.v1.SyncConfigTask.files:type_name -> agent.v1.FileToWrite
-	2,  // 31: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
-	5,  // 32: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
-	7,  // 33: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
-	3,  // 34: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
-	6,  // 35: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
-	8,  // 36: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
-	34, // [34:37] is the sub-list for method output_type
-	31, // [31:34] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	33, // 11: agent.v1.HeartbeatRequest.cert_deploy_result:type_name -> agent.v1.DeployCertResult
+	1,  // 12: agent.v1.HeartbeatResponse.command:type_name -> agent.v1.HeartbeatResponse.Command
+	21, // 13: agent.v1.HeartbeatResponse.validate_task:type_name -> agent.v1.ValidateTask
+	23, // 14: agent.v1.HeartbeatResponse.snapshot_create:type_name -> agent.v1.SnapshotCreateTask
+	24, // 15: agent.v1.HeartbeatResponse.snapshot_restore:type_name -> agent.v1.SnapshotRestoreTask
+	27, // 16: agent.v1.HeartbeatResponse.sync_config:type_name -> agent.v1.SyncConfigTask
+	28, // 17: agent.v1.HeartbeatResponse.rollback_task:type_name -> agent.v1.RollbackTask
+	29, // 18: agent.v1.HeartbeatResponse.set_rs_weight:type_name -> agent.v1.SetRealServerWeightTask
+	32, // 19: agent.v1.HeartbeatResponse.deploy_cert:type_name -> agent.v1.DeployCertTask
+	9,  // 20: agent.v1.CapabilityReport.capability:type_name -> agent.v1.Capability
+	10, // 21: agent.v1.Capability.nginx:type_name -> agent.v1.NginxInfo
+	12, // 22: agent.v1.Capability.compliance:type_name -> agent.v1.ComplianceReport
+	15, // 23: agent.v1.Capability.system:type_name -> agent.v1.SystemInfo
+	11, // 24: agent.v1.NginxInfo.config_files:type_name -> agent.v1.ConfigFile
+	13, // 25: agent.v1.ComplianceReport.items:type_name -> agent.v1.ComplianceItem
+	13, // 26: agent.v1.FsProbeReport.items:type_name -> agent.v1.ComplianceItem
+	34, // 27: agent.v1.SystemInfo.disk_free:type_name -> agent.v1.SystemInfo.DiskFreeEntry
+	11, // 28: agent.v1.ConfigTreeReport.files:type_name -> agent.v1.ConfigFile
+	18, // 29: agent.v1.LogTargetsReport.items:type_name -> agent.v1.LogTarget
+	20, // 30: agent.v1.ValidateTask.files:type_name -> agent.v1.ValidateFile
+	19, // 31: agent.v1.ValidateResult.errors:type_name -> agent.v1.NginxError
+	26, // 32: agent.v1.SyncConfigTask.files:type_name -> agent.v1.FileToWrite
+	2,  // 33: agent.v1.AgentService.Register:input_type -> agent.v1.RegisterRequest
+	5,  // 34: agent.v1.AgentService.Heartbeat:input_type -> agent.v1.HeartbeatRequest
+	7,  // 35: agent.v1.AgentService.ReportCapability:input_type -> agent.v1.CapabilityReport
+	3,  // 36: agent.v1.AgentService.Register:output_type -> agent.v1.RegisterResponse
+	6,  // 37: agent.v1.AgentService.Heartbeat:output_type -> agent.v1.HeartbeatResponse
+	8,  // 38: agent.v1.AgentService.ReportCapability:output_type -> agent.v1.Ack
+	36, // [36:39] is the sub-list for method output_type
+	33, // [33:36] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_agent_v1_agent_proto_init() }
@@ -3044,7 +3271,7 @@ func file_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_v1_agent_proto_rawDesc), len(file_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

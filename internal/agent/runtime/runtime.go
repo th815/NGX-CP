@@ -54,6 +54,7 @@ type Runtime struct {
 	rollback *agentexec.RollbackExecutor
 	snapshot *agentexec.SnapshotExecutor
 	ipvs     *agentexec.IPVSExecutor
+	cert     *agentexec.CertDeployExecutor
 	coll     *agent.Collector
 	hbClient agentv1.AgentServiceClient // 用于 ReportCapability 一元 RPC
 }
@@ -100,6 +101,7 @@ func Run(ctx context.Context, cfg Config) error {
 		rollback: agentexec.NewRollbackExecutor(hostexec.NewRealExecutor()),
 		snapshot: agentexec.NewSnapshotExecutor(),
 		ipvs:     agentexec.NewIPVSExecutor(hostexec.NewRealExecutor()),
+		cert:     agentexec.NewCertDeployExecutor(hostexec.NewRealExecutor()),
 		coll:     agent.NewCollector(hostexec.NewRealExecutor(), log),
 		hbClient: api,
 	}
@@ -112,6 +114,7 @@ func Run(ctx context.Context, cfg Config) error {
 		CreateSnapshot:    rt.onCreateSnapshot,
 		RestoreSnapshot:   rt.onRestoreSnapshot,
 		SetRSWeight:       rt.onSetRSWeight,
+		DeployCert:        rt.onDeployCert,
 	}
 
 	sc := &agentv1.ServerConfig{HeartbeatIntervalSec: 10, HeartbeatTimeoutSec: 30}
@@ -293,6 +296,33 @@ func (r *Runtime) onSetRSWeight(ctx context.Context, task *agentv1.SetRealServer
 		return nil, err
 	}
 	return &agentv1.SetRealServerWeightResult{TaskId: task.GetTaskId(), Ok: true}, nil
+}
+
+// onDeployCert 把控制面下发的证书落盘任务翻译为本地 CertDeployExecutor 请求（T044）。
+// 私钥明文来自 task.KeyPem（仅经 mTLS 在途明文），Agent 落盘后不留存于其它位置。
+func (r *Runtime) onDeployCert(ctx context.Context, task *agentv1.DeployCertTask) (*agentv1.DeployCertResult, error) {
+	req := agentexec.CertDeployRequest{
+		Domain:        task.GetDomain(),
+		CertPEM:       task.GetCertPem(),
+		KeyPEM:        task.GetKeyPem(),
+		SSLDir:        defaultStr(task.GetSslDir(), r.cfg.NginxPrefix+"/ssl"),
+		NginxPath:     defaultStr(task.GetNginxPath(), r.cfg.NginxPath),
+		Reload:        task.GetReload(),
+		ProbeURL:      task.GetProbeUrl(),
+		ObserveWindow: dur(task.GetObserveWindowSec(), 5),
+	}
+	res, err := r.cert.Deploy(ctx, req, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := &agentv1.DeployCertResult{TaskId: task.GetTaskId(), Ok: res.OK}
+	if !res.OK {
+		out.Error = res.Error
+	}
+	if !res.DeployedAt.IsZero() {
+		out.DeployedAt = res.DeployedAt.Unix()
+	}
+	return out, nil
 }
 
 // ── 小工具 ──

@@ -60,6 +60,8 @@ type HeartbeatCallbacks struct {
 	RestoreSnapshot func(ctx context.Context, task *agentv1.SnapshotRestoreTask) (*agentv1.SnapshotResult, error)
 	// SetRSWeight 在 LVS Director 上调整 RS 权重（T035，灰度摘除）。
 	SetRSWeight func(ctx context.Context, task *agentv1.SetRealServerWeightTask) (*agentv1.SetRealServerWeightResult, error)
+	// DeployCert 把证书原子落盘到 /etc/nginx/ssl（T044）。
+	DeployCert func(ctx context.Context, task *agentv1.DeployCertTask) (*agentv1.DeployCertResult, error)
 }
 
 // Heartbeater 管理一条到控制面的心跳长连接。
@@ -77,6 +79,7 @@ type Heartbeater struct {
 	deployOut   chan *agentv1.DeployProgress             // DEPLOY_CONFIG / ROLLBACK_CONFIG 进度与终态
 	snapshotOut chan *agentv1.SnapshotResult             // CREATE_SNAPSHOT / RESTORE_SNAPSHOT 结果
 	rsWeightOut chan *agentv1.SetRealServerWeightResult  // SET_RS_WEIGHT 结果
+	certOut     chan *agentv1.DeployCertResult           // DEPLOY_CERT 结果
 }
 
 // NewHeartbeater 构造心跳客户端。
@@ -101,6 +104,7 @@ func NewHeartbeater(cli agentv1.AgentServiceClient, cfg HeartbeatConfig, cb Hear
 		deployOut:         make(chan *agentv1.DeployProgress, 1),
 		snapshotOut:       make(chan *agentv1.SnapshotResult, 1),
 		rsWeightOut:       make(chan *agentv1.SetRealServerWeightResult, 1),
+		certOut:           make(chan *agentv1.DeployCertResult, 1),
 	}
 }
 
@@ -336,6 +340,10 @@ func (h *Heartbeater) session(ctx context.Context) error {
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_RS_WEIGHT, rep); serr != nil {
 				return serr
 			}
+		case rep := <-h.certOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CERT_DEPLOY, rep); serr != nil {
+				return serr
+			}
 		}
 	}
 }
@@ -479,6 +487,25 @@ func (h *Heartbeater) handleCommand(ctx context.Context, resp *agentv1.Heartbeat
 			default:
 			}
 		}()
+	case agentv1.HeartbeatResponse_DEPLOY_CERT:
+		task := resp.GetDeployCert()
+		if task == nil || h.cb.DeployCert == nil {
+			return
+		}
+		h.log.Info("control-plane requested cert deploy", "task_id", task.GetTaskId(), "domain", task.GetDomain())
+		go func() {
+			res, rerr := h.cb.DeployCert(ctx, task)
+			if res == nil {
+				res = &agentv1.DeployCertResult{TaskId: task.GetTaskId(), Ok: false, Error: "未知错误（无结果返回）"}
+			}
+			if rerr != nil {
+				res = &agentv1.DeployCertResult{TaskId: task.GetTaskId(), Ok: false, Error: rerr.Error()}
+			}
+			select {
+			case h.certOut <- res:
+			default:
+			}
+		}()
 	default:
 		// NONE 等：无需动作。
 	}
@@ -540,6 +567,8 @@ func (h *Heartbeater) sendReport(stream agentv1.AgentService_HeartbeatClient, ty
 		req.SnapshotResult = payload.(*agentv1.SnapshotResult)
 	case agentv1.HeartbeatRequest_RS_WEIGHT:
 		req.SetRsWeightResult = payload.(*agentv1.SetRealServerWeightResult)
+	case agentv1.HeartbeatRequest_CERT_DEPLOY:
+		req.CertDeployResult = payload.(*agentv1.DeployCertResult)
 	}
 	return stream.Send(req)
 }
