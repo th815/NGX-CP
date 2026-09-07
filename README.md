@@ -36,8 +36,11 @@
   不再假装成功。附带修复 watcher 注册竞态（监听生效前的配置变更会被永久丢弃）。
   落地工具：`scripts/deploy-agent.sh`（rollback-safe：备份→stop→落位→start→校验，
   失败自动回滚；主机/IP/令牌全部由环境变量与令牌文件提供，无内置环境信息）+ systemd 单元。
-- 🌐 **节点自注册（web 一键，推荐）**：控制面提供 `/agent/` 控制台 —— 填节点名 + 选角色「新建节点并生成接入命令」，
-  签发**节点绑定 Join Token**（服务端 `join_tokens` 表，可单独吊销），显示 `curl … | bash` 一行命令；
+- 🌐 **节点自注册（控制台一键，推荐）**：在**「节点」页面 `/nodes`** 点「添加节点」—— 填节点名 + 选角色 + 选有效期
+  →「登记并生成安装命令」，签发**节点绑定 Join Token**（服务端 `join_tokens` 表，可单独吊销），
+  显示 `curl … | bash` 一行命令（控制面地址与 gRPC 端口由 `GET /api/v1/agent/bootstrap-info` 自动填充）；
+  独立页 `/agent/` 保留为备用入口。控制面须启用二进制分发（`agent_dist_dir`）：`deploy.sh` 自动构建上传并幂等补齐
+  配置；存量控制面可跑 `scripts/enable-agent-dist.sh` 一次性补救（修复 `[2/5] 下载 Agent 二进制 404`）。
   节点自拉二进制 + CA、装 systemd、用 Join Token + 本地 CSR 自注册，**复用既有节点**无审批直接上线
   （令牌持久化于 Agent 侧 `/etc/ngxcp/agent.conf`）。`POST /api/v1/nodes` 新建并签发，`POST /api/v1/nodes/:id/join-token` 轮换（吊销旧令牌），亦可经 `POST /api/v1/nodes/:id/join-token/revoke` 独立吊销（只吊销不签发，安全事件响应）。
   另保留**预建节点一次性 Enroll Token**路径（`POST /api/v1/nodes/:id/enroll-token`，可经 `POST /api/v1/nodes/:id/enroll-token/revoke` 主动吊销），

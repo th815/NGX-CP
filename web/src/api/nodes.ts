@@ -166,3 +166,33 @@ export async function issueEnrollToken(id: number, ttl?: string): Promise<Enroll
   })
   return r.data.data
 }
+
+export interface JoinTokenOut {
+  token: string
+  expires_at: string
+}
+
+// 引导信息：前端拼装一键安装命令所需（控制面基址 / Agent 可达 gRPC 地址 / 二进制分发是否就绪）。
+export interface BootstrapInfo {
+  origin: string
+  grpc_addr: string
+  binary_ready: boolean
+}
+
+// 签发节点绑定 Join Token（一个 Agent 一个 Token，可复用重建证书；轮换即吊销旧令牌）。
+export async function issueJoinToken(id: number, ttl?: string): Promise<JoinTokenOut> {
+  const params = ttl ? { ttl } : undefined
+  const r = await client.post<{ data: JoinTokenOut }>(`/nodes/${id}/join-token`, undefined, {
+    params
+  })
+  return r.data.data
+}
+
+export async function revokeJoinToken(id: number): Promise<void> {
+  await client.post(`/nodes/${id}/join-token/revoke`)
+}
+
+export async function getBootstrapInfo(): Promise<BootstrapInfo> {
+  const r = await client.get<{ data: BootstrapInfo }>('/agent/bootstrap-info')
+  return r.data.data
+}

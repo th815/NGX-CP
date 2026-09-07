@@ -24,7 +24,7 @@ import {
 import NodeCard from '@/components/node/NodeCard.vue'
 import CapabilityPanel from '@/components/node/CapabilityPanel.vue'
 import CompliancePanel from '@/components/node/CompliancePanel.vue'
-import EnrollDialog from '@/components/node/EnrollDialog.vue'
+import JoinDialog from '@/components/node/JoinDialog.vue'
 import {
   listNodes,
   getNode,
@@ -288,7 +288,7 @@ onMounted(loadNodes)
       </n-drawer-content>
     </n-drawer>
 
-    <enroll-dialog v-model:show="showEnroll" @created="loadNodes" />
+    <join-dialog v-model:show="showEnroll" @created="loadNodes" />
   </div>
 </template>
 

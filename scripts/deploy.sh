@@ -33,6 +33,13 @@ BT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS="-X github.com/th/ngxcp/internal/pkg/version.Version=$V -X github.com/th/ngxcp/internal/pkg/version.Commit=$C -X github.com/th/ngxcp/internal/pkg/version.BuildTime=$BT"
 go build -tags webui -ldflags "$LDFLAGS" -o bin/ngxcp-server ./cmd/ngxcp-server
 
+# 节点自注册所需：Agent 二进制分发产物（控制面 /agent/bin/<file> 提供下载）。
+# 缺失会导致节点安装脚本在 [2/5] 下载二进制时 404，故与服务端一同构建。
+echo "  构建 Agent 分发产物 dist/agent ..."
+mkdir -p dist/agent
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/agent/ngxcp-agent-linux-amd64 ./cmd/ngxcp-agent
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64  go build -ldflags "$LDFLAGS" -o dist/agent/ngxcp-agent-linux-arm64 ./cmd/ngxcp-agent
+
 echo "[3/6] 远端建目录 + 放行防火墙(若 firewalld 运行) ..."
 ssh $SSH_OPTS "$HOST" 'bash -s' <<'REMOTE'
 set -e
@@ -51,6 +58,9 @@ echo "[4/6] 传输二进制 / 规则 / systemd 单元 ..."
 scp $SSH_OPTS bin/ngxcp-server "$HOST:/opt/ngxcp/ngxcp-server.new"
 scp $SSH_OPTS configs/rules.yaml "$HOST:/opt/ngxcp/rules.yaml"
 scp $SSH_OPTS scripts/ngxcp-server.service "$HOST:/etc/systemd/system/ngxcp-server.service"
+ssh $SSH_OPTS "$HOST" "mkdir -p $REMOTE_DIR/dist/agent"
+scp $SSH_OPTS dist/agent/ngxcp-agent-linux-amd64 dist/agent/ngxcp-agent-linux-arm64 "$HOST:$REMOTE_DIR/dist/agent/"
+echo "  Agent 分发产物已上传 -> $REMOTE_DIR/dist/agent/"
 
 echo "[5/6] 安装：备份旧二进制 + 落位 + 首次生成配置 + 启服务 ..."
 ssh $SSH_OPTS "$HOST" 'bash -s' <<'REMOTE'
@@ -87,6 +97,15 @@ YAML
   echo "已生成 /opt/ngxcp/config.yaml（token 见文件，未入库）"
 else
   echo "保留现有 /opt/ngxcp/config.yaml"
+fi
+
+# 幂等补齐二进制分发目录配置（存量控制面升级时才需新增此键；已有则保留）。
+# 缺失该键时节点安装脚本会在 [2/5] 下载 Agent 二进制时 404。
+if ! grep -q '^agent_dist_dir:' /opt/ngxcp/config.yaml; then
+  echo 'agent_dist_dir: "/opt/ngxcp/dist/agent"' >> /opt/ngxcp/config.yaml
+  echo "已补齐 agent_dist_dir 配置"
+else
+  echo "保留现有 agent_dist_dir 配置"
 fi
 
 # 启动前配置自检

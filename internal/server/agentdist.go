@@ -37,6 +37,8 @@ func registerAgentDistribution(r *gin.Engine, ca *pki.CA, distDir, grpcListen st
 	r.GET("/agent/ca.crt", ad.serveCA)
 	r.GET("/agent/bin/:file", ad.serveBinary)
 	r.GET("/agent/", ad.serveConsole)
+	// 前端 SPA 拼装「一键安装命令」所需的引导信息（公开只读，不含机密）。
+	r.GET("/api/v1/agent/bootstrap-info", ad.serveBootstrapInfo)
 
 	// 新建节点走 router.go 的 ns.POST("")（node.Create），签发 Join Token 走下方
 	// :id/join-token 路由；Web 控制台按「两步」调用，避免与 router 的 /api/v1/nodes 冲突。
@@ -97,6 +99,24 @@ func (ad *agentDist) serveConsole(c *gin.Context) {
 	rendered := strings.NewReplacer("__ORIGIN__", origin, "__GRPC__", grpc).Replace(string(html))
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(rendered))
+}
+
+// serveBootstrapInfo 返回前端拼装一键安装命令所需的引导信息：控制面基址、Agent 可达
+// gRPC 地址、二进制分发是否就绪。与 /agent/ 控制台注入同源（publicOrigin / grpcPublicAddr），
+// 公开只读且不含机密——Agent 下载与 CA 本身即为公开引导材料，鉴权由 Join Token 承载。
+func (ad *agentDist) serveBootstrapInfo(c *gin.Context) {
+	ready := false
+	if ad.distDir != "" {
+		// 以 amd64 产物存在性代表分发目录已就绪（install.sh 默认按架构取同名文件）。
+		if _, err := os.Stat(filepath.Join(ad.distDir, "ngxcp-agent-linux-amd64")); err == nil {
+			ready = true
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"origin":       publicOrigin(c),
+		"grpc_addr":    grpcPublicAddr(c, ad.grpcListen),
+		"binary_ready": ready,
+	}})
 }
 
 // rotateJoinToken 为已存在节点重新签发节点绑定 Join Token（令牌过期 / 需吊销旧令牌时）。

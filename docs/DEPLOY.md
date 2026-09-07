@@ -93,13 +93,16 @@ bash scripts/deploy-agent.sh
   Director 端口组须开「混杂模式 + MAC 地址更改 + 伪传输」；Keepalived VRRP 必须 unicast；
   必须关闭 VMware Tools 时间同步并启用 chrony —— 详见 `docs/DECISIONS.md`。
 
-### 6.6 Web 一键自注册（推荐）
+### 6.6 控制台一键接入（推荐：走 `/nodes` 页面）
 
-生产环境首选：无需手工建节点 / 拉令牌。控制台「新建节点并生成接入命令」即完成登记与令牌签发。
+生产环境首选：**在「节点」页面直接添加节点并生成安装命令**，与其它页面风格一致（Naive UI）。
 
-1. 浏览器打开控制面 `http://<控制面>:8080/agent/`，填管理员 Bearer 令牌（与 API 写接口同一令牌）。
-2. 填节点名称（唯一标识，如 `nginx-rs-01`）、选节点角色（`real_server` / `director` / `director_and_rs`）
-   →「新建节点并生成接入命令」。
+1. 浏览器打开控制面 `http://<控制面>:8080/nodes`，录入管理员 Bearer 令牌后点「添加节点」。
+2. 填节点名称（唯一标识，如 `nginx-rs-01`）、选节点角色（`real_server` / `director`）、选令牌有效期
+   →「登记并生成安装命令」。
+   页面直接给出可复制的一行命令，控制面地址与 gRPC 端口由 `GET /api/v1/agent/bootstrap-info`
+   自动填充，无需手填。
+   > 备用入口：`http://<控制面>:8080/agent/` 提供同样能力（独立页面，供未加载 SPA / 离线场景）。
    控制面**先建节点（enrolling）**，再为该节点签发**节点绑定 Join Token**（内嵌 nodeID + 角色，
    默认 24h 有效），原文仅返回一次，库内只存 SHA-256 哈希 + 绑定节点（服务端 `join_tokens` 表）。
 3. 复制给出的单行命令，到目标节点以 root 执行：
@@ -117,8 +120,19 @@ bash scripts/deploy-agent.sh
 4. Agent 启动后用 Join Token + 本地生成的 CSR 自注册，**控制面复用该节点**（名称/角色取自令牌绑定节点、
    不新建节点）并签发客户端证书，节点随即上线（无审批），出现在「节点」列表。
 
-前置：`make dist` 已把 Agent 二进制放入 `dist/agent/`（控制面在 `/agent/bin/` 提供下载）；
-`agent_dist_dir` 为空则禁用二进制下载（此时改用 6.2 推送或手动分发）。
+**前置：控制面须启用二进制分发** —— `config.yaml` 的 `agent_dist_dir` 指向含
+`ngxcp-agent-linux-{amd64,arm64}` 的目录（控制面在 `/agent/bin/<file>` 提供下载）。
+`deploy.sh` 会自动构建上传该目录并幂等补齐配置，新部署无需手工干预。
+
+> **[2/5] 下载 Agent 二进制 404 排查**：说明分发未启用（早期版本部署未带此能力）。
+> 在能 SSH 到控制面的机器上执行一次补救即可，无需全量重部署：
+>
+> ```bash
+> NGXCP_DEPLOY_HOST=root@<控制面> bash scripts/enable-agent-dist.sh
+> ```
+>
+> 脚本会交叉编译并上传二进制、幂等补齐 `agent_dist_dir`、重启控制面，并验证
+> `/agent/bin/ngxcp-agent-linux-amd64` 返回 200。控制台「添加节点」在检测到分发未就绪时也会给出同样提示。
 
 **令牌模型（仿妙妙屋X）**：一个 Agent 一个 Token，令牌原文持久化于 Agent 侧 `/etc/ngxcp/agent.conf`
 （systemd EnvironmentFile），控制面服务端**两张表**按哈希反查节点，均支持**单独吊销**（即时生效、无需等过期）：
