@@ -128,6 +128,8 @@ docker exec clickhouse clickhouse-client -q "SELECT count() FROM nginx_access"
 - 必须设 `max_memory_usage`，默认吃 90% 系统内存
 - 本地 128G 很宽裕，但 TTL 7 天 + 限内存是好习惯，别因为资源足就关
 
+> **状态（2026-09-08）**：已完成 `internal/logstore/`（entry.go/convert.go/schema.go/ingester.go/clickhouse.go + clickhouse_test.go）与 `deploy/clickhouse/init.sql`。`Entry` 规范化记录（字段对齐 T060 日志格式与 T061 LogLine）；`Storage` 接口依赖倒置，`ClickHouseStorage` 经 `clickhouse-go/v2`(`PrepareBatch+Append+Send`) 批量写入、连接级 `max_memory_usage` 由 `ParseMemLimit("6G")` 设 6G、`ApplySchema` 幂等建表；`MemStorage` 供测试。`Ingester` 攒批（batchSize 1000 / flushEvery 5s，达量+周期+Close 三路径 flush，入库失败重缓冲）。`go build`/`go vet`/`go test ./internal/logstore/...` 七类单测全过。传输接线（Agent gRPC 上报→Ingester.Accept）属 T063，本任务只做引擎，未启动 server goroutine。生产 ClickHouse 实例与真机写入未验证。
+
 ---
 
 ## T063 · 日志检索 API
