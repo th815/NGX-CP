@@ -229,7 +229,7 @@ func Run(cfg *config.Config) error {
 	go secSched.Start(ctx, 30*time.Second)
 
 	// T068 封禁变更单：把「封禁/解封 IP」转换为走 M3 流水线的 security_block 变更单。
-	blockSvc := security.NewBlockService(client, deploySvc)
+	blockSvc := security.NewBlockService(client, deploySvc, cfgStore)
 
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。

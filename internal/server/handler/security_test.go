@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/th/ngxcp/ent/node"
+	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/repo"
 	"github.com/th/ngxcp/internal/security"
@@ -204,7 +205,7 @@ func TestSecurityHandler_BlockEndpoints(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	bs := security.NewBlockService(client, deploy.New(client))
+	bs := security.NewBlockService(client, deploy.New(client), configstore.New(client))
 	h := NewSecurityHandler(evStore, bs)
 	r := gin.New()
 	r.POST("/api/v1/security/events/:id/block", h.BlockEvent)

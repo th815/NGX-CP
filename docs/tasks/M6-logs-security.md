@@ -449,7 +449,9 @@ curl -s -X POST localhost:8080/api/v1/security/blocklist -H "Authorization: Bear
 curl -s -X DELETE localhost:8080/api/v1/security/blocklist/203.0.113.99 -H "Authorization: Bearer $TOKEN"
 ```
 
-**状态（2026-09-08 已交付）**：`block.go` + `block_test.go`(8 例) + handler/router/server 接线全部完成，`go build`/`go vet`/`go test ./...` 全过。handler 端到端测试 `TestBlockEndpoints` 覆盖三端点（封禁→返回变更单含 security_block 类型与修订、解封→新变更单、非法IP→400）。**未真机验证**：实际字节下发依赖 T039 执行器读取 config_revision（T068 只负责生产正确变更单+修订，不重造下发路径）；Agent 真机下发 deny、lvs_graceful 灰度、auto_rollback 均未经真机验证。
+**状态（2026-09-08 已交付，下发链路已修）**：`block.go` + `block_test.go`(9 例，含 `TestBlockIP_DeliveryChainClosed`) + handler/router/server 接线全部完成，`go build`/`go vet`/`go test ./...` 全过。handler 端到端测试 `TestBlockEndpoints` 覆盖三端点（封禁→返回变更单含 security_block 类型与修订、解封→新变更单、非法IP→400）。
+
+**严重缺陷修复（2026-09-08 续，方案1）**：初版 T068 直接用裸 ent 调 `config_blob.Create`+`config_revision.Create` 落修订，**绕过了 `configstore.EnsureFile`/`CreateRevision` 建档**——导致没有 `config_file` 父行。`AgentRunner.buildTask`(agent_runner.go:66) 只遍历 `configstore.ListFiles`(store.go:328，查 `config_file` 行经 `current_revision_id→blob` 取内容)，所以封禁文件永远不在下发列表里：**变更单在 UI 显示 success，但 deny 文件从未落到节点**（静默失败，最危险的一类）。在「真机验证 vs 继续开发」评审中靠读代码定位（非真机）。修复：改走 `configstore.EnsureFile`+`CreateRevision`（与 T060 同一已验证路径；`CreateRevision` 在 store.go:253 事务内把 `ConfigFile.current_revision_id` 指向新版本），封禁文件进入受管配置模型。`NewBlockService` 增 `cfgStore *configstore.ConfigStore` 参数；`server.go` 注入 `cfgStore`。`TestBlockIP_DeliveryChainClosed` 锁定「ListFiles 能返回封禁文件且 current 内容为 deny」= 与控制面实际下发路径一致，防断链回归。**剩余未真机验证**：Agent 真机把 deny 文件落盘+reload、lvs_graceful 灰度、auto_rollback 仍未经真机验证；但「下发链路是否接通」已沙箱锁死（静默不下发已排除）。建议在 T070 里程碑做一次性 consolidated 真机验证（接真 CH+PG，挑测试 IP 封禁→确认 deny 落地且真挡→解封）。
 
 **AI 陷阱**：
 - 封禁**绝不**直接改线上配置，必须走变更单（可回滚/可灰度/有审批）

@@ -14,18 +14,19 @@ import (
 	"github.com/th/ngxcp/ent/changeorder"
 	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/node"
+	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/repo"
 )
 
-// newTestBlockEnv 起内存 sqlite + 自动建表，返回 client 与 BlockService（真实 deploy.Service）。
+// newTestBlockEnv 起内存 sqlite + 自动建表，返回 client 与 BlockService（真实 deploy.Service + configstore）。
 // 每个测试用唯一库名，避免跨测试节点 name 唯一约束冲突。
 func newTestBlockEnv(t *testing.T) (*ent.Client, *BlockService) {
 	t.Helper()
 	client, err := repo.Open("sqlite", "file:"+t.Name()+"?mode=memory&cache=shared&_fk=1")
 	require.NoError(t, err)
 	require.NoError(t, client.Schema.Create(context.Background()))
-	return client, NewBlockService(client, deploy.New(client))
+	return client, NewBlockService(client, deploy.New(client), configstore.New(client))
 }
 
 // seedNode 创建一个 online 的指定角色节点。
@@ -175,4 +176,36 @@ func TestBlockIP_BlobDedup(t *testing.T) {
 		Count(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 2, revs)
+}
+
+// TestBlockIP_DeliveryChainClosed 锁定本次修复的核心：封禁文件必须进入「受管配置」
+// 模型（config_file + current_revision），否则 AgentRunner.buildTask 经 ListFiles 取不到、
+// deny 文件永远不下发（T068 初版的结构性断链）。本测试断言 ListFiles 能返回该文件且
+// GetCurrentContent 为其 deny 内容——即与控制面实际下发路径一致。
+func TestBlockIP_DeliveryChainClosed(t *testing.T) {
+	client, bs := newTestBlockEnv(t)
+	ctx := context.Background()
+	seedNode(t, client, "rs-nginx-01", "real_server", "10.0.1.11")
+
+	_, err := bs.BlockIP(ctx, "203.0.113.45", "SQL 注入爆破", "admin")
+	require.NoError(t, err)
+
+	cfg := configstore.New(client)
+	// 节点上应建档 conf.d/zz-block-<ip>.conf 受管文件
+	files, err := cfg.ListFiles(ctx, 1)
+	require.NoError(t, err)
+	var found *configstore.FileView
+	for i := range files {
+		if files[i].Path == "conf.d/zz-block-203_0_113_45.conf" {
+			found = files[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "封禁文件必须进入受管配置列表，否则不会被下发")
+	require.Equal(t, configstore.SourceSecurityBlock, configstore.Source(found.Source))
+
+	// 当前生效内容必须是 deny 指令（与 AgentRunner 将下发的内容一致）
+	content, err := cfg.GetCurrentContent(ctx, found.ID)
+	require.NoError(t, err)
+	require.Contains(t, string(content), "deny 203.0.113.45;")
 }

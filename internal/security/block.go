@@ -13,8 +13,6 @@ package security
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
@@ -22,10 +20,9 @@ import (
 
 	"github.com/th/ngxcp/ent"
 	"github.com/th/ngxcp/ent/changeorder"
-	"github.com/th/ngxcp/ent/configblob"
-	"github.com/th/ngxcp/ent/configrevision"
 	"github.com/th/ngxcp/ent/node"
 	"github.com/th/ngxcp/ent/schema"
+	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 )
@@ -45,16 +42,18 @@ func normalizeIP(ip string) string {
 }
 
 // BlockService 封装「封禁/解封 → 变更单」的全部逻辑。
-// 依赖 ent 客户端（落 blob / revision / 变更单）与 deploy.Service（状态机 + 提交）。
+// 依赖 ent 客户端、configstore（受管配置建档+版本化，走与 T060 一致的真实下发链路）、
+// deploy.Service（变更单状态机 + 提交）。
 type BlockService struct {
-	client *ent.Client
-	deploy *deploy.Service
-	now    func() time.Time
+	client   *ent.Client
+	deploy   *deploy.Service
+	cfgStore *configstore.ConfigStore
+	now      func() time.Time
 }
 
 // NewBlockService 构造封禁服务。
-func NewBlockService(client *ent.Client, d *deploy.Service) *BlockService {
-	return &BlockService{client: client, deploy: d, now: time.Now}
+func NewBlockService(client *ent.Client, d *deploy.Service, cfgStore *configstore.ConfigStore) *BlockService {
+	return &BlockService{client: client, deploy: d, cfgStore: cfgStore, now: time.Now}
 }
 
 // nginxRSNodes 返回当前 online 且承担 Nginx 角色的节点（real_server / director_and_rs）。
@@ -85,13 +84,7 @@ func (s *BlockService) BlockIP(ctx context.Context, ip, reason, operator string)
 		return nil, apperr.New(apperr.CodeInvalid, "当前没有可用的 Nginx RS 节点，无法下发封禁")
 	}
 
-	content := blockContent(ip)
-	blob, err := s.ensureBlob(ctx, content)
-	if err != nil {
-		return nil, err
-	}
-
-	// 先建 draft 变更单（拿到 ID），再回填修订的 change_order_id，保证审计可追溯。
+	// 先建 draft 变更单（拿到 ID），再建档修订并回填 change_order_id，保证审计可追溯。
 	co, err := s.deploy.CreateDraft(ctx, deploy.CreateInput{
 		Title:       fmt.Sprintf("封禁 IP %s", ip),
 		Type:        string(changeorder.TypeSecurityBlock),
@@ -109,7 +102,7 @@ func (s *BlockService) BlockIP(ctx context.Context, ip, reason, operator string)
 		return nil, apperr.Wrap(apperr.CodeInternal, "创建封禁变更单失败", err)
 	}
 
-	revIDs, err := s.createRevisions(ctx, nodes, blob, co.ID, ip, operator, reason, false)
+	revIDs, err := s.createRevisions(ctx, nodes, co.ID, ip, operator, reason, false)
 	if err != nil {
 		return nil, err
 	}
@@ -140,12 +133,6 @@ func (s *BlockService) UnblockIP(ctx context.Context, ip, reason, operator strin
 		return nil, apperr.New(apperr.CodeInvalid, "当前没有可用的 Nginx RS 节点，无法下发解封")
 	}
 
-	content := unblockContent(ip, s.now())
-	blob, err := s.ensureBlob(ctx, content)
-	if err != nil {
-		return nil, err
-	}
-
 	co, err := s.deploy.CreateDraft(ctx, deploy.CreateInput{
 		Title:       fmt.Sprintf("解封 IP %s", ip),
 		Type:        string(changeorder.TypeSecurityBlock),
@@ -163,7 +150,7 @@ func (s *BlockService) UnblockIP(ctx context.Context, ip, reason, operator strin
 		return nil, apperr.Wrap(apperr.CodeInternal, "创建解封变更单失败", err)
 	}
 
-	revIDs, err := s.createRevisions(ctx, nodes, blob, co.ID, ip, operator, reason, true)
+	revIDs, err := s.createRevisions(ctx, nodes, co.ID, ip, operator, reason, true)
 	if err != nil {
 		return nil, err
 	}
@@ -203,47 +190,39 @@ func ExtractIP(sample string) (string, bool) {
 	return "", false
 }
 
-// ensureBlob 按内容 SHA256 去重写入 config_blob，返回 blob 实体（内容寻址，相同内容只存一份）。
-func (s *BlockService) ensureBlob(ctx context.Context, content string) (*ent.ConfigBlob, error) {
-	sum := sha256.Sum256([]byte(content))
-	sha := hex.EncodeToString(sum[:])
-	// 读穿：已存在则直接复用（去重），避免唯一约束冲突。
-	if existing, err := s.client.ConfigBlob.Query().Where(configblob.Sha256(sha)).Only(ctx); err == nil {
-		return existing, nil
-	} else if !ent.IsNotFound(err) {
-		return nil, apperr.Wrap(apperr.CodeInternal, "查询配置内容失败", err)
-	}
-	blob, err := s.client.ConfigBlob.Create().
-		SetSha256(sha).
-		SetSize(len(content)).
-		SetContent(content).
-		Save(ctx)
-	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, "写入配置内容失败", err)
-	}
-	return blob, nil
-}
-
-// createRevisions 为每个目标节点建一条 security_block 配置修订（引用同一 blob）。
-// unblock=true 时 message 标注「解封」。返回修订 ID 列表。
-func (s *BlockService) createRevisions(ctx context.Context, nodes []*ent.Node, blob *ent.ConfigBlob, orderID int, ip, operator, reason string, unblock bool) ([]int, error) {
+// createRevisions 为每个目标节点走「受管配置」真实下发链路：
+// 经 configstore.EnsureFile 建档（conf.d/zz-block-<ip>.conf）+ CreateRevision 写内容并
+// 置为该文件 current_revision（store.go 内事务保证），使 AgentRunner.buildTask 经 ListFiles
+// 能取到并下发给节点。unblock=true 时写「已解封」标记内容（不含 deny），覆盖原文件使封禁解除。
+// 返回修订 ID 列表（同时回填到变更单 ConfigRevisionIds 做审计关联）。
+func (s *BlockService) createRevisions(ctx context.Context, nodes []*ent.Node, orderID int, ip, operator, reason string, unblock bool) ([]int, error) {
 	revIDs := make([]int, 0, len(nodes))
 	for _, n := range nodes {
-		b := s.client.ConfigRevision.Create().
-			SetNodeID(n.ID).
-			SetPath(blocklistPath(ip)).
-			SetSource(configrevision.SourceSecurityBlock).
-			SetChangeOrderID(orderID).
-			SetAuthor(operator).
-			SetBlob(blob)
+		path := blocklistPath(ip)
+		var content string
 		if unblock {
-			b.SetMessage(fmt.Sprintf("解封 IP %s：移除 deny 指令（%s）", ip, reason))
+			content = unblockContent(ip, s.now())
 		} else {
-			b.SetMessage(fmt.Sprintf("封禁 IP %s：%s", ip, reason))
+			content = blockContent(ip)
 		}
-		rev, err := b.Save(ctx)
+		fileID, err := s.cfgStore.EnsureFile(ctx, n.ID, path)
 		if err != nil {
-			return nil, apperr.Wrap(apperr.CodeInternal, "写入配置修订失败", err)
+			return nil, apperr.Wrap(apperr.CodeInternal, "建档封禁配置文件失败", err)
+		}
+		var msg string
+		if unblock {
+			msg = fmt.Sprintf("解封 IP %s：移除 deny 指令（%s）", ip, reason)
+		} else {
+			msg = fmt.Sprintf("封禁 IP %s：%s", ip, reason)
+		}
+		rev, err := s.cfgStore.CreateRevision(ctx, fileID, []byte(content), configstore.RevisionOpts{
+			Source:        configstore.SourceSecurityBlock,
+			Author:        operator,
+			Message:       msg,
+			ChangeOrderID: orderID,
+		})
+		if err != nil {
+			return nil, apperr.Wrap(apperr.CodeInternal, "写入封禁配置修订失败", err)
 		}
 		revIDs = append(revIDs, rev.ID)
 	}
