@@ -85,7 +85,7 @@ go test ./internal/agent/logtail/...
 - 大流量时降采样，但安全相关（4xx/5xx）样本不全丢
 - offset 持久化失败不能丢数据，用原子写
 
-> **状态（2026-09-08）**：已完成 `internal/agent/logtail/`（line.go/offset.go/queue.go/tail.go + tail_test.go）。`Tailer.Run(ctx, emit)` 从 offset 续读、inode 变化应对 logrotate、同 inode 截断重置、按 SampleRate 降采样（4xx/5xx 与无法解析行恒保留）、攒批调用注入式 emit；emit 失败进磁盘队列 store-forward（JSONL、保留 24h、启动回放），offset 原子写。六类单测全过。**未接线 runtime**：下游经控制面上报 ClickHouse 属 T062，故 T061 暂不启动 goroutine，避免半接线。
+> **状态（2026-09-08）**：已完成 `internal/agent/logtail/`（line.go/offset.go/queue.go/tail.go + tail_test.go）。`Tailer.Run(ctx, emit)` 从 offset 续读、inode 变化应对 logrotate、同 inode 截断重置、按 SampleRate 降采样（4xx/5xx 与无法解析行恒保留）、攒批调用注入式 emit；emit 失败进磁盘队列 store-forward（JSONL、保留 24h、启动回放），offset 原子写。六类单测全过。**T063-补 已接线**：`batch.go` 加 `MarshalBatch/UnmarshalBatch`，`runtime.go` 经 `CollectLogTargets` 取目标起 `Tailer` 并把 `[]LogLine` 打包经心跳流 `LOG_BATCH` 上行控制面 → `Ingester.Accept`，端到端可验证（见 T063 补做状态）。
 
 ---
 
@@ -128,13 +128,15 @@ docker exec clickhouse clickhouse-client -q "SELECT count() FROM nginx_access"
 - 必须设 `max_memory_usage`，默认吃 90% 系统内存
 - 本地 128G 很宽裕，但 TTL 7 天 + 限内存是好习惯，别因为资源足就关
 
-> **状态（2026-09-08）**：已完成 `internal/logstore/`（entry.go/convert.go/schema.go/ingester.go/clickhouse.go + clickhouse_test.go）与 `deploy/clickhouse/init.sql`。`Entry` 规范化记录（字段对齐 T060 日志格式与 T061 LogLine）；`Storage` 接口依赖倒置，`ClickHouseStorage` 经 `clickhouse-go/v2`(`PrepareBatch+Append+Send`) 批量写入、连接级 `max_memory_usage` 由 `ParseMemLimit("6G")` 设 6G、`ApplySchema` 幂等建表；`MemStorage` 供测试。`Ingester` 攒批（batchSize 1000 / flushEvery 5s，达量+周期+Close 三路径 flush，入库失败重缓冲）。`go build`/`go vet`/`go test ./internal/logstore/...` 七类单测全过。传输接线（Agent gRPC 上报→Ingester.Accept）属 T063，本任务只做引擎，未启动 server goroutine。生产 ClickHouse 实例与真机写入未验证。
+> **状态（2026-09-08）**：已完成 `internal/logstore/`（entry.go/convert.go/schema.go/ingester.go/clickhouse.go + clickhouse_test.go）与 `deploy/clickhouse/init.sql`。`Entry` 规范化记录（字段对齐 T060 日志格式与 T061 LogLine）；`Storage` 接口依赖倒置，`ClickHouseStorage` 经 `clickhouse-go/v2`(`PrepareBatch+Append+Send`) 批量写入、连接级 `max_memory_usage` 由 `ParseMemLimit("6G")` 设 6G、`ApplySchema` 幂等建表；`MemStorage` 供测试。`Ingester` 攒批（batchSize 1000 / flushEvery 5s，达量+周期+Close 三路径 flush，入库失败重缓冲）。`go build`/`go vet`/`go test ./internal/logstore/...` 七类单测全过。**T063-补 已消费**：`server.go` 建 `Ingester` 并经 `agentSrv.SetLogIngester` 接 Agent `LOG_BATCH` 上报，端到端可验证。生产 ClickHouse 实例与真机写入未验证。
 
 ---
 
 ## T063 · 日志检索 API（完成，2026-09-08）
 
-> **状态（2026-09-08）**：已完成 `internal/logstore/query.go`（QueryParams/QueryResult/normalize/buildWhere 参数化防注入/escapeLike/MemStorage.Query 内存过滤+分页）+ `internal/server/handler/logs.go`（`POST /api/v1/logs/search`，多维筛选 status/nodes/uri/ip/rid/rt_min + regex 开关 + 分页，返回 `{code,data:{items,total,took_ms}}`）+ `router.go` 路由 + `server.go` 按 `NGXCP_LOGSTORE_DSN` 构造 `ClickHouseStorage`（缺省 `MemStorage`）。`Storage` 接口新增 `Query`；`ClickHouseStorage.Query` 复用 `buildWhere` 走参数化 SQL + 计数查询。`query_test.go`（参数化/escapeLike/MemStorage 多维过滤+分页+默认时间窗）+ `logs_test.go`（httptest 端点）共 11 类单测全过。**未做**：Agent→控制面日志传输通道（proto 无日志内容上报类型，需改 proto 且离线需再次 patch rawDesc），检索目前仅对测试/未来上报数据生效；生产 ClickHouse 实例与真机写入未验证。
+> **状态（2026-09-08）**：已完成 `internal/logstore/query.go`（QueryParams/QueryResult/normalize/buildWhere 参数化防注入/escapeLike/MemStorage.Query 内存过滤+分页）+ `internal/server/handler/logs.go`（`POST /api/v1/logs/search`，多维筛选 status/nodes/uri/ip/rid/rt_min + regex 开关 + 分页，返回 `{code,data:{items,total,took_ms}}`）+ `router.go` 路由 + `server.go` 按 `NGXCP_LOGSTORE_DSN` 构造 `ClickHouseStorage`（缺省 `MemStorage`）。`Storage` 接口新增 `Query`；`ClickHouseStorage.Query` 复用 `buildWhere` 走参数化 SQL + 计数查询。`query_test.go`（参数化/escapeLike/MemStorage 多维过滤+分页+默认时间窗）+ `logs_test.go`（httptest 端点）共 11 类单测全过。
+>
+> **补做（2026-09-08）· 日志传输接线**：把 T061→T063 闭合成端到端管道。离线 patch `gen/agent/v1/agent.pb.go` `rawDesc`：`HeartbeatRequest.Type` 加 `LOG_BATCH=12`、`HeartbeatRequest` 加字段 14 `log_batch`（`bytes`，沿用 T056 bytes 同构手法避免牵动消息注册表）；`rawdesc_logbatch_test.go` 锁往返。`internal/agent/logtail/batch.go` 加 `MarshalBatch/UnmarshalBatch`。Agent 侧：`heartbeat.go` 加 `StartLogTail` 回调 + `logBatchOut` goroutine 周期上行 `LOG_BATCH`；`runtime.go` 注入 `startLogTail`（用 `CollectLogTargets` 取非 off/variable/syslog 目标起 `Tailer`）。控制面侧：`grpc_server.go` 加 `LogAcceptor` 接口 + `SetLogIngester`，`Heartbeat` 消费 `req.GetLogBatch()`→`FromLogLines`→`Accept`；`server.go` 建 `Ingester` 并 `SetLogIngester`。`heartbeat_test.go` 加 `TestHeartbeaterReportsLogBatch`、`grpc_server_test.go` 加 `TestHeartbeatLogBatchIngested`/`TestHeartbeatLogBatchEndToEnd`（Ingester→MemStorage→Query(status=503) 命中）。**生产 ClickHouse 实例与真机写入未验证**；检索现已对 Agent 上报数据生效（受 `NGXCP_LOGSTORE_DSN` 控制，缺省 `MemStorage`）。
 
 ---
 

@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ import (
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/internal/agent"
+	"github.com/th/ngxcp/internal/agent/logtail"
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/agent/transport"
 	"github.com/th/ngxcp/internal/pkg/pki"
@@ -294,6 +296,78 @@ func TestHeartbeaterReportsComplianceAndFsProbe(t *testing.T) {
 	}
 	if !seen[agentv1.HeartbeatRequest_FS_PROBE] {
 		t.Error("未见 FS_PROBE 上报（日志/FS 健康探测未上行）")
+	}
+}
+
+// TestHeartbeaterReportsLogBatch 验证 T063 补：Agent 侧 StartLogTail 回调采集到的
+// 日志批次经心跳流以 LOG_BATCH 类型上行，且 log_batch 字节字段即为 JSON 批次内容。
+func TestHeartbeaterReportsLogBatch(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stream := &recordingStream{
+		ctx:  ctx,
+		sent: make(chan *agentv1.HeartbeatRequest, 64),
+		cmds: make(chan *agentv1.HeartbeatResponse, 8),
+	}
+	cli := &fakeAgentClient{stream: stream}
+
+	payload := []byte(`{"lines":[{"time":"2026-09-08T10:00:00+08:00","status":200,"uri":"/x"}]}`)
+
+	hb := agent.NewHeartbeater(cli,
+		agent.HeartbeatConfig{Interval: 100 * time.Millisecond, FsProbeInterval: 150 * time.Millisecond},
+		agent.HeartbeatCallbacks{
+			StartLogTail: func(ctx context.Context, emit func([]byte) error) error {
+				return emit(payload)
+			},
+		}, nil)
+
+	go func() { _ = hb.Run(ctx) }()
+
+	timeout := time.After(3 * time.Second)
+	for {
+		select {
+		case r := <-stream.sent:
+			if r.GetType() == agentv1.HeartbeatRequest_LOG_BATCH {
+				if string(r.GetLogBatch()) != string(payload) {
+					t.Fatalf("LOG_BATCH 内容不一致: %q", r.GetLogBatch())
+				}
+				return // 成功
+			}
+		case <-timeout:
+			t.Fatal("未在超时内观察到 LOG_BATCH 上报")
+		}
+	}
+}
+
+// TestLogBatchPayloadRoundtrip 验证 logtail 批次编解码往返。
+func TestLogBatchPayloadRoundtrip(t *testing.T) {
+	lines := []logtail.LogLine{
+		{TS: "2026-09-08T10:00:00+08:00", Status: 200, URI: "/a", Node: "rs-1"},
+		{TS: "2026-09-08T10:00:01+08:00", Status: 404, URI: "/b", Node: "rs-1"},
+	}
+	b, err := logtail.MarshalBatch(lines)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	back, err := logtail.UnmarshalBatch(b)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(back) != 2 {
+		t.Fatalf("roundtrip line count = %d, want 2", len(back))
+	}
+	if back[0].Status != 200 || back[1].Status != 404 {
+		t.Fatalf("roundtrip status mismatch: %+v", back)
+	}
+	if back[0].Node != "rs-1" {
+		t.Fatalf("roundtrip node mismatch: %q", back[0].Node)
+	}
+	// Raw 字段应被排除在 JSON 之外（不入 wire）。
+	var rawProbe map[string]json.RawMessage
+	_ = json.Unmarshal(b, &rawProbe)
+	if _, ok := rawProbe["raw"]; ok {
+		t.Fatal("Raw 字段不应进入 JSON 批次")
 	}
 }
 

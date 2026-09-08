@@ -12,12 +12,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
+	"github.com/th/ngxcp/internal/agent/logtail"
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/domain/node"
+	"github.com/th/ngxcp/internal/logstore"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"google.golang.org/grpc"
@@ -66,6 +69,16 @@ type Server struct {
 	snapshotChans map[string]chan *agentv1.SnapshotResult            // CREATE_SNAPSHOT / RESTORE_SNAPSHOT
 	rsWeightChans map[string]chan *agentv1.SetRealServerWeightResult // SET_RS_WEIGHT
 	certChans     map[string]chan *agentv1.DeployCertResult          // DEPLOY_CERT
+
+	// logIngester 接收 Agent 经心跳 LOG_BATCH 上报的日志批次（T063）。
+	// 生产用 logstore.Ingester（攒批异步入库）；单测可注入 fake。
+	logIngester LogAcceptor
+}
+
+// LogAcceptor 接收 Agent 经心跳上报的日志批次（T063）。生产用 logstore.Ingester。
+// 用接口隔离传输层与日志落库实现，便于单测用 fake 替代。
+type LogAcceptor interface {
+	Accept(entries []logstore.Entry)
 }
 
 // NewServer 构造 gRPC 服务端。
@@ -345,6 +358,21 @@ func (s *Server) Heartbeat(stream agentv1.AgentService_HeartbeatServer) error {
 			s.deliverCertResult(cr.GetTaskId(), cr)
 		}
 
+		// 日志批次上报（T063）：Agent tail 的访问日志 → 转 Entry（以 node_id 为归属）→ 入库。
+		if lb := req.GetLogBatch(); len(lb) > 0 && s.logIngester != nil {
+			lines, perr := logtail.UnmarshalBatch(lb)
+			if perr != nil {
+				s.log.Warn("log batch decode failed", "node_id", nodeID, "err", perr)
+			} else if len(lines) > 0 {
+				entries := logstore.FromLogLines(lines, logstore.DefaultParseTS)
+				nodeStr := strconv.Itoa(nodeID)
+				for i := range entries {
+					entries[i].Node = nodeStr
+				}
+				s.logIngester.Accept(entries)
+			}
+		}
+
 		if s.nodeSvc != nil {
 			_ = s.nodeSvc.TouchHeartbeat(stream.Context(), nodeID)
 		}
@@ -488,6 +516,11 @@ func (s *Server) StreamAuth(srv any, ss grpc.ServerStream, info *grpc.StreamServ
 // Attach 将本服务注册到 grpc.Server。
 func (s *Server) Attach(g *grpc.Server) {
 	agentv1.RegisterAgentServiceServer(g, s)
+}
+
+// SetLogIngester 注入日志批次接收器（T063）。未注入时心跳中的 LOG_BATCH 上报被忽略。
+func (s *Server) SetLogIngester(a LogAcceptor) {
+	s.logIngester = a
 }
 
 // BuildGRPCServer 构造已装配本服务与双拦截器的 grpc.Server（需传入 gRPC 服务端 TLS 配置）。

@@ -56,6 +56,7 @@ message HeartbeatRequest {
     DEPLOY = 9;                   // T032：原子落盘进度上报
     RS_WEIGHT = 10;               // T035：RS 权重调整结果上报
     CERT_DEPLOY = 11;             // T044：证书落盘结果上报
+    LOG_BATCH = 12;               // T063-补：Agent 采集的日志批次经心跳流上行（batched LogLine JSON）
   }
   Type type = 1;
   int64 timestamp = 2;            // 节点本地时间（unix 秒），控制面据此算时钟偏差
@@ -70,6 +71,7 @@ message HeartbeatRequest {
   DeployProgress deploy_progress = 11;  // T032：原子落盘进度（9 步逐步上报）
   SetRealServerWeightResult set_rs_weight_result = 12; // T035：RS 权重调整结果
   DeployCertResult cert_deploy_result = 13; // T044：证书落盘结果
+  bytes log_batch = 14;           // T063-补：日志批次（[]logtail.LogLine 的 JSON 字节，由控制面还原入库）
 }
 
 message HeartbeatResponse {

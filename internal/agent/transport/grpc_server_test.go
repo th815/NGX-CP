@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,8 +24,10 @@ import (
 	entnodecap "github.com/th/ngxcp/ent/nodecapability"
 	entncf "github.com/th/ngxcp/ent/nodeconfigfile"
 	entnlt "github.com/th/ngxcp/ent/nodelogtarget"
+	"github.com/th/ngxcp/internal/agent/logtail"
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/domain/node"
+	"github.com/th/ngxcp/internal/logstore"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"github.com/th/ngxcp/internal/repo"
 	"google.golang.org/grpc"
@@ -640,6 +644,163 @@ func TestHeartbeatConfigTreeAndLogTargets(t *testing.T) {
 	}
 	if !targets[1].IsOff || targets[1].SkipReason != "off" {
 		t.Errorf("第二条应为 off 目标: %+v", targets[1])
+	}
+}
+
+// capturingLogAcceptor 记录 Accept 调用，供 LOG_BATCH 消费测试断言。
+type capturingLogAcceptor struct {
+	mu      sync.Mutex
+	entries []logstore.Entry
+}
+
+func (c *capturingLogAcceptor) Accept(entries []logstore.Entry) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries = append(c.entries, entries...)
+}
+
+func (c *capturingLogAcceptor) drain() []logstore.Entry {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	e := c.entries
+	c.entries = nil
+	return e
+}
+
+// peek 非破坏性读取当前已接收条目（供断言）。
+func (c *capturingLogAcceptor) peek() []logstore.Entry {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]logstore.Entry, len(c.entries))
+	copy(out, c.entries)
+	return out
+}
+
+// TestHeartbeatLogBatchIngest 验证 T063 补：Agent 经心跳 LOG_BATCH 上报的日志批次，
+// 在控制面被正确解码为 Entry（以 node_id 为归属）并交给 LogAcceptor。
+func TestHeartbeatLogBatchIngest(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	client, nodeID := newTestNode(t)
+	defer client.Close()
+	nodeSvc := node.New(client, nil)
+	sessions := session.NewSessionManager(slog.Default())
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
+
+	acceptor := &capturingLogAcceptor{}
+	srv.SetLogIngester(acceptor)
+
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+	hc, err := cli.Heartbeat(context.Background())
+	if err != nil {
+		t.Fatalf("打开心跳流: %v", err)
+	}
+
+	payload, _ := logtail.MarshalBatch([]logtail.LogLine{
+		{TS: "2026-09-08T10:00:00+08:00", Status: 200, URI: "/a", Node: "rs-09"},
+		{TS: "2026-09-08T10:00:01+08:00", Status: 503, URI: "/b", Node: "rs-09"},
+	})
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type:     agentv1.HeartbeatRequest_LOG_BATCH,
+		LogBatch: payload,
+	}); err != nil {
+		t.Fatalf("发送 LOG_BATCH: %v", err)
+	}
+
+	waitUntil(t, 2*time.Second, func() bool { return len(acceptor.peek()) > 0 })
+	entries := acceptor.peek()
+	if len(entries) != 2 {
+		t.Fatalf("ingested entries = %d, want 2", len(entries))
+	}
+	if entries[0].Node != strconv.Itoa(nodeID) {
+		t.Errorf("entry.Node = %q, want %q", entries[0].Node, strconv.Itoa(nodeID))
+	}
+	if entries[0].Status != 200 || entries[1].Status != 503 {
+		t.Errorf("entry status mismatch: %+v", entries)
+	}
+}
+
+// TestHeartbeatLogBatchEndToEndQuery 验证 T061→T063 闭环：Agent 经心跳 LOG_BATCH 上报
+// → Ingester 攒批 → MemStorage 入库 → 检索 API 可按条件命中。这是把日志采集、传输、
+// 落库、检索四个环节连通的端到端验证（沙箱可独立运行）。
+func TestHeartbeatLogBatchEndToEndQuery(t *testing.T) {
+	ca, _ := pki.LoadOrCreateCA(t.TempDir())
+	client, nodeID := newTestNode(t)
+	defer client.Close()
+	nodeSvc := node.New(client, nil)
+	sessions := session.NewSessionManager(slog.Default())
+	srv := NewServer(slog.Default(), ca, &fakeEnroll{}, nodeSvc, sessions, session.HeartbeatConfig{})
+
+	// 生产路径：MemStorage + Ingester（batchSize=1 立即 flush，便于断言）。
+	store := logstore.NewMemStorage()
+	ing := logstore.NewIngester(store, logstore.WithBatchSize(1))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ing.Start(ctx)
+	srv.SetLogIngester(ing)
+
+	tlsCfg, _ := ca.GRPCServerTLSConfig()
+	g := srv.BuildGRPCServer(tlsCfg)
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() { _ = g.Serve(lis) }()
+	defer g.Stop()
+
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(clientCredsForNode(t, ca, nodeID, "rs-09", key)))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	cli := agentv1.NewAgentServiceClient(conn)
+	hc, err := cli.Heartbeat(context.Background())
+	if err != nil {
+		t.Fatalf("打开心跳流: %v", err)
+	}
+
+	payload, _ := logtail.MarshalBatch([]logtail.LogLine{
+		{TS: time.Now().Add(-5 * time.Minute).Format(time.RFC3339Nano), Status: 200, URI: "/a", Node: "rs-09", RemoteAddr: "1.2.3.4"},
+		{TS: time.Now().Add(-4 * time.Minute).Format(time.RFC3339Nano), Status: 503, URI: "/b", Node: "rs-09", RemoteAddr: "1.2.3.5"},
+	})
+	if err := hc.Send(&agentv1.HeartbeatRequest{
+		Type:     agentv1.HeartbeatRequest_LOG_BATCH,
+		LogBatch: payload,
+	}); err != nil {
+		t.Fatalf("发送 LOG_BATCH: %v", err)
+	}
+
+	// 等待入库后查询：status=503 应命中第 2 行，且 Node 被重写为 node_id。
+	var res *logstore.QueryResult
+	waitUntil(t, 3*time.Second, func() bool {
+		r, qerr := store.Query(ctx, logstore.QueryParams{
+			Status:   []uint16{503},
+			TimeFrom: time.Now().Add(-time.Hour),
+			TimeTo:   time.Now().Add(time.Hour),
+		})
+		if qerr == nil && r != nil && r.Total > 0 {
+			res = r
+			return true
+		}
+		return false
+	})
+	if res == nil || res.Total != 1 {
+		t.Fatalf("query by status=503: got total=%v, want 1", res)
+	}
+	if res.Items[0].URI != "/b" {
+		t.Errorf("query item uri = %q, want /b", res.Items[0].URI)
+	}
+	if res.Items[0].Node != strconv.Itoa(nodeID) {
+		t.Errorf("query item node = %q, want %s", res.Items[0].Node, strconv.Itoa(nodeID))
 	}
 }
 

@@ -88,6 +88,9 @@ func Run(cfg *config.Config) error {
 		logStore = logstore.NewMemStorage()
 	}
 
+	// T063 补：日志传输接线——Agent 经心跳 LOG_BATCH 上报 → Ingester 攒批 → logStore 入库。
+	logIngester := logstore.NewIngester(logStore)
+
 	// T015 会话管理：会话表 + 心跳超时扫描器。
 	sessions := session.NewSessionManager(slog.Default())
 	hbCfg := session.HeartbeatConfig{
@@ -100,6 +103,8 @@ func Run(cfg *config.Config) error {
 
 	// Agent gRPC 服务：注册（TLS+token）走 Register RPC，其余 RPC 强制 mTLS；Heartbeat/ReportCapability 落库。
 	agentSrv := transport.NewServer(nil, ca, nodeSvc, nodeSvc, sessions, hbCfg)
+	// T063 补：把日志批次接收器注入 gRPC 服务端，使 LOG_BATCH 上报被消费。
+	agentSrv.SetLogIngester(logIngester)
 
 	// M5 T054/T055：注入远程权重执行器（经 Agent SET_RS_WEIGHT 通道）与发布前门禁。
 	lvsSvc.SetWeightSetter(lvs.NewRemoteSetter(agentSrv, lvs.ResolveDirectorNode(client)))
@@ -128,6 +133,9 @@ func Run(cfg *config.Config) error {
 			logging.Ctx(nil).Debug().Int("node_id", id).Err(err).Msg("mark offline skipped")
 		}
 	})
+
+	// T063 补：启动日志批次攒批 flush 周期 goroutine（与进程同生命周期）。
+	go logIngester.Start(ctx)
 	// T056：启动脑裂周期监测（检测到双 Director 同时持 VIP 时打 CRITICAL 日志/告警），与进程同生命周期。
 	go lvsSvc.StartSplitBrainWatch(ctx, time.Minute, nil)
 

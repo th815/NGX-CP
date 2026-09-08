@@ -20,12 +20,15 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	agent "github.com/th/ngxcp/internal/agent"
 	agentexec "github.com/th/ngxcp/internal/agent/executor"
 	"github.com/th/ngxcp/internal/agent/health"
 	"github.com/th/ngxcp/internal/agent/hostexec"
+	"github.com/th/ngxcp/internal/agent/logtail"
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"google.golang.org/grpc"
@@ -119,6 +122,7 @@ func Run(ctx context.Context, cfg Config) error {
 		RestoreSnapshot:   rt.onRestoreSnapshot,
 		SetRSWeight:       rt.onSetRSWeight,
 		DeployCert:        rt.onDeployCert,
+		StartLogTail:      rt.onStartLogTail,
 	}
 
 	sc := &agentv1.ServerConfig{HeartbeatIntervalSec: 10, HeartbeatTimeoutSec: 30}
@@ -238,6 +242,53 @@ func (r *Runtime) resolveRole(exec hostexec.CommandExecutor) string {
 		return "director"
 	}
 	return "real_server"
+}
+
+// onStartLogTail 启动日志采集并经心跳流 LOG_BATCH 上报（T063）。
+// 采集目标来自 CollectLogTargets（过滤 syslog/off/variable），每个真实文件起一个 Tailer；
+// Tailer 攒批后经 emit 把 JSON 批次字节推给心跳主循环（保证单写者约束）。
+// ctx 取消时返回，所有 Tailer 随之停止。
+func (r *Runtime) onStartLogTail(ctx context.Context, emit func([]byte) error) error {
+	targets, err := r.coll.CollectLogTargets(ctx)
+	if err != nil {
+		return err
+	}
+	var wg sync.WaitGroup
+	for _, t := range targets.GetItems() {
+		if t.GetIsSyslog() || t.GetIsOff() || t.GetHasVariable() {
+			continue
+		}
+		path := t.GetPath()
+		if path == "" {
+			continue
+		}
+		safe := strings.NewReplacer("/", "_", ":", "_").Replace(path)
+		base := filepath.Join(r.cfg.DataDir, "logtail", safe)
+		if mkErr := os.MkdirAll(filepath.Dir(base), 0o700); mkErr != nil {
+			r.log.Warn("logtail dir create failed, skip target", "path", path, "err", mkErr)
+			continue
+		}
+		tailer := &logtail.Tailer{
+			Path:       path,
+			OffsetFile: base + ".offset",
+			QueueDir:   base + ".queue",
+			Node:       r.cfg.Hostname,
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = tailer.Run(ctx, func(lines []logtail.LogLine) error {
+				b, merr := logtail.MarshalBatch(lines)
+				if merr != nil {
+					return merr
+				}
+				return emit(b)
+			})
+		}()
+	}
+	<-ctx.Done()
+	wg.Wait()
+	return ctx.Err()
 }
 
 func (r *Runtime) onDeploy(ctx context.Context, task *agentv1.SyncConfigTask, onProgress func(*agentv1.DeployProgress)) error {

@@ -62,6 +62,10 @@ type HeartbeatCallbacks struct {
 	SetRSWeight func(ctx context.Context, task *agentv1.SetRealServerWeightTask) (*agentv1.SetRealServerWeightResult, error)
 	// DeployCert 把证书原子落盘到 /etc/nginx/ssl（T044）。
 	DeployCert func(ctx context.Context, task *agentv1.DeployCertTask) (*agentv1.DeployCertResult, error)
+
+	// StartLogTail 启动日志采集并持续经 emit 上报批次（T063）。emit 由心跳主循环驱动，
+	// 保证单写者约束；ctx 取消时返回即停止采集。emit 入参为 JSON 编码的日志批次字节。
+	StartLogTail func(ctx context.Context, emit func([]byte) error) error
 }
 
 // Heartbeater 管理一条到控制面的心跳长连接。
@@ -304,6 +308,23 @@ func (h *Heartbeater) session(ctx context.Context) error {
 		}
 	}()
 
+	// 日志采集上报 goroutine：启动采集，emit 推 JSON 批次 → logBatchOut → 主循环上行 LOG_BATCH（T063）。
+	logBatchOut := make(chan []byte, 1)
+	go func() {
+		if h.cb.StartLogTail == nil {
+			return
+		}
+		if err := h.cb.StartLogTail(ctx, func(b []byte) error {
+			select {
+			case logBatchOut <- b:
+			default:
+			}
+			return nil
+		}); err != nil {
+			h.log.Warn("log tail stopped", "err", err)
+		}
+	}()
+
 	// 首发一次 PING，让控制面立即感知上线。
 	if err := h.sendPing(stream); err != nil {
 		return err
@@ -378,6 +399,10 @@ func (h *Heartbeater) session(ctx context.Context) error {
 			}
 		case rep := <-h.certOut:
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CERT_DEPLOY, rep); serr != nil {
+				return serr
+			}
+		case rep := <-logBatchOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_LOG_BATCH, rep); serr != nil {
 				return serr
 			}
 		}
@@ -605,6 +630,8 @@ func (h *Heartbeater) sendReport(stream agentv1.AgentService_HeartbeatClient, ty
 		req.SetRsWeightResult = payload.(*agentv1.SetRealServerWeightResult)
 	case agentv1.HeartbeatRequest_CERT_DEPLOY:
 		req.CertDeployResult = payload.(*agentv1.DeployCertResult)
+	case agentv1.HeartbeatRequest_LOG_BATCH:
+		req.LogBatch = payload.([]byte)
 	}
 	return stream.Send(req)
 }
