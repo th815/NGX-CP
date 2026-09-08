@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/agent/transport"
@@ -146,6 +148,25 @@ func Run(cfg *config.Config) error {
 	deployWorker := deploy.NewWorker(queue, deploySvc, agentRunner, lockCfg)
 	go deployWorker.Start(ctx)
 
+	// T045 自动续期调度：注入 Agent 下发通道使续期后可走 T044 原子流水线重分发；
+	// 仅当主密钥已配置（证书信封加密可用）时启动，否则续期无法解密凭据。
+	// 调度器每日对齐 03:00 触发：到期前 30 天起自动续期；续期结果落 source=auto_renew /
+	// type=cert_renew 变更单作审计；连续失败达阈值触发 CRITICAL 告警。
+	certSvc.SetDeployer(agentSrv)
+	if kms != nil {
+		renewRecorder := &renewRecorder{deploy: deploySvc, certSvc: certSvc}
+		scheduler := certdom.NewScheduler(certSvc, &certDueLister{svc: certSvc}, renewRecorder, 30*24*time.Hour,
+			func(certID, fails int) {
+				logging.Ctx(nil).Error().
+					Int("cert_id", certID).
+					Int("fail_streak", fails).
+					Msg("证书自动续期连续失败达到阈值，需人工介入检查 DNS/ACME/节点下发通道")
+			})
+		go scheduler.Start(ctx, 24*time.Hour)
+	} else {
+		logging.Ctx(nil).Warn().Msg("主密钥未配置，自动续期调度未启动（设置 NGXCP_MASTER_KEY 后重启以启用）")
+	}
+
 	// T026 漂移定时巡检：ctx 取消即退出（与进程同生命周期）。
 	go func() {
 		if err := driftDetector.RunWorker(ctx, driftCfg.CheckInterval); err != nil && ctx.Err() == nil {
@@ -167,4 +188,48 @@ func Run(cfg *config.Config) error {
 
 	logging.Ctx(nil).Info().Str("listen", cfg.Listen).Msg("ngxcp-server ready (M1)")
 	return r.Run(cfg.Listen)
+}
+
+// renewRecorder 把每次续期结果记录为一条 cert_renew 变更单（审计），并驱动到终态。
+// 自动续期为系统行为，故不走人工审批：draft → pending → running → success/failed。
+type renewRecorder struct {
+	deploy  *deploy.Service
+	certSvc *certdom.Service
+}
+
+// certDueLister 适配 cert.Service.ListDueForRenewal 到调度器期望的 DueLister.ListDue。
+type certDueLister struct {
+	svc *certdom.Service
+}
+
+func (l *certDueLister) ListDue(ctx context.Context, horizon time.Duration) ([]int, error) {
+	return l.svc.ListDueForRenewal(ctx, horizon)
+}
+
+// RecordRenewal 实现 cert.Recorder：落一条审计变更单并收敛到终态。
+func (r *renewRecorder) RecordRenewal(ctx context.Context, certID int, ok bool, detail string) error {
+	title := fmt.Sprintf("自动续期证书 #%d", certID)
+	if v, err := r.certSvc.Get(ctx, certID); err == nil && v != nil {
+		title = fmt.Sprintf("自动续期证书 %s (#%d)", v.Domain, certID)
+	}
+	co, err := r.deploy.CreateDraft(ctx, deploy.CreateInput{
+		Title:   title,
+		Type:    "cert_renew",
+		Source:  "auto_renew",
+		Comment: detail,
+	})
+	if err != nil {
+		return err
+	}
+	// 驱动到终态（不走审批）：pending → running → success/failed。
+	if err := r.deploy.Transition(ctx, co.ID, "draft", "pending"); err != nil {
+		return err
+	}
+	if err := r.deploy.Start(ctx, co.ID); err != nil {
+		return err
+	}
+	if err := r.deploy.Complete(ctx, co.ID, ok, detail); err != nil {
+		return err
+	}
+	return nil
 }

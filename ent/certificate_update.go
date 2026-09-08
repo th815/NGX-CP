@@ -204,6 +204,110 @@ func (_u *CertificateUpdate) ClearEncFullChain() *CertificateUpdate {
 	return _u
 }
 
+// SetEncAcmeAccountKey sets the "enc_acme_account_key" field.
+func (_u *CertificateUpdate) SetEncAcmeAccountKey(v []byte) *CertificateUpdate {
+	_u.mutation.SetEncAcmeAccountKey(v)
+	return _u
+}
+
+// ClearEncAcmeAccountKey clears the value of the "enc_acme_account_key" field.
+func (_u *CertificateUpdate) ClearEncAcmeAccountKey() *CertificateUpdate {
+	_u.mutation.ClearEncAcmeAccountKey()
+	return _u
+}
+
+// SetEncAcmeProviderToken sets the "enc_acme_provider_token" field.
+func (_u *CertificateUpdate) SetEncAcmeProviderToken(v []byte) *CertificateUpdate {
+	_u.mutation.SetEncAcmeProviderToken(v)
+	return _u
+}
+
+// ClearEncAcmeProviderToken clears the value of the "enc_acme_provider_token" field.
+func (_u *CertificateUpdate) ClearEncAcmeProviderToken() *CertificateUpdate {
+	_u.mutation.ClearEncAcmeProviderToken()
+	return _u
+}
+
+// SetAcmeProviderType sets the "acme_provider_type" field.
+func (_u *CertificateUpdate) SetAcmeProviderType(v string) *CertificateUpdate {
+	_u.mutation.SetAcmeProviderType(v)
+	return _u
+}
+
+// SetNillableAcmeProviderType sets the "acme_provider_type" field if the given value is not nil.
+func (_u *CertificateUpdate) SetNillableAcmeProviderType(v *string) *CertificateUpdate {
+	if v != nil {
+		_u.SetAcmeProviderType(*v)
+	}
+	return _u
+}
+
+// ClearAcmeProviderType clears the value of the "acme_provider_type" field.
+func (_u *CertificateUpdate) ClearAcmeProviderType() *CertificateUpdate {
+	_u.mutation.ClearAcmeProviderType()
+	return _u
+}
+
+// SetAcmeEmail sets the "acme_email" field.
+func (_u *CertificateUpdate) SetAcmeEmail(v string) *CertificateUpdate {
+	_u.mutation.SetAcmeEmail(v)
+	return _u
+}
+
+// SetNillableAcmeEmail sets the "acme_email" field if the given value is not nil.
+func (_u *CertificateUpdate) SetNillableAcmeEmail(v *string) *CertificateUpdate {
+	if v != nil {
+		_u.SetAcmeEmail(*v)
+	}
+	return _u
+}
+
+// ClearAcmeEmail clears the value of the "acme_email" field.
+func (_u *CertificateUpdate) ClearAcmeEmail() *CertificateUpdate {
+	_u.mutation.ClearAcmeEmail()
+	return _u
+}
+
+// SetAcmeKeyAlg sets the "acme_key_alg" field.
+func (_u *CertificateUpdate) SetAcmeKeyAlg(v string) *CertificateUpdate {
+	_u.mutation.SetAcmeKeyAlg(v)
+	return _u
+}
+
+// SetNillableAcmeKeyAlg sets the "acme_key_alg" field if the given value is not nil.
+func (_u *CertificateUpdate) SetNillableAcmeKeyAlg(v *string) *CertificateUpdate {
+	if v != nil {
+		_u.SetAcmeKeyAlg(*v)
+	}
+	return _u
+}
+
+// ClearAcmeKeyAlg clears the value of the "acme_key_alg" field.
+func (_u *CertificateUpdate) ClearAcmeKeyAlg() *CertificateUpdate {
+	_u.mutation.ClearAcmeKeyAlg()
+	return _u
+}
+
+// SetAcmeCaDirURL sets the "acme_ca_dir_url" field.
+func (_u *CertificateUpdate) SetAcmeCaDirURL(v string) *CertificateUpdate {
+	_u.mutation.SetAcmeCaDirURL(v)
+	return _u
+}
+
+// SetNillableAcmeCaDirURL sets the "acme_ca_dir_url" field if the given value is not nil.
+func (_u *CertificateUpdate) SetNillableAcmeCaDirURL(v *string) *CertificateUpdate {
+	if v != nil {
+		_u.SetAcmeCaDirURL(*v)
+	}
+	return _u
+}
+
+// ClearAcmeCaDirURL clears the value of the "acme_ca_dir_url" field.
+func (_u *CertificateUpdate) ClearAcmeCaDirURL() *CertificateUpdate {
+	_u.mutation.ClearAcmeCaDirURL()
+	return _u
+}
+
 // AddDeploymentIDs adds the "deployments" edge to the CertDeployment entity by IDs.
 func (_u *CertificateUpdate) AddDeploymentIDs(ids ...int) *CertificateUpdate {
 	_u.mutation.AddDeploymentIDs(ids...)
@@ -385,6 +489,42 @@ func (_u *CertificateUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.EncFullChainCleared() {
 		_spec.ClearField(certificate.FieldEncFullChain, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.EncAcmeAccountKey(); ok {
+		_spec.SetField(certificate.FieldEncAcmeAccountKey, field.TypeBytes, value)
+	}
+	if _u.mutation.EncAcmeAccountKeyCleared() {
+		_spec.ClearField(certificate.FieldEncAcmeAccountKey, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.EncAcmeProviderToken(); ok {
+		_spec.SetField(certificate.FieldEncAcmeProviderToken, field.TypeBytes, value)
+	}
+	if _u.mutation.EncAcmeProviderTokenCleared() {
+		_spec.ClearField(certificate.FieldEncAcmeProviderToken, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.AcmeProviderType(); ok {
+		_spec.SetField(certificate.FieldAcmeProviderType, field.TypeString, value)
+	}
+	if _u.mutation.AcmeProviderTypeCleared() {
+		_spec.ClearField(certificate.FieldAcmeProviderType, field.TypeString)
+	}
+	if value, ok := _u.mutation.AcmeEmail(); ok {
+		_spec.SetField(certificate.FieldAcmeEmail, field.TypeString, value)
+	}
+	if _u.mutation.AcmeEmailCleared() {
+		_spec.ClearField(certificate.FieldAcmeEmail, field.TypeString)
+	}
+	if value, ok := _u.mutation.AcmeKeyAlg(); ok {
+		_spec.SetField(certificate.FieldAcmeKeyAlg, field.TypeString, value)
+	}
+	if _u.mutation.AcmeKeyAlgCleared() {
+		_spec.ClearField(certificate.FieldAcmeKeyAlg, field.TypeString)
+	}
+	if value, ok := _u.mutation.AcmeCaDirURL(); ok {
+		_spec.SetField(certificate.FieldAcmeCaDirURL, field.TypeString, value)
+	}
+	if _u.mutation.AcmeCaDirURLCleared() {
+		_spec.ClearField(certificate.FieldAcmeCaDirURL, field.TypeString)
 	}
 	if _u.mutation.DeploymentsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -625,6 +765,110 @@ func (_u *CertificateUpdateOne) ClearEncFullChain() *CertificateUpdateOne {
 	return _u
 }
 
+// SetEncAcmeAccountKey sets the "enc_acme_account_key" field.
+func (_u *CertificateUpdateOne) SetEncAcmeAccountKey(v []byte) *CertificateUpdateOne {
+	_u.mutation.SetEncAcmeAccountKey(v)
+	return _u
+}
+
+// ClearEncAcmeAccountKey clears the value of the "enc_acme_account_key" field.
+func (_u *CertificateUpdateOne) ClearEncAcmeAccountKey() *CertificateUpdateOne {
+	_u.mutation.ClearEncAcmeAccountKey()
+	return _u
+}
+
+// SetEncAcmeProviderToken sets the "enc_acme_provider_token" field.
+func (_u *CertificateUpdateOne) SetEncAcmeProviderToken(v []byte) *CertificateUpdateOne {
+	_u.mutation.SetEncAcmeProviderToken(v)
+	return _u
+}
+
+// ClearEncAcmeProviderToken clears the value of the "enc_acme_provider_token" field.
+func (_u *CertificateUpdateOne) ClearEncAcmeProviderToken() *CertificateUpdateOne {
+	_u.mutation.ClearEncAcmeProviderToken()
+	return _u
+}
+
+// SetAcmeProviderType sets the "acme_provider_type" field.
+func (_u *CertificateUpdateOne) SetAcmeProviderType(v string) *CertificateUpdateOne {
+	_u.mutation.SetAcmeProviderType(v)
+	return _u
+}
+
+// SetNillableAcmeProviderType sets the "acme_provider_type" field if the given value is not nil.
+func (_u *CertificateUpdateOne) SetNillableAcmeProviderType(v *string) *CertificateUpdateOne {
+	if v != nil {
+		_u.SetAcmeProviderType(*v)
+	}
+	return _u
+}
+
+// ClearAcmeProviderType clears the value of the "acme_provider_type" field.
+func (_u *CertificateUpdateOne) ClearAcmeProviderType() *CertificateUpdateOne {
+	_u.mutation.ClearAcmeProviderType()
+	return _u
+}
+
+// SetAcmeEmail sets the "acme_email" field.
+func (_u *CertificateUpdateOne) SetAcmeEmail(v string) *CertificateUpdateOne {
+	_u.mutation.SetAcmeEmail(v)
+	return _u
+}
+
+// SetNillableAcmeEmail sets the "acme_email" field if the given value is not nil.
+func (_u *CertificateUpdateOne) SetNillableAcmeEmail(v *string) *CertificateUpdateOne {
+	if v != nil {
+		_u.SetAcmeEmail(*v)
+	}
+	return _u
+}
+
+// ClearAcmeEmail clears the value of the "acme_email" field.
+func (_u *CertificateUpdateOne) ClearAcmeEmail() *CertificateUpdateOne {
+	_u.mutation.ClearAcmeEmail()
+	return _u
+}
+
+// SetAcmeKeyAlg sets the "acme_key_alg" field.
+func (_u *CertificateUpdateOne) SetAcmeKeyAlg(v string) *CertificateUpdateOne {
+	_u.mutation.SetAcmeKeyAlg(v)
+	return _u
+}
+
+// SetNillableAcmeKeyAlg sets the "acme_key_alg" field if the given value is not nil.
+func (_u *CertificateUpdateOne) SetNillableAcmeKeyAlg(v *string) *CertificateUpdateOne {
+	if v != nil {
+		_u.SetAcmeKeyAlg(*v)
+	}
+	return _u
+}
+
+// ClearAcmeKeyAlg clears the value of the "acme_key_alg" field.
+func (_u *CertificateUpdateOne) ClearAcmeKeyAlg() *CertificateUpdateOne {
+	_u.mutation.ClearAcmeKeyAlg()
+	return _u
+}
+
+// SetAcmeCaDirURL sets the "acme_ca_dir_url" field.
+func (_u *CertificateUpdateOne) SetAcmeCaDirURL(v string) *CertificateUpdateOne {
+	_u.mutation.SetAcmeCaDirURL(v)
+	return _u
+}
+
+// SetNillableAcmeCaDirURL sets the "acme_ca_dir_url" field if the given value is not nil.
+func (_u *CertificateUpdateOne) SetNillableAcmeCaDirURL(v *string) *CertificateUpdateOne {
+	if v != nil {
+		_u.SetAcmeCaDirURL(*v)
+	}
+	return _u
+}
+
+// ClearAcmeCaDirURL clears the value of the "acme_ca_dir_url" field.
+func (_u *CertificateUpdateOne) ClearAcmeCaDirURL() *CertificateUpdateOne {
+	_u.mutation.ClearAcmeCaDirURL()
+	return _u
+}
+
 // AddDeploymentIDs adds the "deployments" edge to the CertDeployment entity by IDs.
 func (_u *CertificateUpdateOne) AddDeploymentIDs(ids ...int) *CertificateUpdateOne {
 	_u.mutation.AddDeploymentIDs(ids...)
@@ -836,6 +1080,42 @@ func (_u *CertificateUpdateOne) sqlSave(ctx context.Context) (_node *Certificate
 	}
 	if _u.mutation.EncFullChainCleared() {
 		_spec.ClearField(certificate.FieldEncFullChain, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.EncAcmeAccountKey(); ok {
+		_spec.SetField(certificate.FieldEncAcmeAccountKey, field.TypeBytes, value)
+	}
+	if _u.mutation.EncAcmeAccountKeyCleared() {
+		_spec.ClearField(certificate.FieldEncAcmeAccountKey, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.EncAcmeProviderToken(); ok {
+		_spec.SetField(certificate.FieldEncAcmeProviderToken, field.TypeBytes, value)
+	}
+	if _u.mutation.EncAcmeProviderTokenCleared() {
+		_spec.ClearField(certificate.FieldEncAcmeProviderToken, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.AcmeProviderType(); ok {
+		_spec.SetField(certificate.FieldAcmeProviderType, field.TypeString, value)
+	}
+	if _u.mutation.AcmeProviderTypeCleared() {
+		_spec.ClearField(certificate.FieldAcmeProviderType, field.TypeString)
+	}
+	if value, ok := _u.mutation.AcmeEmail(); ok {
+		_spec.SetField(certificate.FieldAcmeEmail, field.TypeString, value)
+	}
+	if _u.mutation.AcmeEmailCleared() {
+		_spec.ClearField(certificate.FieldAcmeEmail, field.TypeString)
+	}
+	if value, ok := _u.mutation.AcmeKeyAlg(); ok {
+		_spec.SetField(certificate.FieldAcmeKeyAlg, field.TypeString, value)
+	}
+	if _u.mutation.AcmeKeyAlgCleared() {
+		_spec.ClearField(certificate.FieldAcmeKeyAlg, field.TypeString)
+	}
+	if value, ok := _u.mutation.AcmeCaDirURL(); ok {
+		_spec.SetField(certificate.FieldAcmeCaDirURL, field.TypeString, value)
+	}
+	if _u.mutation.AcmeCaDirURLCleared() {
+		_spec.ClearField(certificate.FieldAcmeCaDirURL, field.TypeString)
 	}
 	if _u.mutation.DeploymentsCleared() {
 		edge := &sqlgraph.EdgeSpec{

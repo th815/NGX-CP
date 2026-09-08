@@ -58,6 +58,20 @@ func (Certificate) Fields() []ent.Field {
 			Comment("AES-GCM(envelope) 加密的私钥，绝不回传浏览器"),
 		field.Bytes("enc_full_chain").Optional().
 			Comment("AES-GCM(envelope) 加密的全链（leaf+intermediate）"),
+		// ACME 续期状态（T045）：签发时落库，续期时复用避免重复注册账户。
+		// 全部信封加密（AES-GCM）存储，绝不回传浏览器。
+		field.Bytes("enc_acme_account_key").Optional().
+			Comment("AES-GCM(envelope) 加密的 ACME 账户 RSA 私钥（PEM），续期复用"),
+		field.Bytes("enc_acme_provider_token").Optional().
+			Comment("AES-GCM(envelope) 加密的 DNS-01 provider Token（如 Cloudflare）"),
+		field.String("acme_provider_type").Optional().
+			Comment("DNS-01 provider 类型（cloudflare 等），对应 dns.Registry"),
+		field.String("acme_email").Optional().
+			Comment("ACME 账户邮箱（LE 必填）"),
+		field.String("acme_key_alg").Optional().
+			Comment("密钥算法：rsa2048 / ecdsa256"),
+		field.String("acme_ca_dir_url").Optional().
+			Comment("ACME 目录 URL（默认 LE 生产；staging/pebble 调试用）"),
 	}
 }
 

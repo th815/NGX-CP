@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue'
+import { h, onMounted, ref, type VNodeChild } from 'vue'
 import {
   NCard,
   NSpace,
@@ -23,10 +23,13 @@ import {
   uploadCert,
   distributeCert,
   listNodesBrief,
+  issueACME,
+  renewCert,
   type CertView,
   type ValidationResult,
   type NodeBrief,
-  type DistributeResult
+  type DistributeResult,
+  type IssueACMEIn
 } from '@/api/cert'
 
 const message = useMessage()
@@ -45,6 +48,28 @@ const distNodes = ref<NodeBrief[]>([])
 const selectedNodeIds = ref<number[]>([])
 const distResult = ref<DistributeResult | null>(null)
 const currentCertId = ref<number | null>(null)
+
+// T045 ACME 签发弹窗状态。
+interface IssueFormModel {
+  domains: string[]
+  email: string
+  provider_type: string
+  provider_token: string
+  key_alg: string
+  ca_dir_url: string
+}
+const showIssue = ref(false)
+const issuing = ref(false)
+const issueErrors = ref<string[]>([])
+const issueForm = ref<IssueFormModel>({
+  domains: [],
+  email: '',
+  provider_type: 'cloudflare',
+  provider_token: '',
+  key_alg: 'rsa2048',
+  ca_dir_url: ''
+})
+const issueDomainsText = ref('')
 
 function expiryType(notAfter: string): 'success' | 'warning' | 'error' {
   const days = (new Date(notAfter).getTime() - Date.now()) / 86400000
@@ -87,13 +112,25 @@ const columns: DataTableColumns<CertView> = [
   {
     title: '操作',
     key: 'actions',
-    render: (r) =>
-      h(NSpace, { size: 4 }, () => [
+    render: (r) => {
+      const children: VNodeChild[] = []
+      if (r.source === 'acme') {
+        children.push(
+          h(
+            NButton,
+            { size: 'small', type: 'warning', tertiary: true, onClick: () => renew(r) },
+            { default: () => '续期' }
+          )
+        )
+      }
+      children.push(
         h(
           NButton,
           { size: 'small', tertiary: true, onClick: () => openDistribute(r) },
           { default: () => '分发' }
-        ),
+        )
+      )
+      children.push(
         h(
           NPopconfirm,
           { onPositiveClick: () => remove(r) },
@@ -107,7 +144,9 @@ const columns: DataTableColumns<CertView> = [
             default: () => '确认删除该证书？私钥将一并销毁且不可恢复。'
           }
         )
-      ])
+      )
+      return h(NSpace, { size: 4 }, () => children)
+    }
   }
 ]
 
@@ -171,6 +210,74 @@ async function remove(r: CertView) {
   }
 }
 
+// ===== T045 ACME 签发 / 续期 =====
+function resetIssueForm() {
+  issueForm.value = {
+    domains: [],
+    email: '',
+    provider_type: 'cloudflare',
+    provider_token: '',
+    key_alg: 'rsa2048',
+    ca_dir_url: ''
+  }
+  issueDomainsText.value = ''
+  issueErrors.value = []
+}
+
+function openIssue() {
+  resetIssueForm()
+  showIssue.value = true
+}
+
+async function doIssue() {
+  const domains = issueDomainsText.value
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (domains.length === 0) {
+    message.warning('请至少填写一个域名')
+    return
+  }
+  if (!issueForm.value.email.trim()) {
+    message.warning('ACME 账户邮箱必填')
+    return
+  }
+  if (!issueForm.value.provider_token.trim()) {
+    message.warning('DNS-01 provider Token 必填')
+    return
+  }
+  issuing.value = true
+  issueErrors.value = []
+  try {
+    const payload: IssueACMEIn = {
+      domains,
+      email: issueForm.value.email.trim(),
+      provider_type: issueForm.value.provider_type.trim() || 'cloudflare',
+      provider_token: issueForm.value.provider_token,
+      key_alg: issueForm.value.key_alg,
+      ca_dir_url: issueForm.value.ca_dir_url.trim() || undefined
+    }
+    const view = await issueACME(payload)
+    message.success(`证书已签发并入库（#${view.id}，${view.domain}）`)
+    showIssue.value = false
+    await load()
+  } catch (e: any) {
+    issueErrors.value = [e?.response?.data?.message || e?.message || '签发失败']
+  } finally {
+    issuing.value = false
+  }
+}
+
+async function renew(r: CertView) {
+  try {
+    await renewCert(r.id)
+    message.success(`已触发续期（#${r.id}），续期后将自动走发布流水线重分发到历史节点`)
+    await load()
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || '续期失败')
+  }
+}
+
 // ===== T044 分发到节点 =====
 async function openDistribute(r: CertView) {
   currentCertId.value = r.id
@@ -218,7 +325,10 @@ onMounted(load)
   <div class="page">
     <n-card :bordered="false" title="证书管理">
       <template #header-extra>
-        <n-button type="primary" size="small" @click="showUpload = true">上传证书</n-button>
+        <n-space size="small">
+          <n-button size="small" @click="openIssue">签发 ACME</n-button>
+          <n-button type="primary" size="small" @click="showUpload = true">上传证书</n-button>
+        </n-space>
       </template>
       <n-spin :show="loading">
         <n-data-table
@@ -329,6 +439,76 @@ onMounted(load)
         <n-space justify="end">
           <n-button @click="showDistribute = false">关闭</n-button>
           <n-button type="primary" :loading="distributing" @click="doDistribute">下发</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showIssue"
+      title="ACME 签发（DNS-01）"
+      preset="card"
+      style="width: 680px"
+      :mask-closable="false"
+    >
+      <n-alert type="info" title="安全说明" style="margin-bottom: 12px">
+        provider Token 仅在本次请求经 KMS 信封加密存储，控制面数据库与控制面 API 响应均不留存明文；续期将自动复用该 Token 与账户密钥。
+      </n-alert>
+      <n-alert v-if="issueErrors.length" type="error" title="签发失败" style="margin-bottom: 12px">
+        <ul style="margin: 0; padding-left: 18px">
+          <li v-for="(e, i) in issueErrors" :key="i">{{ e }}</li>
+        </ul>
+      </n-alert>
+      <n-form label-placement="top">
+        <n-form-item label="域名（逗号或空格分隔，支持 *.example.com 通配符）" required>
+          <n-input
+            v-model:value="issueDomainsText"
+            type="textarea"
+            :autosize="{ minRows: 2, maxRows: 4 }"
+            placeholder="example.com, *.example.com"
+          />
+        </n-form-item>
+        <n-form-item label="ACME 账户邮箱（必填）" required>
+          <n-input v-model:value="issueForm.email" placeholder="admin@example.com" />
+        </n-form-item>
+        <n-form-item label="DNS-01 Provider 类型" required>
+          <n-select
+            v-model:value="issueForm.provider_type"
+            :options="[
+              { label: 'Cloudflare', value: 'cloudflare' },
+              { label: '其他厂商（规划中，暂不可用）', value: 'coming-soon', disabled: true }
+            ]"
+          />
+        </n-form-item>
+        <n-form-item label="Provider API Token（必填）" required>
+          <n-input
+            v-model:value="issueForm.provider_token"
+            type="password"
+            show-password-on="click"
+            placeholder="DNS provider 的 API Token"
+          />
+        </n-form-item>
+        <n-space :size="12">
+          <n-form-item label="密钥算法" style="flex: 1">
+            <n-select
+              v-model:value="issueForm.key_alg"
+              :options="[
+                { label: 'RSA-2048', value: 'rsa2048' },
+                { label: 'ECDSA-P256', value: 'ecdsa256' }
+              ]"
+            />
+          </n-form-item>
+          <n-form-item label="CA 目录 URL（可选）" style="flex: 2">
+            <n-input
+              v-model:value="issueForm.ca_dir_url"
+              placeholder="留空 = Let's Encrypt 生产；可填 staging 调试"
+            />
+          </n-form-item>
+        </n-space>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showIssue = false">取消</n-button>
+          <n-button type="primary" :loading="issuing" @click="doIssue">签发并入库</n-button>
         </n-space>
       </template>
     </n-modal>

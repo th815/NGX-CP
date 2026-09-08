@@ -2365,31 +2365,37 @@ func (m *CertDeploymentMutation) ResetEdge(name string) error {
 // CertificateMutation represents an operation that mutates the Certificate nodes in the graph.
 type CertificateMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int
-	domain             *string
-	san                *[]string
-	appendsan          []string
-	issuer             *string
-	serial_number      *string
-	fingerprint_sha    *string
-	not_before         *time.Time
-	not_after          *time.Time
-	key_alg            *string
-	source             *certificate.Source
-	status             *certificate.Status
-	created_at         *time.Time
-	updated_at         *time.Time
-	enc_private_key    *[]byte
-	enc_full_chain     *[]byte
-	clearedFields      map[string]struct{}
-	deployments        map[int]struct{}
-	removeddeployments map[int]struct{}
-	cleareddeployments bool
-	done               bool
-	oldValue           func(context.Context) (*Certificate, error)
-	predicates         []predicate.Certificate
+	op                      Op
+	typ                     string
+	id                      *int
+	domain                  *string
+	san                     *[]string
+	appendsan               []string
+	issuer                  *string
+	serial_number           *string
+	fingerprint_sha         *string
+	not_before              *time.Time
+	not_after               *time.Time
+	key_alg                 *string
+	source                  *certificate.Source
+	status                  *certificate.Status
+	created_at              *time.Time
+	updated_at              *time.Time
+	enc_private_key         *[]byte
+	enc_full_chain          *[]byte
+	enc_acme_account_key    *[]byte
+	enc_acme_provider_token *[]byte
+	acme_provider_type      *string
+	acme_email              *string
+	acme_key_alg            *string
+	acme_ca_dir_url         *string
+	clearedFields           map[string]struct{}
+	deployments             map[int]struct{}
+	removeddeployments      map[int]struct{}
+	cleareddeployments      bool
+	done                    bool
+	oldValue                func(context.Context) (*Certificate, error)
+	predicates              []predicate.Certificate
 }
 
 var _ ent.Mutation = (*CertificateMutation)(nil)
@@ -3049,6 +3055,300 @@ func (m *CertificateMutation) ResetEncFullChain() {
 	delete(m.clearedFields, certificate.FieldEncFullChain)
 }
 
+// SetEncAcmeAccountKey sets the "enc_acme_account_key" field.
+func (m *CertificateMutation) SetEncAcmeAccountKey(b []byte) {
+	m.enc_acme_account_key = &b
+}
+
+// EncAcmeAccountKey returns the value of the "enc_acme_account_key" field in the mutation.
+func (m *CertificateMutation) EncAcmeAccountKey() (r []byte, exists bool) {
+	v := m.enc_acme_account_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEncAcmeAccountKey returns the old "enc_acme_account_key" field's value of the Certificate entity.
+// If the Certificate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CertificateMutation) OldEncAcmeAccountKey(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEncAcmeAccountKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEncAcmeAccountKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEncAcmeAccountKey: %w", err)
+	}
+	return oldValue.EncAcmeAccountKey, nil
+}
+
+// ClearEncAcmeAccountKey clears the value of the "enc_acme_account_key" field.
+func (m *CertificateMutation) ClearEncAcmeAccountKey() {
+	m.enc_acme_account_key = nil
+	m.clearedFields[certificate.FieldEncAcmeAccountKey] = struct{}{}
+}
+
+// EncAcmeAccountKeyCleared returns if the "enc_acme_account_key" field was cleared in this mutation.
+func (m *CertificateMutation) EncAcmeAccountKeyCleared() bool {
+	_, ok := m.clearedFields[certificate.FieldEncAcmeAccountKey]
+	return ok
+}
+
+// ResetEncAcmeAccountKey resets all changes to the "enc_acme_account_key" field.
+func (m *CertificateMutation) ResetEncAcmeAccountKey() {
+	m.enc_acme_account_key = nil
+	delete(m.clearedFields, certificate.FieldEncAcmeAccountKey)
+}
+
+// SetEncAcmeProviderToken sets the "enc_acme_provider_token" field.
+func (m *CertificateMutation) SetEncAcmeProviderToken(b []byte) {
+	m.enc_acme_provider_token = &b
+}
+
+// EncAcmeProviderToken returns the value of the "enc_acme_provider_token" field in the mutation.
+func (m *CertificateMutation) EncAcmeProviderToken() (r []byte, exists bool) {
+	v := m.enc_acme_provider_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEncAcmeProviderToken returns the old "enc_acme_provider_token" field's value of the Certificate entity.
+// If the Certificate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CertificateMutation) OldEncAcmeProviderToken(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEncAcmeProviderToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEncAcmeProviderToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEncAcmeProviderToken: %w", err)
+	}
+	return oldValue.EncAcmeProviderToken, nil
+}
+
+// ClearEncAcmeProviderToken clears the value of the "enc_acme_provider_token" field.
+func (m *CertificateMutation) ClearEncAcmeProviderToken() {
+	m.enc_acme_provider_token = nil
+	m.clearedFields[certificate.FieldEncAcmeProviderToken] = struct{}{}
+}
+
+// EncAcmeProviderTokenCleared returns if the "enc_acme_provider_token" field was cleared in this mutation.
+func (m *CertificateMutation) EncAcmeProviderTokenCleared() bool {
+	_, ok := m.clearedFields[certificate.FieldEncAcmeProviderToken]
+	return ok
+}
+
+// ResetEncAcmeProviderToken resets all changes to the "enc_acme_provider_token" field.
+func (m *CertificateMutation) ResetEncAcmeProviderToken() {
+	m.enc_acme_provider_token = nil
+	delete(m.clearedFields, certificate.FieldEncAcmeProviderToken)
+}
+
+// SetAcmeProviderType sets the "acme_provider_type" field.
+func (m *CertificateMutation) SetAcmeProviderType(s string) {
+	m.acme_provider_type = &s
+}
+
+// AcmeProviderType returns the value of the "acme_provider_type" field in the mutation.
+func (m *CertificateMutation) AcmeProviderType() (r string, exists bool) {
+	v := m.acme_provider_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcmeProviderType returns the old "acme_provider_type" field's value of the Certificate entity.
+// If the Certificate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CertificateMutation) OldAcmeProviderType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcmeProviderType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcmeProviderType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcmeProviderType: %w", err)
+	}
+	return oldValue.AcmeProviderType, nil
+}
+
+// ClearAcmeProviderType clears the value of the "acme_provider_type" field.
+func (m *CertificateMutation) ClearAcmeProviderType() {
+	m.acme_provider_type = nil
+	m.clearedFields[certificate.FieldAcmeProviderType] = struct{}{}
+}
+
+// AcmeProviderTypeCleared returns if the "acme_provider_type" field was cleared in this mutation.
+func (m *CertificateMutation) AcmeProviderTypeCleared() bool {
+	_, ok := m.clearedFields[certificate.FieldAcmeProviderType]
+	return ok
+}
+
+// ResetAcmeProviderType resets all changes to the "acme_provider_type" field.
+func (m *CertificateMutation) ResetAcmeProviderType() {
+	m.acme_provider_type = nil
+	delete(m.clearedFields, certificate.FieldAcmeProviderType)
+}
+
+// SetAcmeEmail sets the "acme_email" field.
+func (m *CertificateMutation) SetAcmeEmail(s string) {
+	m.acme_email = &s
+}
+
+// AcmeEmail returns the value of the "acme_email" field in the mutation.
+func (m *CertificateMutation) AcmeEmail() (r string, exists bool) {
+	v := m.acme_email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcmeEmail returns the old "acme_email" field's value of the Certificate entity.
+// If the Certificate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CertificateMutation) OldAcmeEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcmeEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcmeEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcmeEmail: %w", err)
+	}
+	return oldValue.AcmeEmail, nil
+}
+
+// ClearAcmeEmail clears the value of the "acme_email" field.
+func (m *CertificateMutation) ClearAcmeEmail() {
+	m.acme_email = nil
+	m.clearedFields[certificate.FieldAcmeEmail] = struct{}{}
+}
+
+// AcmeEmailCleared returns if the "acme_email" field was cleared in this mutation.
+func (m *CertificateMutation) AcmeEmailCleared() bool {
+	_, ok := m.clearedFields[certificate.FieldAcmeEmail]
+	return ok
+}
+
+// ResetAcmeEmail resets all changes to the "acme_email" field.
+func (m *CertificateMutation) ResetAcmeEmail() {
+	m.acme_email = nil
+	delete(m.clearedFields, certificate.FieldAcmeEmail)
+}
+
+// SetAcmeKeyAlg sets the "acme_key_alg" field.
+func (m *CertificateMutation) SetAcmeKeyAlg(s string) {
+	m.acme_key_alg = &s
+}
+
+// AcmeKeyAlg returns the value of the "acme_key_alg" field in the mutation.
+func (m *CertificateMutation) AcmeKeyAlg() (r string, exists bool) {
+	v := m.acme_key_alg
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcmeKeyAlg returns the old "acme_key_alg" field's value of the Certificate entity.
+// If the Certificate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CertificateMutation) OldAcmeKeyAlg(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcmeKeyAlg is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcmeKeyAlg requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcmeKeyAlg: %w", err)
+	}
+	return oldValue.AcmeKeyAlg, nil
+}
+
+// ClearAcmeKeyAlg clears the value of the "acme_key_alg" field.
+func (m *CertificateMutation) ClearAcmeKeyAlg() {
+	m.acme_key_alg = nil
+	m.clearedFields[certificate.FieldAcmeKeyAlg] = struct{}{}
+}
+
+// AcmeKeyAlgCleared returns if the "acme_key_alg" field was cleared in this mutation.
+func (m *CertificateMutation) AcmeKeyAlgCleared() bool {
+	_, ok := m.clearedFields[certificate.FieldAcmeKeyAlg]
+	return ok
+}
+
+// ResetAcmeKeyAlg resets all changes to the "acme_key_alg" field.
+func (m *CertificateMutation) ResetAcmeKeyAlg() {
+	m.acme_key_alg = nil
+	delete(m.clearedFields, certificate.FieldAcmeKeyAlg)
+}
+
+// SetAcmeCaDirURL sets the "acme_ca_dir_url" field.
+func (m *CertificateMutation) SetAcmeCaDirURL(s string) {
+	m.acme_ca_dir_url = &s
+}
+
+// AcmeCaDirURL returns the value of the "acme_ca_dir_url" field in the mutation.
+func (m *CertificateMutation) AcmeCaDirURL() (r string, exists bool) {
+	v := m.acme_ca_dir_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcmeCaDirURL returns the old "acme_ca_dir_url" field's value of the Certificate entity.
+// If the Certificate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CertificateMutation) OldAcmeCaDirURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcmeCaDirURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcmeCaDirURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcmeCaDirURL: %w", err)
+	}
+	return oldValue.AcmeCaDirURL, nil
+}
+
+// ClearAcmeCaDirURL clears the value of the "acme_ca_dir_url" field.
+func (m *CertificateMutation) ClearAcmeCaDirURL() {
+	m.acme_ca_dir_url = nil
+	m.clearedFields[certificate.FieldAcmeCaDirURL] = struct{}{}
+}
+
+// AcmeCaDirURLCleared returns if the "acme_ca_dir_url" field was cleared in this mutation.
+func (m *CertificateMutation) AcmeCaDirURLCleared() bool {
+	_, ok := m.clearedFields[certificate.FieldAcmeCaDirURL]
+	return ok
+}
+
+// ResetAcmeCaDirURL resets all changes to the "acme_ca_dir_url" field.
+func (m *CertificateMutation) ResetAcmeCaDirURL() {
+	m.acme_ca_dir_url = nil
+	delete(m.clearedFields, certificate.FieldAcmeCaDirURL)
+}
+
 // AddDeploymentIDs adds the "deployments" edge to the CertDeployment entity by ids.
 func (m *CertificateMutation) AddDeploymentIDs(ids ...int) {
 	if m.deployments == nil {
@@ -3137,7 +3437,7 @@ func (m *CertificateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CertificateMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 20)
 	if m.domain != nil {
 		fields = append(fields, certificate.FieldDomain)
 	}
@@ -3180,6 +3480,24 @@ func (m *CertificateMutation) Fields() []string {
 	if m.enc_full_chain != nil {
 		fields = append(fields, certificate.FieldEncFullChain)
 	}
+	if m.enc_acme_account_key != nil {
+		fields = append(fields, certificate.FieldEncAcmeAccountKey)
+	}
+	if m.enc_acme_provider_token != nil {
+		fields = append(fields, certificate.FieldEncAcmeProviderToken)
+	}
+	if m.acme_provider_type != nil {
+		fields = append(fields, certificate.FieldAcmeProviderType)
+	}
+	if m.acme_email != nil {
+		fields = append(fields, certificate.FieldAcmeEmail)
+	}
+	if m.acme_key_alg != nil {
+		fields = append(fields, certificate.FieldAcmeKeyAlg)
+	}
+	if m.acme_ca_dir_url != nil {
+		fields = append(fields, certificate.FieldAcmeCaDirURL)
+	}
 	return fields
 }
 
@@ -3216,6 +3534,18 @@ func (m *CertificateMutation) Field(name string) (ent.Value, bool) {
 		return m.EncPrivateKey()
 	case certificate.FieldEncFullChain:
 		return m.EncFullChain()
+	case certificate.FieldEncAcmeAccountKey:
+		return m.EncAcmeAccountKey()
+	case certificate.FieldEncAcmeProviderToken:
+		return m.EncAcmeProviderToken()
+	case certificate.FieldAcmeProviderType:
+		return m.AcmeProviderType()
+	case certificate.FieldAcmeEmail:
+		return m.AcmeEmail()
+	case certificate.FieldAcmeKeyAlg:
+		return m.AcmeKeyAlg()
+	case certificate.FieldAcmeCaDirURL:
+		return m.AcmeCaDirURL()
 	}
 	return nil, false
 }
@@ -3253,6 +3583,18 @@ func (m *CertificateMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldEncPrivateKey(ctx)
 	case certificate.FieldEncFullChain:
 		return m.OldEncFullChain(ctx)
+	case certificate.FieldEncAcmeAccountKey:
+		return m.OldEncAcmeAccountKey(ctx)
+	case certificate.FieldEncAcmeProviderToken:
+		return m.OldEncAcmeProviderToken(ctx)
+	case certificate.FieldAcmeProviderType:
+		return m.OldAcmeProviderType(ctx)
+	case certificate.FieldAcmeEmail:
+		return m.OldAcmeEmail(ctx)
+	case certificate.FieldAcmeKeyAlg:
+		return m.OldAcmeKeyAlg(ctx)
+	case certificate.FieldAcmeCaDirURL:
+		return m.OldAcmeCaDirURL(ctx)
 	}
 	return nil, fmt.Errorf("unknown Certificate field %s", name)
 }
@@ -3360,6 +3702,48 @@ func (m *CertificateMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEncFullChain(v)
 		return nil
+	case certificate.FieldEncAcmeAccountKey:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEncAcmeAccountKey(v)
+		return nil
+	case certificate.FieldEncAcmeProviderToken:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEncAcmeProviderToken(v)
+		return nil
+	case certificate.FieldAcmeProviderType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcmeProviderType(v)
+		return nil
+	case certificate.FieldAcmeEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcmeEmail(v)
+		return nil
+	case certificate.FieldAcmeKeyAlg:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcmeKeyAlg(v)
+		return nil
+	case certificate.FieldAcmeCaDirURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcmeCaDirURL(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Certificate field %s", name)
 }
@@ -3399,6 +3783,24 @@ func (m *CertificateMutation) ClearedFields() []string {
 	if m.FieldCleared(certificate.FieldEncFullChain) {
 		fields = append(fields, certificate.FieldEncFullChain)
 	}
+	if m.FieldCleared(certificate.FieldEncAcmeAccountKey) {
+		fields = append(fields, certificate.FieldEncAcmeAccountKey)
+	}
+	if m.FieldCleared(certificate.FieldEncAcmeProviderToken) {
+		fields = append(fields, certificate.FieldEncAcmeProviderToken)
+	}
+	if m.FieldCleared(certificate.FieldAcmeProviderType) {
+		fields = append(fields, certificate.FieldAcmeProviderType)
+	}
+	if m.FieldCleared(certificate.FieldAcmeEmail) {
+		fields = append(fields, certificate.FieldAcmeEmail)
+	}
+	if m.FieldCleared(certificate.FieldAcmeKeyAlg) {
+		fields = append(fields, certificate.FieldAcmeKeyAlg)
+	}
+	if m.FieldCleared(certificate.FieldAcmeCaDirURL) {
+		fields = append(fields, certificate.FieldAcmeCaDirURL)
+	}
 	return fields
 }
 
@@ -3421,6 +3823,24 @@ func (m *CertificateMutation) ClearField(name string) error {
 		return nil
 	case certificate.FieldEncFullChain:
 		m.ClearEncFullChain()
+		return nil
+	case certificate.FieldEncAcmeAccountKey:
+		m.ClearEncAcmeAccountKey()
+		return nil
+	case certificate.FieldEncAcmeProviderToken:
+		m.ClearEncAcmeProviderToken()
+		return nil
+	case certificate.FieldAcmeProviderType:
+		m.ClearAcmeProviderType()
+		return nil
+	case certificate.FieldAcmeEmail:
+		m.ClearAcmeEmail()
+		return nil
+	case certificate.FieldAcmeKeyAlg:
+		m.ClearAcmeKeyAlg()
+		return nil
+	case certificate.FieldAcmeCaDirURL:
+		m.ClearAcmeCaDirURL()
 		return nil
 	}
 	return fmt.Errorf("unknown Certificate nullable field %s", name)
@@ -3471,6 +3891,24 @@ func (m *CertificateMutation) ResetField(name string) error {
 		return nil
 	case certificate.FieldEncFullChain:
 		m.ResetEncFullChain()
+		return nil
+	case certificate.FieldEncAcmeAccountKey:
+		m.ResetEncAcmeAccountKey()
+		return nil
+	case certificate.FieldEncAcmeProviderToken:
+		m.ResetEncAcmeProviderToken()
+		return nil
+	case certificate.FieldAcmeProviderType:
+		m.ResetAcmeProviderType()
+		return nil
+	case certificate.FieldAcmeEmail:
+		m.ResetAcmeEmail()
+		return nil
+	case certificate.FieldAcmeKeyAlg:
+		m.ResetAcmeKeyAlg()
+		return nil
+	case certificate.FieldAcmeCaDirURL:
+		m.ResetAcmeCaDirURL()
 		return nil
 	}
 	return fmt.Errorf("unknown Certificate field %s", name)

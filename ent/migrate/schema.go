@@ -91,6 +91,12 @@ var (
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "enc_private_key", Type: field.TypeBytes, Nullable: true},
 		{Name: "enc_full_chain", Type: field.TypeBytes, Nullable: true},
+		{Name: "enc_acme_account_key", Type: field.TypeBytes, Nullable: true},
+		{Name: "enc_acme_provider_token", Type: field.TypeBytes, Nullable: true},
+		{Name: "acme_provider_type", Type: field.TypeString, Nullable: true},
+		{Name: "acme_email", Type: field.TypeString, Nullable: true},
+		{Name: "acme_key_alg", Type: field.TypeString, Nullable: true},
+		{Name: "acme_ca_dir_url", Type: field.TypeString, Nullable: true},
 	}
 	// CertificatesTable holds the schema information for the "certificates" table.
 	CertificatesTable = &schema.Table{

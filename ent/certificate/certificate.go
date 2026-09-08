@@ -43,6 +43,18 @@ const (
 	FieldEncPrivateKey = "enc_private_key"
 	// FieldEncFullChain holds the string denoting the enc_full_chain field in the database.
 	FieldEncFullChain = "enc_full_chain"
+	// FieldEncAcmeAccountKey holds the string denoting the enc_acme_account_key field in the database.
+	FieldEncAcmeAccountKey = "enc_acme_account_key"
+	// FieldEncAcmeProviderToken holds the string denoting the enc_acme_provider_token field in the database.
+	FieldEncAcmeProviderToken = "enc_acme_provider_token"
+	// FieldAcmeProviderType holds the string denoting the acme_provider_type field in the database.
+	FieldAcmeProviderType = "acme_provider_type"
+	// FieldAcmeEmail holds the string denoting the acme_email field in the database.
+	FieldAcmeEmail = "acme_email"
+	// FieldAcmeKeyAlg holds the string denoting the acme_key_alg field in the database.
+	FieldAcmeKeyAlg = "acme_key_alg"
+	// FieldAcmeCaDirURL holds the string denoting the acme_ca_dir_url field in the database.
+	FieldAcmeCaDirURL = "acme_ca_dir_url"
 	// EdgeDeployments holds the string denoting the deployments edge name in mutations.
 	EdgeDeployments = "deployments"
 	// Table holds the table name of the certificate in the database.
@@ -73,6 +85,12 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldEncPrivateKey,
 	FieldEncFullChain,
+	FieldEncAcmeAccountKey,
+	FieldEncAcmeProviderToken,
+	FieldAcmeProviderType,
+	FieldAcmeEmail,
+	FieldAcmeKeyAlg,
+	FieldAcmeCaDirURL,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -219,6 +237,26 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByAcmeProviderType orders the results by the acme_provider_type field.
+func ByAcmeProviderType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAcmeProviderType, opts...).ToFunc()
+}
+
+// ByAcmeEmail orders the results by the acme_email field.
+func ByAcmeEmail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAcmeEmail, opts...).ToFunc()
+}
+
+// ByAcmeKeyAlg orders the results by the acme_key_alg field.
+func ByAcmeKeyAlg(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAcmeKeyAlg, opts...).ToFunc()
+}
+
+// ByAcmeCaDirURL orders the results by the acme_ca_dir_url field.
+func ByAcmeCaDirURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAcmeCaDirURL, opts...).ToFunc()
 }
 
 // ByDeploymentsCount orders the results by deployments count.

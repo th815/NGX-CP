@@ -69,7 +69,8 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 			ns.POST("/:id/refresh", auth, nh.RefreshCapability)
 		}
 
-		// T043/T044 证书管理：只读列表/详情 + 上传校验（6 项）+ 删除（级联清分发记录）+ 分发到节点。
+		// T043/T044/T045 证书管理：只读列表/详情 + 上传校验（6 项）+ 删除（级联清分发记录）
+		// + 分发到节点（T044）+ ACME DNS-01 签发（T042/T045）+ 手动续期（T045）。
 		// agentSrv 同时作为下发通道（cert.Deployer），实现私钥经 mTLS 下发、绝不进浏览器/DB 明文。
 		ceh := handler.NewCertHandler(certSvc, agentSrv)
 		ces := v1.Group("/certs")
@@ -78,7 +79,9 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 			ces.GET("/:id", ceh.Get)
 			ces.GET("/:id/deployments", ceh.Deployments)
 			ces.POST("", auth, ceh.Upload)
+			ces.POST("/issue", auth, ceh.IssueACME)
 			ces.POST("/:id/distribute", auth, ceh.Distribute)
+			ces.POST("/:id/renew", auth, ceh.Renew)
 			ces.DELETE("/:id", auth, ceh.Delete)
 		}
 

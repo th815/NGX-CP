@@ -46,6 +46,18 @@ type Certificate struct {
 	EncPrivateKey []byte `json:"enc_private_key,omitempty"`
 	// AES-GCM(envelope) 加密的全链（leaf+intermediate）
 	EncFullChain []byte `json:"enc_full_chain,omitempty"`
+	// AES-GCM(envelope) 加密的 ACME 账户 RSA 私钥（PEM），续期复用
+	EncAcmeAccountKey []byte `json:"enc_acme_account_key,omitempty"`
+	// AES-GCM(envelope) 加密的 DNS-01 provider Token（如 Cloudflare）
+	EncAcmeProviderToken []byte `json:"enc_acme_provider_token,omitempty"`
+	// DNS-01 provider 类型（cloudflare 等），对应 dns.Registry
+	AcmeProviderType string `json:"acme_provider_type,omitempty"`
+	// ACME 账户邮箱（LE 必填）
+	AcmeEmail string `json:"acme_email,omitempty"`
+	// 密钥算法：rsa2048 / ecdsa256
+	AcmeKeyAlg string `json:"acme_key_alg,omitempty"`
+	// ACME 目录 URL（默认 LE 生产；staging/pebble 调试用）
+	AcmeCaDirURL string `json:"acme_ca_dir_url,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CertificateQuery when eager-loading is set.
 	Edges        CertificateEdges `json:"edges"`
@@ -75,11 +87,11 @@ func (*Certificate) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case certificate.FieldSan, certificate.FieldEncPrivateKey, certificate.FieldEncFullChain:
+		case certificate.FieldSan, certificate.FieldEncPrivateKey, certificate.FieldEncFullChain, certificate.FieldEncAcmeAccountKey, certificate.FieldEncAcmeProviderToken:
 			values[i] = new([]byte)
 		case certificate.FieldID:
 			values[i] = new(sql.NullInt64)
-		case certificate.FieldDomain, certificate.FieldIssuer, certificate.FieldSerialNumber, certificate.FieldFingerprintSha, certificate.FieldKeyAlg, certificate.FieldSource, certificate.FieldStatus:
+		case certificate.FieldDomain, certificate.FieldIssuer, certificate.FieldSerialNumber, certificate.FieldFingerprintSha, certificate.FieldKeyAlg, certificate.FieldSource, certificate.FieldStatus, certificate.FieldAcmeProviderType, certificate.FieldAcmeEmail, certificate.FieldAcmeKeyAlg, certificate.FieldAcmeCaDirURL:
 			values[i] = new(sql.NullString)
 		case certificate.FieldNotBefore, certificate.FieldNotAfter, certificate.FieldCreatedAt, certificate.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -190,6 +202,42 @@ func (_m *Certificate) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.EncFullChain = *value
 			}
+		case certificate.FieldEncAcmeAccountKey:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field enc_acme_account_key", values[i])
+			} else if value != nil {
+				_m.EncAcmeAccountKey = *value
+			}
+		case certificate.FieldEncAcmeProviderToken:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field enc_acme_provider_token", values[i])
+			} else if value != nil {
+				_m.EncAcmeProviderToken = *value
+			}
+		case certificate.FieldAcmeProviderType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field acme_provider_type", values[i])
+			} else if value.Valid {
+				_m.AcmeProviderType = value.String
+			}
+		case certificate.FieldAcmeEmail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field acme_email", values[i])
+			} else if value.Valid {
+				_m.AcmeEmail = value.String
+			}
+		case certificate.FieldAcmeKeyAlg:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field acme_key_alg", values[i])
+			} else if value.Valid {
+				_m.AcmeKeyAlg = value.String
+			}
+		case certificate.FieldAcmeCaDirURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field acme_ca_dir_url", values[i])
+			} else if value.Valid {
+				_m.AcmeCaDirURL = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -272,6 +320,24 @@ func (_m *Certificate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enc_full_chain=")
 	builder.WriteString(fmt.Sprintf("%v", _m.EncFullChain))
+	builder.WriteString(", ")
+	builder.WriteString("enc_acme_account_key=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EncAcmeAccountKey))
+	builder.WriteString(", ")
+	builder.WriteString("enc_acme_provider_token=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EncAcmeProviderToken))
+	builder.WriteString(", ")
+	builder.WriteString("acme_provider_type=")
+	builder.WriteString(_m.AcmeProviderType)
+	builder.WriteString(", ")
+	builder.WriteString("acme_email=")
+	builder.WriteString(_m.AcmeEmail)
+	builder.WriteString(", ")
+	builder.WriteString("acme_key_alg=")
+	builder.WriteString(_m.AcmeKeyAlg)
+	builder.WriteString(", ")
+	builder.WriteString("acme_ca_dir_url=")
+	builder.WriteString(_m.AcmeCaDirURL)
 	builder.WriteByte(')')
 	return builder.String()
 }

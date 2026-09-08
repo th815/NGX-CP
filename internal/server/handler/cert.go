@@ -141,6 +141,54 @@ func (h *CertHandler) Distribute(c *gin.Context) {
 	response.OK(c, res)
 }
 
+// certIssueBody ACME 签发请求体（POST /api/v1/certs/issue）。
+type certIssueBody struct {
+	Domains       []string `json:"domains"`        // 含 *.example.com 等通配符
+	Email         string   `json:"email"`          // ACME 账户邮箱（LE 必填）
+	ProviderType  string   `json:"provider_type"`  // DNS-01 provider 类型，默认 cloudflare
+	ProviderToken string   `json:"provider_token"` // DNS-01 provider API Token（经 KMS 加密存储，绝不回传）
+	KeyAlg        string   `json:"key_alg"`        // rsa2048（默认）/ ecdsa256
+	CADirURL      string   `json:"ca_dir_url"`     // 默认 LE 生产；staging/pebble 调试用
+}
+
+// IssueACME 经 DNS-01 签发证书并入库（写操作，需鉴权，T042/T045）。
+// provider_token 仅在请求作用域内经 KMS 加密存储，API 响应绝不含任何私钥/Token。
+func (h *CertHandler) IssueACME(c *gin.Context) {
+	var b certIssueBody
+	if err := c.ShouldBindJSON(&b); err != nil {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "请求体解析失败："+err.Error()))
+		return
+	}
+	view, err := h.svc.IssueACME(c.Request.Context(), cert.IssueACMERequest{
+		Domains:       b.Domains,
+		Email:         b.Email,
+		ProviderType:  b.ProviderType,
+		ProviderToken: b.ProviderToken,
+		KeyAlg:        b.KeyAlg,
+		CADirURL:      b.CADirURL,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, view)
+}
+
+// Renew 手动触发一张 ACME 证书的续期（写操作，需鉴权，T045）。
+// 续期复用存储的 ACME 账户密钥 + provider Token 重新签发，并走 T044 原子流水线重分发到历史节点。
+func (h *CertHandler) Renew(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	if err := h.svc.Renew(c.Request.Context(), id); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"renewed": id})
+}
+
 // Deployments 返回某证书在各节点的分发记录（只读）。
 func (h *CertHandler) Deployments(c *gin.Context) {
 	id, err := parseID(c)

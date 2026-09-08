@@ -23,20 +23,44 @@ import (
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	entcert "github.com/th/ngxcp/ent/certificate"
 	entcertdep "github.com/th/ngxcp/ent/certdeployment"
+	"github.com/th/ngxcp/internal/acme"
 	"github.com/th/ngxcp/internal/cert"
 	"github.com/th/ngxcp/internal/crypto"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 )
 
+// ACMEIssuer 是 ACME 签发能力的抽象（T042 客户端实现；单测可注入 fake）。
+type ACMEIssuer interface {
+	Issue(ctx context.Context, req acme.IssueRequest) (*acme.IssueResult, error)
+}
+
 // Service 证书域服务。kms 为 nil 时 Upload 返回明确错误（主密钥未配置）。
+// deployer 为 nil 时 Distribute/Renew 不可用（控制面未接入 Agent 下发通道）。
+// acmeIssuer 为 nil 时回落到 acme.NewClient()（真实 LE）；单测可注入 fake。
 type Service struct {
-	client *ent.Client
-	kms    *crypto.KMS
+	client    *ent.Client
+	kms       *crypto.KMS
+	deployer  Deployer
+	acmeIssuer ACMEIssuer
 }
 
 // New 构造证书服务。kms 可为 nil（仅查询可用，上传/解密不可用）。
 func New(client *ent.Client, kms *crypto.KMS) *Service {
 	return &Service{client: client, kms: kms}
+}
+
+// SetDeployer 注入 Agent 证书下发通道（transport.Server），使 Distribute/Renew 可用。
+func (s *Service) SetDeployer(d Deployer) { s.deployer = d }
+
+// SetIssuer 注入 ACME 签发器（默认 acme.NewClient()）；单测可注入 fake。
+func (s *Service) SetIssuer(i ACMEIssuer) { s.acmeIssuer = i }
+
+// issuer 返回当前签发器，nil 时回落到真实 LE 客户端。
+func (s *Service) issuer() ACMEIssuer {
+	if s.acmeIssuer != nil {
+		return s.acmeIssuer
+	}
+	return acme.NewClient()
 }
 
 // UploadRequest 上传证书请求。CertPEM 可含 leaf+inter（fullchain 风格）。

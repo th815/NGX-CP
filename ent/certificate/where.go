@@ -110,6 +110,36 @@ func EncFullChain(v []byte) predicate.Certificate {
 	return predicate.Certificate(sql.FieldEQ(FieldEncFullChain, v))
 }
 
+// EncAcmeAccountKey applies equality check predicate on the "enc_acme_account_key" field. It's identical to EncAcmeAccountKeyEQ.
+func EncAcmeAccountKey(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldEncAcmeAccountKey, v))
+}
+
+// EncAcmeProviderToken applies equality check predicate on the "enc_acme_provider_token" field. It's identical to EncAcmeProviderTokenEQ.
+func EncAcmeProviderToken(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldEncAcmeProviderToken, v))
+}
+
+// AcmeProviderType applies equality check predicate on the "acme_provider_type" field. It's identical to AcmeProviderTypeEQ.
+func AcmeProviderType(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeProviderType, v))
+}
+
+// AcmeEmail applies equality check predicate on the "acme_email" field. It's identical to AcmeEmailEQ.
+func AcmeEmail(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeEmail, v))
+}
+
+// AcmeKeyAlg applies equality check predicate on the "acme_key_alg" field. It's identical to AcmeKeyAlgEQ.
+func AcmeKeyAlg(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeKeyAlg, v))
+}
+
+// AcmeCaDirURL applies equality check predicate on the "acme_ca_dir_url" field. It's identical to AcmeCaDirURLEQ.
+func AcmeCaDirURL(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeCaDirURL, v))
+}
+
 // DomainEQ applies the EQ predicate on the "domain" field.
 func DomainEQ(v string) predicate.Certificate {
 	return predicate.Certificate(sql.FieldEQ(FieldDomain, v))
@@ -743,6 +773,406 @@ func EncFullChainIsNil() predicate.Certificate {
 // EncFullChainNotNil applies the NotNil predicate on the "enc_full_chain" field.
 func EncFullChainNotNil() predicate.Certificate {
 	return predicate.Certificate(sql.FieldNotNull(FieldEncFullChain))
+}
+
+// EncAcmeAccountKeyEQ applies the EQ predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyEQ(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldEncAcmeAccountKey, v))
+}
+
+// EncAcmeAccountKeyNEQ applies the NEQ predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyNEQ(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNEQ(FieldEncAcmeAccountKey, v))
+}
+
+// EncAcmeAccountKeyIn applies the In predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyIn(vs ...[]byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldIn(FieldEncAcmeAccountKey, vs...))
+}
+
+// EncAcmeAccountKeyNotIn applies the NotIn predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyNotIn(vs ...[]byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotIn(FieldEncAcmeAccountKey, vs...))
+}
+
+// EncAcmeAccountKeyGT applies the GT predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyGT(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGT(FieldEncAcmeAccountKey, v))
+}
+
+// EncAcmeAccountKeyGTE applies the GTE predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyGTE(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGTE(FieldEncAcmeAccountKey, v))
+}
+
+// EncAcmeAccountKeyLT applies the LT predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyLT(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLT(FieldEncAcmeAccountKey, v))
+}
+
+// EncAcmeAccountKeyLTE applies the LTE predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyLTE(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLTE(FieldEncAcmeAccountKey, v))
+}
+
+// EncAcmeAccountKeyIsNil applies the IsNil predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyIsNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldIsNull(FieldEncAcmeAccountKey))
+}
+
+// EncAcmeAccountKeyNotNil applies the NotNil predicate on the "enc_acme_account_key" field.
+func EncAcmeAccountKeyNotNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotNull(FieldEncAcmeAccountKey))
+}
+
+// EncAcmeProviderTokenEQ applies the EQ predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenEQ(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldEncAcmeProviderToken, v))
+}
+
+// EncAcmeProviderTokenNEQ applies the NEQ predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenNEQ(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNEQ(FieldEncAcmeProviderToken, v))
+}
+
+// EncAcmeProviderTokenIn applies the In predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenIn(vs ...[]byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldIn(FieldEncAcmeProviderToken, vs...))
+}
+
+// EncAcmeProviderTokenNotIn applies the NotIn predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenNotIn(vs ...[]byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotIn(FieldEncAcmeProviderToken, vs...))
+}
+
+// EncAcmeProviderTokenGT applies the GT predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenGT(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGT(FieldEncAcmeProviderToken, v))
+}
+
+// EncAcmeProviderTokenGTE applies the GTE predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenGTE(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGTE(FieldEncAcmeProviderToken, v))
+}
+
+// EncAcmeProviderTokenLT applies the LT predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenLT(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLT(FieldEncAcmeProviderToken, v))
+}
+
+// EncAcmeProviderTokenLTE applies the LTE predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenLTE(v []byte) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLTE(FieldEncAcmeProviderToken, v))
+}
+
+// EncAcmeProviderTokenIsNil applies the IsNil predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenIsNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldIsNull(FieldEncAcmeProviderToken))
+}
+
+// EncAcmeProviderTokenNotNil applies the NotNil predicate on the "enc_acme_provider_token" field.
+func EncAcmeProviderTokenNotNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotNull(FieldEncAcmeProviderToken))
+}
+
+// AcmeProviderTypeEQ applies the EQ predicate on the "acme_provider_type" field.
+func AcmeProviderTypeEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeNEQ applies the NEQ predicate on the "acme_provider_type" field.
+func AcmeProviderTypeNEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNEQ(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeIn applies the In predicate on the "acme_provider_type" field.
+func AcmeProviderTypeIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldIn(FieldAcmeProviderType, vs...))
+}
+
+// AcmeProviderTypeNotIn applies the NotIn predicate on the "acme_provider_type" field.
+func AcmeProviderTypeNotIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotIn(FieldAcmeProviderType, vs...))
+}
+
+// AcmeProviderTypeGT applies the GT predicate on the "acme_provider_type" field.
+func AcmeProviderTypeGT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGT(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeGTE applies the GTE predicate on the "acme_provider_type" field.
+func AcmeProviderTypeGTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGTE(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeLT applies the LT predicate on the "acme_provider_type" field.
+func AcmeProviderTypeLT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLT(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeLTE applies the LTE predicate on the "acme_provider_type" field.
+func AcmeProviderTypeLTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLTE(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeContains applies the Contains predicate on the "acme_provider_type" field.
+func AcmeProviderTypeContains(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContains(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeHasPrefix applies the HasPrefix predicate on the "acme_provider_type" field.
+func AcmeProviderTypeHasPrefix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasPrefix(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeHasSuffix applies the HasSuffix predicate on the "acme_provider_type" field.
+func AcmeProviderTypeHasSuffix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasSuffix(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeIsNil applies the IsNil predicate on the "acme_provider_type" field.
+func AcmeProviderTypeIsNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldIsNull(FieldAcmeProviderType))
+}
+
+// AcmeProviderTypeNotNil applies the NotNil predicate on the "acme_provider_type" field.
+func AcmeProviderTypeNotNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotNull(FieldAcmeProviderType))
+}
+
+// AcmeProviderTypeEqualFold applies the EqualFold predicate on the "acme_provider_type" field.
+func AcmeProviderTypeEqualFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEqualFold(FieldAcmeProviderType, v))
+}
+
+// AcmeProviderTypeContainsFold applies the ContainsFold predicate on the "acme_provider_type" field.
+func AcmeProviderTypeContainsFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContainsFold(FieldAcmeProviderType, v))
+}
+
+// AcmeEmailEQ applies the EQ predicate on the "acme_email" field.
+func AcmeEmailEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeEmail, v))
+}
+
+// AcmeEmailNEQ applies the NEQ predicate on the "acme_email" field.
+func AcmeEmailNEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNEQ(FieldAcmeEmail, v))
+}
+
+// AcmeEmailIn applies the In predicate on the "acme_email" field.
+func AcmeEmailIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldIn(FieldAcmeEmail, vs...))
+}
+
+// AcmeEmailNotIn applies the NotIn predicate on the "acme_email" field.
+func AcmeEmailNotIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotIn(FieldAcmeEmail, vs...))
+}
+
+// AcmeEmailGT applies the GT predicate on the "acme_email" field.
+func AcmeEmailGT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGT(FieldAcmeEmail, v))
+}
+
+// AcmeEmailGTE applies the GTE predicate on the "acme_email" field.
+func AcmeEmailGTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGTE(FieldAcmeEmail, v))
+}
+
+// AcmeEmailLT applies the LT predicate on the "acme_email" field.
+func AcmeEmailLT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLT(FieldAcmeEmail, v))
+}
+
+// AcmeEmailLTE applies the LTE predicate on the "acme_email" field.
+func AcmeEmailLTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLTE(FieldAcmeEmail, v))
+}
+
+// AcmeEmailContains applies the Contains predicate on the "acme_email" field.
+func AcmeEmailContains(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContains(FieldAcmeEmail, v))
+}
+
+// AcmeEmailHasPrefix applies the HasPrefix predicate on the "acme_email" field.
+func AcmeEmailHasPrefix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasPrefix(FieldAcmeEmail, v))
+}
+
+// AcmeEmailHasSuffix applies the HasSuffix predicate on the "acme_email" field.
+func AcmeEmailHasSuffix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasSuffix(FieldAcmeEmail, v))
+}
+
+// AcmeEmailIsNil applies the IsNil predicate on the "acme_email" field.
+func AcmeEmailIsNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldIsNull(FieldAcmeEmail))
+}
+
+// AcmeEmailNotNil applies the NotNil predicate on the "acme_email" field.
+func AcmeEmailNotNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotNull(FieldAcmeEmail))
+}
+
+// AcmeEmailEqualFold applies the EqualFold predicate on the "acme_email" field.
+func AcmeEmailEqualFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEqualFold(FieldAcmeEmail, v))
+}
+
+// AcmeEmailContainsFold applies the ContainsFold predicate on the "acme_email" field.
+func AcmeEmailContainsFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContainsFold(FieldAcmeEmail, v))
+}
+
+// AcmeKeyAlgEQ applies the EQ predicate on the "acme_key_alg" field.
+func AcmeKeyAlgEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgNEQ applies the NEQ predicate on the "acme_key_alg" field.
+func AcmeKeyAlgNEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNEQ(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgIn applies the In predicate on the "acme_key_alg" field.
+func AcmeKeyAlgIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldIn(FieldAcmeKeyAlg, vs...))
+}
+
+// AcmeKeyAlgNotIn applies the NotIn predicate on the "acme_key_alg" field.
+func AcmeKeyAlgNotIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotIn(FieldAcmeKeyAlg, vs...))
+}
+
+// AcmeKeyAlgGT applies the GT predicate on the "acme_key_alg" field.
+func AcmeKeyAlgGT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGT(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgGTE applies the GTE predicate on the "acme_key_alg" field.
+func AcmeKeyAlgGTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGTE(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgLT applies the LT predicate on the "acme_key_alg" field.
+func AcmeKeyAlgLT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLT(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgLTE applies the LTE predicate on the "acme_key_alg" field.
+func AcmeKeyAlgLTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLTE(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgContains applies the Contains predicate on the "acme_key_alg" field.
+func AcmeKeyAlgContains(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContains(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgHasPrefix applies the HasPrefix predicate on the "acme_key_alg" field.
+func AcmeKeyAlgHasPrefix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasPrefix(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgHasSuffix applies the HasSuffix predicate on the "acme_key_alg" field.
+func AcmeKeyAlgHasSuffix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasSuffix(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgIsNil applies the IsNil predicate on the "acme_key_alg" field.
+func AcmeKeyAlgIsNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldIsNull(FieldAcmeKeyAlg))
+}
+
+// AcmeKeyAlgNotNil applies the NotNil predicate on the "acme_key_alg" field.
+func AcmeKeyAlgNotNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotNull(FieldAcmeKeyAlg))
+}
+
+// AcmeKeyAlgEqualFold applies the EqualFold predicate on the "acme_key_alg" field.
+func AcmeKeyAlgEqualFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEqualFold(FieldAcmeKeyAlg, v))
+}
+
+// AcmeKeyAlgContainsFold applies the ContainsFold predicate on the "acme_key_alg" field.
+func AcmeKeyAlgContainsFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContainsFold(FieldAcmeKeyAlg, v))
+}
+
+// AcmeCaDirURLEQ applies the EQ predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEQ(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLNEQ applies the NEQ predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLNEQ(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNEQ(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLIn applies the In predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldIn(FieldAcmeCaDirURL, vs...))
+}
+
+// AcmeCaDirURLNotIn applies the NotIn predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLNotIn(vs ...string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotIn(FieldAcmeCaDirURL, vs...))
+}
+
+// AcmeCaDirURLGT applies the GT predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLGT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGT(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLGTE applies the GTE predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLGTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldGTE(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLLT applies the LT predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLLT(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLT(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLLTE applies the LTE predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLLTE(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldLTE(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLContains applies the Contains predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLContains(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContains(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLHasPrefix applies the HasPrefix predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLHasPrefix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasPrefix(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLHasSuffix applies the HasSuffix predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLHasSuffix(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldHasSuffix(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLIsNil applies the IsNil predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLIsNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldIsNull(FieldAcmeCaDirURL))
+}
+
+// AcmeCaDirURLNotNil applies the NotNil predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLNotNil() predicate.Certificate {
+	return predicate.Certificate(sql.FieldNotNull(FieldAcmeCaDirURL))
+}
+
+// AcmeCaDirURLEqualFold applies the EqualFold predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLEqualFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldEqualFold(FieldAcmeCaDirURL, v))
+}
+
+// AcmeCaDirURLContainsFold applies the ContainsFold predicate on the "acme_ca_dir_url" field.
+func AcmeCaDirURLContainsFold(v string) predicate.Certificate {
+	return predicate.Certificate(sql.FieldContainsFold(FieldAcmeCaDirURL, v))
 }
 
 // HasDeployments applies the HasEdge predicate on the "deployments" edge.

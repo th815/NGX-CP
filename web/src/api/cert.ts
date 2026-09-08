@@ -86,6 +86,26 @@ export async function getDeployments(id: number): Promise<DeploymentResult[]> {
   return r.data.data
 }
 
+// T045 ACME 签发 / 续期 API（与控制面 handler.CertHandler.IssueACME / Renew 对齐）。
+export interface IssueACMEIn {
+  domains: string[]
+  email: string
+  provider_type?: string
+  provider_token: string
+  key_alg?: string
+  ca_dir_url?: string
+}
+
+export async function issueACME(body: IssueACMEIn): Promise<CertView> {
+  const r = await client.post<{ data: CertView }>('/certs/issue', body)
+  return r.data.data
+}
+
+// 仅 ACME 签发的证书可续期（续期复用存储的账户密钥 + provider Token）。
+export async function renewCert(id: number): Promise<void> {
+  await client.post(`/certs/${id}/renew`, {})
+}
+
 // 节点摘要（分发弹窗多选用，复用 nodes 列表的精简字段）。
 export interface NodeBrief {
   id: number

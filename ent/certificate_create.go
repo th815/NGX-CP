@@ -139,6 +139,74 @@ func (_c *CertificateCreate) SetEncFullChain(v []byte) *CertificateCreate {
 	return _c
 }
 
+// SetEncAcmeAccountKey sets the "enc_acme_account_key" field.
+func (_c *CertificateCreate) SetEncAcmeAccountKey(v []byte) *CertificateCreate {
+	_c.mutation.SetEncAcmeAccountKey(v)
+	return _c
+}
+
+// SetEncAcmeProviderToken sets the "enc_acme_provider_token" field.
+func (_c *CertificateCreate) SetEncAcmeProviderToken(v []byte) *CertificateCreate {
+	_c.mutation.SetEncAcmeProviderToken(v)
+	return _c
+}
+
+// SetAcmeProviderType sets the "acme_provider_type" field.
+func (_c *CertificateCreate) SetAcmeProviderType(v string) *CertificateCreate {
+	_c.mutation.SetAcmeProviderType(v)
+	return _c
+}
+
+// SetNillableAcmeProviderType sets the "acme_provider_type" field if the given value is not nil.
+func (_c *CertificateCreate) SetNillableAcmeProviderType(v *string) *CertificateCreate {
+	if v != nil {
+		_c.SetAcmeProviderType(*v)
+	}
+	return _c
+}
+
+// SetAcmeEmail sets the "acme_email" field.
+func (_c *CertificateCreate) SetAcmeEmail(v string) *CertificateCreate {
+	_c.mutation.SetAcmeEmail(v)
+	return _c
+}
+
+// SetNillableAcmeEmail sets the "acme_email" field if the given value is not nil.
+func (_c *CertificateCreate) SetNillableAcmeEmail(v *string) *CertificateCreate {
+	if v != nil {
+		_c.SetAcmeEmail(*v)
+	}
+	return _c
+}
+
+// SetAcmeKeyAlg sets the "acme_key_alg" field.
+func (_c *CertificateCreate) SetAcmeKeyAlg(v string) *CertificateCreate {
+	_c.mutation.SetAcmeKeyAlg(v)
+	return _c
+}
+
+// SetNillableAcmeKeyAlg sets the "acme_key_alg" field if the given value is not nil.
+func (_c *CertificateCreate) SetNillableAcmeKeyAlg(v *string) *CertificateCreate {
+	if v != nil {
+		_c.SetAcmeKeyAlg(*v)
+	}
+	return _c
+}
+
+// SetAcmeCaDirURL sets the "acme_ca_dir_url" field.
+func (_c *CertificateCreate) SetAcmeCaDirURL(v string) *CertificateCreate {
+	_c.mutation.SetAcmeCaDirURL(v)
+	return _c
+}
+
+// SetNillableAcmeCaDirURL sets the "acme_ca_dir_url" field if the given value is not nil.
+func (_c *CertificateCreate) SetNillableAcmeCaDirURL(v *string) *CertificateCreate {
+	if v != nil {
+		_c.SetAcmeCaDirURL(*v)
+	}
+	return _c
+}
+
 // AddDeploymentIDs adds the "deployments" edge to the CertDeployment entity by IDs.
 func (_c *CertificateCreate) AddDeploymentIDs(ids ...int) *CertificateCreate {
 	_c.mutation.AddDeploymentIDs(ids...)
@@ -359,6 +427,30 @@ func (_c *CertificateCreate) createSpec() (*Certificate, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EncFullChain(); ok {
 		_spec.SetField(certificate.FieldEncFullChain, field.TypeBytes, value)
 		_node.EncFullChain = value
+	}
+	if value, ok := _c.mutation.EncAcmeAccountKey(); ok {
+		_spec.SetField(certificate.FieldEncAcmeAccountKey, field.TypeBytes, value)
+		_node.EncAcmeAccountKey = value
+	}
+	if value, ok := _c.mutation.EncAcmeProviderToken(); ok {
+		_spec.SetField(certificate.FieldEncAcmeProviderToken, field.TypeBytes, value)
+		_node.EncAcmeProviderToken = value
+	}
+	if value, ok := _c.mutation.AcmeProviderType(); ok {
+		_spec.SetField(certificate.FieldAcmeProviderType, field.TypeString, value)
+		_node.AcmeProviderType = value
+	}
+	if value, ok := _c.mutation.AcmeEmail(); ok {
+		_spec.SetField(certificate.FieldAcmeEmail, field.TypeString, value)
+		_node.AcmeEmail = value
+	}
+	if value, ok := _c.mutation.AcmeKeyAlg(); ok {
+		_spec.SetField(certificate.FieldAcmeKeyAlg, field.TypeString, value)
+		_node.AcmeKeyAlg = value
+	}
+	if value, ok := _c.mutation.AcmeCaDirURL(); ok {
+		_spec.SetField(certificate.FieldAcmeCaDirURL, field.TypeString, value)
+		_node.AcmeCaDirURL = value
 	}
 	if nodes := _c.mutation.DeploymentsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -599,6 +691,114 @@ func (u *CertificateUpsert) UpdateEncFullChain() *CertificateUpsert {
 // ClearEncFullChain clears the value of the "enc_full_chain" field.
 func (u *CertificateUpsert) ClearEncFullChain() *CertificateUpsert {
 	u.SetNull(certificate.FieldEncFullChain)
+	return u
+}
+
+// SetEncAcmeAccountKey sets the "enc_acme_account_key" field.
+func (u *CertificateUpsert) SetEncAcmeAccountKey(v []byte) *CertificateUpsert {
+	u.Set(certificate.FieldEncAcmeAccountKey, v)
+	return u
+}
+
+// UpdateEncAcmeAccountKey sets the "enc_acme_account_key" field to the value that was provided on create.
+func (u *CertificateUpsert) UpdateEncAcmeAccountKey() *CertificateUpsert {
+	u.SetExcluded(certificate.FieldEncAcmeAccountKey)
+	return u
+}
+
+// ClearEncAcmeAccountKey clears the value of the "enc_acme_account_key" field.
+func (u *CertificateUpsert) ClearEncAcmeAccountKey() *CertificateUpsert {
+	u.SetNull(certificate.FieldEncAcmeAccountKey)
+	return u
+}
+
+// SetEncAcmeProviderToken sets the "enc_acme_provider_token" field.
+func (u *CertificateUpsert) SetEncAcmeProviderToken(v []byte) *CertificateUpsert {
+	u.Set(certificate.FieldEncAcmeProviderToken, v)
+	return u
+}
+
+// UpdateEncAcmeProviderToken sets the "enc_acme_provider_token" field to the value that was provided on create.
+func (u *CertificateUpsert) UpdateEncAcmeProviderToken() *CertificateUpsert {
+	u.SetExcluded(certificate.FieldEncAcmeProviderToken)
+	return u
+}
+
+// ClearEncAcmeProviderToken clears the value of the "enc_acme_provider_token" field.
+func (u *CertificateUpsert) ClearEncAcmeProviderToken() *CertificateUpsert {
+	u.SetNull(certificate.FieldEncAcmeProviderToken)
+	return u
+}
+
+// SetAcmeProviderType sets the "acme_provider_type" field.
+func (u *CertificateUpsert) SetAcmeProviderType(v string) *CertificateUpsert {
+	u.Set(certificate.FieldAcmeProviderType, v)
+	return u
+}
+
+// UpdateAcmeProviderType sets the "acme_provider_type" field to the value that was provided on create.
+func (u *CertificateUpsert) UpdateAcmeProviderType() *CertificateUpsert {
+	u.SetExcluded(certificate.FieldAcmeProviderType)
+	return u
+}
+
+// ClearAcmeProviderType clears the value of the "acme_provider_type" field.
+func (u *CertificateUpsert) ClearAcmeProviderType() *CertificateUpsert {
+	u.SetNull(certificate.FieldAcmeProviderType)
+	return u
+}
+
+// SetAcmeEmail sets the "acme_email" field.
+func (u *CertificateUpsert) SetAcmeEmail(v string) *CertificateUpsert {
+	u.Set(certificate.FieldAcmeEmail, v)
+	return u
+}
+
+// UpdateAcmeEmail sets the "acme_email" field to the value that was provided on create.
+func (u *CertificateUpsert) UpdateAcmeEmail() *CertificateUpsert {
+	u.SetExcluded(certificate.FieldAcmeEmail)
+	return u
+}
+
+// ClearAcmeEmail clears the value of the "acme_email" field.
+func (u *CertificateUpsert) ClearAcmeEmail() *CertificateUpsert {
+	u.SetNull(certificate.FieldAcmeEmail)
+	return u
+}
+
+// SetAcmeKeyAlg sets the "acme_key_alg" field.
+func (u *CertificateUpsert) SetAcmeKeyAlg(v string) *CertificateUpsert {
+	u.Set(certificate.FieldAcmeKeyAlg, v)
+	return u
+}
+
+// UpdateAcmeKeyAlg sets the "acme_key_alg" field to the value that was provided on create.
+func (u *CertificateUpsert) UpdateAcmeKeyAlg() *CertificateUpsert {
+	u.SetExcluded(certificate.FieldAcmeKeyAlg)
+	return u
+}
+
+// ClearAcmeKeyAlg clears the value of the "acme_key_alg" field.
+func (u *CertificateUpsert) ClearAcmeKeyAlg() *CertificateUpsert {
+	u.SetNull(certificate.FieldAcmeKeyAlg)
+	return u
+}
+
+// SetAcmeCaDirURL sets the "acme_ca_dir_url" field.
+func (u *CertificateUpsert) SetAcmeCaDirURL(v string) *CertificateUpsert {
+	u.Set(certificate.FieldAcmeCaDirURL, v)
+	return u
+}
+
+// UpdateAcmeCaDirURL sets the "acme_ca_dir_url" field to the value that was provided on create.
+func (u *CertificateUpsert) UpdateAcmeCaDirURL() *CertificateUpsert {
+	u.SetExcluded(certificate.FieldAcmeCaDirURL)
+	return u
+}
+
+// ClearAcmeCaDirURL clears the value of the "acme_ca_dir_url" field.
+func (u *CertificateUpsert) ClearAcmeCaDirURL() *CertificateUpsert {
+	u.SetNull(certificate.FieldAcmeCaDirURL)
 	return u
 }
 
@@ -847,6 +1047,132 @@ func (u *CertificateUpsertOne) UpdateEncFullChain() *CertificateUpsertOne {
 func (u *CertificateUpsertOne) ClearEncFullChain() *CertificateUpsertOne {
 	return u.Update(func(s *CertificateUpsert) {
 		s.ClearEncFullChain()
+	})
+}
+
+// SetEncAcmeAccountKey sets the "enc_acme_account_key" field.
+func (u *CertificateUpsertOne) SetEncAcmeAccountKey(v []byte) *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetEncAcmeAccountKey(v)
+	})
+}
+
+// UpdateEncAcmeAccountKey sets the "enc_acme_account_key" field to the value that was provided on create.
+func (u *CertificateUpsertOne) UpdateEncAcmeAccountKey() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateEncAcmeAccountKey()
+	})
+}
+
+// ClearEncAcmeAccountKey clears the value of the "enc_acme_account_key" field.
+func (u *CertificateUpsertOne) ClearEncAcmeAccountKey() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearEncAcmeAccountKey()
+	})
+}
+
+// SetEncAcmeProviderToken sets the "enc_acme_provider_token" field.
+func (u *CertificateUpsertOne) SetEncAcmeProviderToken(v []byte) *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetEncAcmeProviderToken(v)
+	})
+}
+
+// UpdateEncAcmeProviderToken sets the "enc_acme_provider_token" field to the value that was provided on create.
+func (u *CertificateUpsertOne) UpdateEncAcmeProviderToken() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateEncAcmeProviderToken()
+	})
+}
+
+// ClearEncAcmeProviderToken clears the value of the "enc_acme_provider_token" field.
+func (u *CertificateUpsertOne) ClearEncAcmeProviderToken() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearEncAcmeProviderToken()
+	})
+}
+
+// SetAcmeProviderType sets the "acme_provider_type" field.
+func (u *CertificateUpsertOne) SetAcmeProviderType(v string) *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeProviderType(v)
+	})
+}
+
+// UpdateAcmeProviderType sets the "acme_provider_type" field to the value that was provided on create.
+func (u *CertificateUpsertOne) UpdateAcmeProviderType() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeProviderType()
+	})
+}
+
+// ClearAcmeProviderType clears the value of the "acme_provider_type" field.
+func (u *CertificateUpsertOne) ClearAcmeProviderType() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeProviderType()
+	})
+}
+
+// SetAcmeEmail sets the "acme_email" field.
+func (u *CertificateUpsertOne) SetAcmeEmail(v string) *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeEmail(v)
+	})
+}
+
+// UpdateAcmeEmail sets the "acme_email" field to the value that was provided on create.
+func (u *CertificateUpsertOne) UpdateAcmeEmail() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeEmail()
+	})
+}
+
+// ClearAcmeEmail clears the value of the "acme_email" field.
+func (u *CertificateUpsertOne) ClearAcmeEmail() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeEmail()
+	})
+}
+
+// SetAcmeKeyAlg sets the "acme_key_alg" field.
+func (u *CertificateUpsertOne) SetAcmeKeyAlg(v string) *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeKeyAlg(v)
+	})
+}
+
+// UpdateAcmeKeyAlg sets the "acme_key_alg" field to the value that was provided on create.
+func (u *CertificateUpsertOne) UpdateAcmeKeyAlg() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeKeyAlg()
+	})
+}
+
+// ClearAcmeKeyAlg clears the value of the "acme_key_alg" field.
+func (u *CertificateUpsertOne) ClearAcmeKeyAlg() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeKeyAlg()
+	})
+}
+
+// SetAcmeCaDirURL sets the "acme_ca_dir_url" field.
+func (u *CertificateUpsertOne) SetAcmeCaDirURL(v string) *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeCaDirURL(v)
+	})
+}
+
+// UpdateAcmeCaDirURL sets the "acme_ca_dir_url" field to the value that was provided on create.
+func (u *CertificateUpsertOne) UpdateAcmeCaDirURL() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeCaDirURL()
+	})
+}
+
+// ClearAcmeCaDirURL clears the value of the "acme_ca_dir_url" field.
+func (u *CertificateUpsertOne) ClearAcmeCaDirURL() *CertificateUpsertOne {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeCaDirURL()
 	})
 }
 
@@ -1261,6 +1587,132 @@ func (u *CertificateUpsertBulk) UpdateEncFullChain() *CertificateUpsertBulk {
 func (u *CertificateUpsertBulk) ClearEncFullChain() *CertificateUpsertBulk {
 	return u.Update(func(s *CertificateUpsert) {
 		s.ClearEncFullChain()
+	})
+}
+
+// SetEncAcmeAccountKey sets the "enc_acme_account_key" field.
+func (u *CertificateUpsertBulk) SetEncAcmeAccountKey(v []byte) *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetEncAcmeAccountKey(v)
+	})
+}
+
+// UpdateEncAcmeAccountKey sets the "enc_acme_account_key" field to the value that was provided on create.
+func (u *CertificateUpsertBulk) UpdateEncAcmeAccountKey() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateEncAcmeAccountKey()
+	})
+}
+
+// ClearEncAcmeAccountKey clears the value of the "enc_acme_account_key" field.
+func (u *CertificateUpsertBulk) ClearEncAcmeAccountKey() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearEncAcmeAccountKey()
+	})
+}
+
+// SetEncAcmeProviderToken sets the "enc_acme_provider_token" field.
+func (u *CertificateUpsertBulk) SetEncAcmeProviderToken(v []byte) *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetEncAcmeProviderToken(v)
+	})
+}
+
+// UpdateEncAcmeProviderToken sets the "enc_acme_provider_token" field to the value that was provided on create.
+func (u *CertificateUpsertBulk) UpdateEncAcmeProviderToken() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateEncAcmeProviderToken()
+	})
+}
+
+// ClearEncAcmeProviderToken clears the value of the "enc_acme_provider_token" field.
+func (u *CertificateUpsertBulk) ClearEncAcmeProviderToken() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearEncAcmeProviderToken()
+	})
+}
+
+// SetAcmeProviderType sets the "acme_provider_type" field.
+func (u *CertificateUpsertBulk) SetAcmeProviderType(v string) *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeProviderType(v)
+	})
+}
+
+// UpdateAcmeProviderType sets the "acme_provider_type" field to the value that was provided on create.
+func (u *CertificateUpsertBulk) UpdateAcmeProviderType() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeProviderType()
+	})
+}
+
+// ClearAcmeProviderType clears the value of the "acme_provider_type" field.
+func (u *CertificateUpsertBulk) ClearAcmeProviderType() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeProviderType()
+	})
+}
+
+// SetAcmeEmail sets the "acme_email" field.
+func (u *CertificateUpsertBulk) SetAcmeEmail(v string) *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeEmail(v)
+	})
+}
+
+// UpdateAcmeEmail sets the "acme_email" field to the value that was provided on create.
+func (u *CertificateUpsertBulk) UpdateAcmeEmail() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeEmail()
+	})
+}
+
+// ClearAcmeEmail clears the value of the "acme_email" field.
+func (u *CertificateUpsertBulk) ClearAcmeEmail() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeEmail()
+	})
+}
+
+// SetAcmeKeyAlg sets the "acme_key_alg" field.
+func (u *CertificateUpsertBulk) SetAcmeKeyAlg(v string) *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeKeyAlg(v)
+	})
+}
+
+// UpdateAcmeKeyAlg sets the "acme_key_alg" field to the value that was provided on create.
+func (u *CertificateUpsertBulk) UpdateAcmeKeyAlg() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeKeyAlg()
+	})
+}
+
+// ClearAcmeKeyAlg clears the value of the "acme_key_alg" field.
+func (u *CertificateUpsertBulk) ClearAcmeKeyAlg() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeKeyAlg()
+	})
+}
+
+// SetAcmeCaDirURL sets the "acme_ca_dir_url" field.
+func (u *CertificateUpsertBulk) SetAcmeCaDirURL(v string) *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.SetAcmeCaDirURL(v)
+	})
+}
+
+// UpdateAcmeCaDirURL sets the "acme_ca_dir_url" field to the value that was provided on create.
+func (u *CertificateUpsertBulk) UpdateAcmeCaDirURL() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.UpdateAcmeCaDirURL()
+	})
+}
+
+// ClearAcmeCaDirURL clears the value of the "acme_ca_dir_url" field.
+func (u *CertificateUpsertBulk) ClearAcmeCaDirURL() *CertificateUpsertBulk {
+	return u.Update(func(s *CertificateUpsert) {
+		s.ClearAcmeCaDirURL()
 	})
 }
 
