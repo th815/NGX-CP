@@ -5,12 +5,13 @@ import (
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/agent/transport"
 	"github.com/th/ngxcp/internal/config"
-	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/cert"
+	configstore "github.com/th/ngxcp/internal/domain/config"
 	"github.com/th/ngxcp/internal/domain/deploy"
-	"github.com/th/ngxcp/internal/lvs"
+	"github.com/th/ngxcp/internal/domain/logfmt"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/logstore"
+	"github.com/th/ngxcp/internal/lvs"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"github.com/th/ngxcp/internal/pkg/version"
 	"github.com/th/ngxcp/internal/server/handler"
@@ -137,8 +138,8 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 			do.POST("/:id/reject", auth, dh.Reject)
 			do.POST("/:id/cancel", auth, dh.Cancel)
 			do.POST("/:id/rollback", auth, dh.Rollback) // T039 发起回滚（执行随 Agent 落地）
-			do.GET("/:id/approval", ah.GetForOrder)      // T036 取该变更单的审批记录
-			do.GET("/:id/stream", sh.Stream)             // T037 SSE 实时进度
+			do.GET("/:id/approval", ah.GetForOrder)     // T036 取该变更单的审批记录
+			do.GET("/:id/stream", sh.Stream)            // T037 SSE 实时进度
 		}
 
 		// T036 审批流：审批记录查询（列表按状态过滤）。
@@ -172,5 +173,14 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	v1.POST("/logs/search", loh.Search)
 	v1.GET("/logs/trace/:request_id", loh.Trace)
 	v1.POST("/logs/aggregate", loh.Aggregate)
+
+	// T060：标准 JSON log_format 下发。
+	// 依赖全部来自既有服务——能力基线（nodeSvc）判版本、配置存储（cfgStore）写版本、
+	// 发布引擎（deploySvc）建变更单，因此不新增下发通道，也不新增 buildRouter 参数。
+	// preview/apply 均读写节点配置，属敏感操作，一律需鉴权；契约自述只读放开。
+	lfh := handler.NewLogFormatHandler(logfmt.New(nodeSvc, cfgStore, deploySvc))
+	v1.GET("/logs/format", lfh.Contract)
+	v1.POST("/logs/format/preview", auth, lfh.Preview)
+	v1.POST("/logs/format/apply", auth, lfh.Apply)
 	return r
 }

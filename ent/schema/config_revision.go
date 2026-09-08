@@ -20,8 +20,8 @@ func (ConfigRevision) Fields() []ent.Field {
 		field.Int("node_id"),   // 关联节点
 		field.String("path"),   // 配置在节点上的路径，如 /etc/nginx/conf.d/upstream.conf
 		field.Enum("source").
-			Values("sync", "manual_edit", "cert_renew", "security_block", "rollback").
-			Default("sync"), // 版本来源：Agent 同步 / 手动编辑 / 证书续期 / 安全封禁 / 回滚
+			Values("sync", "manual_edit", "cert_renew", "security_block", "rollback", "log_format").
+			Default("sync"), // 版本来源：Agent 同步 / 手动编辑 / 证书续期 / 安全封禁 / 回滚 / 标准日志格式下发(T060)
 		field.Int("change_order_id").Optional(), // 关联变更单（发布产生的版本填写）
 		field.String("message").Optional(),      // 变更说明
 		field.String("author").Optional(),       // 操作人/来源标识（如 "agent" / 用户名）

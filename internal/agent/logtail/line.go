@@ -16,6 +16,7 @@
 //   - JSON 格式（T060 下发标准 log_format 后）；
 //   - 标准文本格式（nginx 默认 combined 及其 upstream 变体，绝大多数存量
 //     业务在用，且无法随意改动线上格式）。
+//
 // 故 ParseLine 做自动探测：以 '{' 开头按 JSON 解析，否则按标准文本正则解析。
 // 标准 combined 的 $time_local 是 CLF 形态（02/Jan/2006:15:04:05 +0800），
 // 解析后统一转换为 RFC3339 存入 TS，保证控制面 DefaultParseTS 与时间窗查询一致。
@@ -38,7 +39,7 @@ type LogLine struct {
 	TS             string  `json:"time"`          // RFC3339(Nano)；JSON 取 $time_iso8601，文本由 $time_local 转换
 	Node           string  `json:"node"`          // 注入的节点标识（采集侧填）
 	RID            string  `json:"rid"`           // $request_id / $http_x_request_id（TraceID）
-	RemoteAddr     string  `json:"remote_addr"`  // $remote_addr
+	RemoteAddr     string  `json:"remote_addr"`   // $remote_addr
 	Server         string  `json:"server"`        // $server_name
 	URI            string  `json:"uri"`           // $request_uri / $request 中的 URI 段
 	Status         int     `json:"status"`        // $status
@@ -46,26 +47,31 @@ type LogLine struct {
 	UpstreamStatus string  `json:"upstream_status"`
 	UpstreamRT     float32 `json:"upstream_rt"` // $upstream_response_time（取首个）
 	RequestRT      float32 `json:"request_rt"`  // $request_time
-	Bytes          uint32  `json:"bytes"`        // $body_bytes_sent
-	UA             string  `json:"ua"`           // $http_user_agent
+	Bytes          uint32  `json:"bytes"`       // $body_bytes_sent
+	UA             string  `json:"ua"`          // $http_user_agent
 
 	Raw string `json:"-"` // 原始行，便于回放/证据留存
 }
 
 // jsonWire 是 LogLine 在 JSON 日志中的子集（Raw 不入 JSON）。
+//
+// 数值字段用 flex* 类型而非原生 int/float32：T060 下发的 log_format 把所有值都加了
+// 引号（否则无 upstream 的请求会渲染出非法 JSON，见 flexnum.go 的说明），因此这里
+// 必须同时吃下 `123` 与 `"123"`、`""`、`"0.002, 0.031"` 四种形态。用原生类型会让
+// 整行 Unmarshal 失败 → 字段全零 → 表现为「格式下发成功但平台查不到数据」。
 type jsonWire struct {
-	TS             string  `json:"time"`
-	RID            string  `json:"rid"`
-	RemoteAddr     string  `json:"remote_addr"`
-	Server         string  `json:"server"`
-	URI            string  `json:"uri"`
-	Status         int     `json:"status"`
-	UpstreamAddr   string  `json:"upstream_addr"`
-	UpstreamStatus string  `json:"upstream_status"`
-	UpstreamRT     float32 `json:"upstream_rt"`
-	RequestRT      float32 `json:"request_rt"`
-	Bytes          uint32  `json:"bytes"`
-	UA             string  `json:"ua"`
+	TS             string      `json:"time"`
+	RID            string      `json:"rid"`
+	RemoteAddr     string      `json:"remote_addr"`
+	Server         string      `json:"server"`
+	URI            string      `json:"uri"`
+	Status         flexInt     `json:"status"`
+	UpstreamAddr   string      `json:"upstream_addr"`
+	UpstreamStatus string      `json:"upstream_status"`
+	UpstreamRT     flexFloat32 `json:"upstream_rt"`
+	RequestRT      flexFloat32 `json:"request_rt"`
+	Bytes          flexUint32  `json:"bytes"`
+	UA             string      `json:"ua"`
 }
 
 // ParseLine 解析单行访问日志，自动探测格式：以 '{' 开头按 JSON 解析，
@@ -91,12 +97,12 @@ func parseJSONLine(raw string, node string) LogLine {
 	l.RemoteAddr = w.RemoteAddr
 	l.Server = w.Server
 	l.URI = w.URI
-	l.Status = w.Status
+	l.Status = int(w.Status)
 	l.UpstreamAddr = w.UpstreamAddr
 	l.UpstreamStatus = w.UpstreamStatus
-	l.UpstreamRT = w.UpstreamRT
-	l.RequestRT = w.RequestRT
-	l.Bytes = w.Bytes
+	l.UpstreamRT = float32(w.UpstreamRT)
+	l.RequestRT = float32(w.RequestRT)
+	l.Bytes = uint32(w.Bytes)
 	l.UA = w.UA
 	return l
 }
@@ -196,6 +202,7 @@ func (l LogLine) IsErrorClass() bool {
 // sampleKeep 在降采样下决定是否保留该行。以下两类恒保留：
 //   - error 类（4xx/5xx）；
 //   - 无法解析（status==0），保留以便排查而非静默丢弃。
+//
 // 其余（2xx/3xx）按 rate 概率保留（r ∈ [0,1)）。rate>=1 表示全采。
 func sampleKeep(l LogLine, rate float64, rng func() float64) bool {
 	if l.IsErrorClass() || l.Status == 0 {

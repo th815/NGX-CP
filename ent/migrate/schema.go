@@ -188,7 +188,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "node_id", Type: field.TypeInt},
 		{Name: "path", Type: field.TypeString},
-		{Name: "source", Type: field.TypeEnum, Enums: []string{"sync", "manual_edit", "cert_renew", "security_block", "rollback"}, Default: "sync"},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"sync", "manual_edit", "cert_renew", "security_block", "rollback", "log_format"}, Default: "sync"},
 		{Name: "change_order_id", Type: field.TypeInt, Nullable: true},
 		{Name: "message", Type: field.TypeString, Nullable: true},
 		{Name: "author", Type: field.TypeString, Nullable: true},

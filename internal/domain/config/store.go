@@ -12,11 +12,11 @@ import (
 	"fmt"
 	"time"
 
-	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/ent"
 	"github.com/th/ngxcp/ent/configblob"
 	"github.com/th/ngxcp/ent/configfile"
 	"github.com/th/ngxcp/ent/configrevision"
+	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 )
 
 // Source 标识一个配置版本的来源（T021）。
@@ -28,6 +28,7 @@ const (
 	SourceCertRenew     Source = "cert_renew"     // 证书续期触发的配置变更
 	SourceSecurityBlock Source = "security_block" // 安全封禁片段下发
 	SourceRollback      Source = "rollback"       // 回滚产生的版本
+	SourceLogFormat     Source = "log_format"     // 标准 JSON log_format 片段下发（T060）
 )
 
 // RevisionOpts 创建版本时的可选参数。
@@ -183,6 +184,22 @@ func (s *ConfigStore) SyncFromAgent(ctx context.Context, nodeID int, files []*ag
 		changed++
 	}
 	return changed, nil
+}
+
+// EnsureFile 按 (node_id, path) 取回或创建逻辑配置文件，返回文件 ID。
+//
+// 供平台**主动新增**配置文件的场景使用（T060 标准日志格式片段、T068 封禁片段）：
+// 这些文件在节点上还不存在，因此不能依赖 Agent 上报后才有记录，需要先在平台建档，
+// 再 CreateRevision 写内容，最后走变更单下发。
+func (s *ConfigStore) EnsureFile(ctx context.Context, nodeID int, path string) (int, error) {
+	if nodeID <= 0 || path == "" {
+		return 0, fmt.Errorf("node_id 与 path 均必填")
+	}
+	cf, err := s.upsertConfigFile(ctx, nodeID, path)
+	if err != nil {
+		return 0, fmt.Errorf("ensure config file %s: %w", path, err)
+	}
+	return cf.ID, nil
 }
 
 // upsertConfigFile 按 (node_id, path) 查找或创建逻辑配置文件。
@@ -413,6 +430,7 @@ func (s *ConfigStore) ExpectedRevision(ctx context.Context, nodeID int, path str
 				configrevision.SourceCertRenew,
 				configrevision.SourceSecurityBlock,
 				configrevision.SourceRollback,
+				configrevision.SourceLogFormat,
 			),
 		).
 		Order(ent.Desc("created_at")).

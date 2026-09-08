@@ -106,6 +106,7 @@ const (
 	SourceCertRenew     Source = "cert_renew"
 	SourceSecurityBlock Source = "security_block"
 	SourceRollback      Source = "rollback"
+	SourceLogFormat     Source = "log_format"
 )
 
 func (s Source) String() string {
@@ -115,7 +116,7 @@ func (s Source) String() string {
 // SourceValidator is a validator for the "source" field enum values. It is called by the builders before save.
 func SourceValidator(s Source) error {
 	switch s {
-	case SourceSync, SourceManualEdit, SourceCertRenew, SourceSecurityBlock, SourceRollback:
+	case SourceSync, SourceManualEdit, SourceCertRenew, SourceSecurityBlock, SourceRollback, SourceLogFormat:
 		return nil
 	default:
 		return fmt.Errorf("configrevision: invalid enum value for source field: %q", s)

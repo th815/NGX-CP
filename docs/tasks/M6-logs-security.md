@@ -49,6 +49,23 @@ tail -1 /var/log/nginx/access.log | jq -e '.rid and .upstream_addr and .upstream
 - `escape=json` 必须加，否则 UA 含特殊字符会破坏 JSON
 - 改 `log_format` 后必须 reload 且确认旧日志格式不混流
 
+> **状态（2026-09-08）**：已完成 `internal/domain/logfmt/`（format.go 渲染 + plan.go 前置检查 + service.go 下发编排）、`internal/pkg/nginxconf/scope.go`（块作用域扫描）、`internal/server/handler/logformat.go` + `router.go` 三个端点。
+>
+> **对上方契约草案做了三处必要修正（草案照抄会炸线上，勿回退）**：
+> ① **不覆写 `/var/log/nginx/access.log`**，改为独立片段文件 `<include_dir>/zz-ngxcp-logformat.conf` + **额外一条** `access_log /var/log/nginx/ngxcp-access.json.log ngxcp_json buffer=32k flush=5s;`。nginx 同层级多条 access_log 并行写入，存量文本日志与格式原样不动，业务零感知（符合「只增不改」约束）；代价是双写占盘，Plan 恒发 logrotate 告警。
+> ② **所有 JSON 值一律加引号**。草案的 `"upstream_rt":$upstream_response_time` 是错的——静态文件/redirect/error_page 无 upstream 时该变量为空串，渲染出 `"upstream_rt":,` 属非法 JSON，整行报废。加引号后恒合法，代价是数值变字符串，故 T061 采集侧同批落地 `flexInt/flexUint32/flexFloat32`（`internal/agent/logtail/flexnum.go`）容忍带引号数字、空串、`"-"`、重试逗号列表（取首项），脏值退化为 0 而非杀掉整行。
+> ③ 格式名用 `ngxcp_json`（非 `json_main`），文件名 `zz-` 前缀保证在 include 目录内最后加载。
+>
+> **下发路径复用 M3 变更单流水线**（不新开通道）：`EnsureFile` → `CreateRevision(source=log_format)` → `deploy.CreateDraft(serial + 观测 60s + 自动回滚)`，因此天然可灰度/回滚/审批；`apply` 只到 draft，仍需 `/change-orders/:id/submit` 才真正发布。ent `config_revision.source` 枚举新增 `log_format`（已 `go generate`）。
+>
+> **三类可预判失败拦在预览阶段**（不留给 `nginx -t`）：nginx < 1.11.8 不支持 `escape=json`；http{} 内无通配 include（最隐蔽——发布"成功"但片段永不加载，平台无日志）；server/location 层级已有 access_log 会就近覆盖（那些站点静默缺 JSON 日志，预览列出待单独下发）。平台**不改写主配置**，缺 include 时给人工修复指引后拒绝下发。
+>
+> **API**：`GET /api/v1/logs/format`（契约自述，只读免鉴权）、`POST /api/v1/logs/format/preview`（逐节点计划+告警+`blocked` 列表，鉴权）、`POST /api/v1/logs/format/apply`（鉴权）。preview 逐节点列举失败原因，apply 则任一节点不可行即整体失败——不允许集群内两台 RS 一台有 JSON 日志一台没有，那会让跨节点追踪结果似真而假。
+>
+> **测试**：`nginxconf/scope_test.go` 4 例、`logfmt/format_test.go` 6 例（含反射比对 `logtail.LogLine` json tag 锁死字段契约、渲染结果回灌 Agent 解析、空 upstream 场景）、`logtail/flexnum_test.go` 6 例、`handler/logformat_test.go` 5 例，`testdata/access_log_sample.jsonl` 7 行样例回归。`go build`/`go vet`/`go test ./...` 全过。
+>
+> **未完成/未验证**：① 未接前端 UI（M6 前端整体待做，`web/src/views` 尚无 Logs 页面）；② **未真机验证**——验收命令 `tail -1 /var/log/nginx/ngxcp-access.json.log | jq -e '.rid and .upstream_addr and .upstream_rt'` 需在节点应用并 reload 后执行，注意无 upstream 的请求该断言会为空（属预期，应挑一条经过 proxy_pass 的请求验证）。
+
 ---
 
 ## T061 · Agent 日志采集模块
