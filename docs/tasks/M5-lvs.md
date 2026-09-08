@@ -137,6 +137,8 @@ sysctl -w net.ipv4.conf.all.arp_ignore=0
 - ARP 抑制是最易被忽略且最难排查的项（时通时断）
 - 这些检查是**运行时**的；vCenter 端口组安全策略（混杂/伪传输）Agent 测不到，见 T056/§16
 
+> **状态（2026-09-08）**：Agent 自检引擎（`health.RunCompliance` + 6/7 检查 + `compliance.Catalog` + 单测）与控制面落库/降级/门禁链路早已就绪。本任务此前卡在**接线缺口**——`runtime.HeartbeatCallbacks` 未赋值 `ReportCompliance`/`ReportFsProbe`，致自检永不在真机触发。现已补齐：运行时接入 `onReportCompliance`/`onReportFsProbe`，新增 `--vips` 配置，`heartbeat.go` 加周期合规 goroutine（周期+指令双路径上行 `COMPLIANCE`）。T055 门禁随之"接真实合规上报"（节点 degraded 由真实合规数据驱动）。详细见 README `## 状态`。T056 脑裂监测仍待做。
+
 ---
 
 ## T053 · LVS 拓扑聚合 API

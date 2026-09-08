@@ -24,6 +24,7 @@ import (
 
 	agent "github.com/th/ngxcp/internal/agent"
 	agentexec "github.com/th/ngxcp/internal/agent/executor"
+	"github.com/th/ngxcp/internal/agent/health"
 	"github.com/th/ngxcp/internal/agent/hostexec"
 	agentv1 "github.com/th/ngxcp/gen/agent/v1"
 	"github.com/th/ngxcp/internal/pkg/pki"
@@ -44,6 +45,7 @@ type Config struct {
 	NginxPath        string // nginx 二进制，默认 /usr/sbin/nginx
 	ConfPath         string // 主配置相对 prefix，默认 nginx.conf
 	ProbeURL         string // 默认探活 URL（可被变更单覆盖）
+	VIPs             []string // LVS-DR 虚拟 IP（/32），供 DR 合规自检 vip_on_lo 校验；空则跳过该项
 }
 
 // Runtime 持有 agent 运行所需的执行器与配置。
@@ -109,6 +111,8 @@ func Run(ctx context.Context, cfg Config) error {
 		ReportCapability:  rt.onReportCapability,
 		ReportConfigTree:  rt.coll.CollectConfigTree,
 		ReportLogTargets:  rt.coll.CollectLogTargets,
+		ReportFsProbe:     rt.onReportFsProbe,
+		ReportCompliance:  rt.onReportCompliance,
 		DeployConfig:      rt.onDeploy,
 		RollbackConfig:    rt.onRollback,
 		CreateSnapshot:    rt.onCreateSnapshot,
@@ -199,6 +203,41 @@ func (r *Runtime) onReportCapability(ctx context.Context) error {
 	}
 	_, err = r.hbClient.ReportCapability(ctx, &agentv1.CapabilityReport{Capability: cap})
 	return err
+}
+
+// onReportFsProbe 运行日志/FS 健康探测并经心跳流 FS_PROBE 上报（T018）。
+// 探测项含磁盘使用率、证书有效期、配置权限、日志目录可写、error.log 雪崩、pid 文件存在性。
+func (r *Runtime) onReportFsProbe(ctx context.Context) (*agentv1.FsProbeReport, error) {
+	exec := hostexec.NewRealExecutor()
+	opts := health.FsProbeOpts{
+		NginxPrefix:   r.cfg.NginxPrefix,
+		NginxConfPath: filepath.Join(r.cfg.NginxPrefix, r.cfg.ConfPath),
+		SslDir:        filepath.Join(r.cfg.NginxPrefix, "ssl"),
+		NginxPidPath:  "/var/run/nginx.pid",
+	}
+	return health.RunFsProbe(ctx, exec, opts)
+}
+
+// onReportCompliance 运行 DR 合规自检并经心跳流 COMPLIANCE 上报（T052）。
+// 角色根据是否部署 keepalived 尽力推导；VIP 列表来自运行时配置（控制面下发的 LVS VIP），
+// 空则 vip_on_lo 项标记跳过（不阻断）。检测结果经控制面 SetCompliance 驱动节点 degraded，
+// 进而被 LVS 发布门禁（T055）拦截。
+func (r *Runtime) onReportCompliance(ctx context.Context) (*agentv1.ComplianceReport, error) {
+	exec := hostexec.NewRealExecutor()
+	opts := health.ComplianceOpts{
+		VIPs:              r.cfg.VIPs,
+		Role:              r.resolveRole(exec),
+		KeepalivedConfPath: "/etc/keepalived/keepalived.conf",
+	}
+	return health.RunCompliance(ctx, exec, opts)
+}
+
+// resolveRole 根据主机是否部署 keepalived 尽力推导节点角色（仅用于合规报告标注，不影响判定）。
+func (r *Runtime) resolveRole(exec hostexec.CommandExecutor) string {
+	if exec.Exists("/etc/keepalived/keepalived.conf") {
+		return "director"
+	}
+	return "real_server"
 }
 
 func (r *Runtime) onDeploy(ctx context.Context, task *agentv1.SyncConfigTask, onProgress func(*agentv1.DeployProgress)) error {

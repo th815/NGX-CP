@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/th/ngxcp/internal/agent/runtime"
@@ -29,7 +30,10 @@ func main() {
 	nginxPath := flag.String("nginx-path", envOr("NGXCP_AGENT_NGINX_PATH", "/usr/sbin/nginx"), "nginx 二进制路径")
 	confPath := flag.String("conf-path", envOr("NGXCP_AGENT_CONF_PATH", "nginx.conf"), "主配置相对 prefix")
 	probeURL := flag.String("probe-url", envOr("NGXCP_AGENT_PROBE_URL", ""), "默认探活 URL（变更单可覆盖）")
+	vips := flag.String("vips", envOr("NGXCP_AGENT_VIPS", ""), "LVS-DR 虚拟 IP 列表（逗号分隔，如 192.0.2.5/32,192.0.2.6/32），供 DR 合规自检 vip_on_lo 校验；空则跳过该项")
 	flag.Parse()
+
+	vipsList := splitList(*vips)
 
 	if *showVersion {
 		fmt.Println(version.String())
@@ -51,6 +55,7 @@ func main() {
 		NginxPath:        *nginxPath,
 		ConfPath:         *confPath,
 		ProbeURL:         *probeURL,
+		VIPs:             vipsList,
 	}
 	if cfg.ControlPlaneAddr == "" || cfg.CACertPath == "" || (cfg.EnrollToken == "" && cfg.JoinToken == "") {
 		slog.Error("缺少必填参数", "control_plane", cfg.ControlPlaneAddr, "ca_cert", cfg.CACertPath, "enroll_or_join_token", cfg.EnrollToken == "" && cfg.JoinToken == "")
@@ -72,4 +77,20 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// splitList 按逗号拆分并裁剪空白，丢弃空项（用于 --vips 等列表参数）。
+func splitList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

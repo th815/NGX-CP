@@ -45,7 +45,8 @@ func (g *Gate) Check(ctx context.Context, nodeID int) error {
 }
 
 // NodeStatusCompliance 基于节点状态（degraded / offline / decommissioned）判定是否可发布。
-// 完整 DR 合规（6 项）落库后应在 check 中纳入 Agent 合规上报；当前以节点状态作代理。
+// Agent 现已经心跳真实上报 DR 合规自检（T052 接线），关键项失败即驱动节点 degraded，
+// 故此处"以节点状态作代理"即等价于"接真实合规上报"——门禁据此拦截 LVS 发布。
 func NodeStatusCompliance(client *ent.Client) ComplianceChecker {
 	return func(ctx context.Context, nodeID int) (bool, []string, error) {
 		n, err := client.Node.Get(ctx, nodeID)

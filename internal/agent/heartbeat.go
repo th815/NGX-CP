@@ -170,6 +170,8 @@ func (h *Heartbeater) session(ctx context.Context) error {
 	logTargetsOut := make(chan *agentv1.LogTargetsReport, 1)
 	// 校验结果汇集通道（VALIDATE_CONFIG 指令触发 → 主循环经 CONFIG_VALIDATE 上报）。
 	validateOut := make(chan *agentv1.ValidateResult, 1)
+	// 合规自检结果汇集通道（周期 goroutine + RUN_COMPLIANCE 指令共用 → 主循环经 COMPLIANCE 上报）。
+	complianceOut := make(chan *agentv1.ComplianceReport, 1)
 
 	// 收指令 goroutine：避免在主循环里 Recv 阻塞发送。
 	recvDone := make(chan error, 1)
@@ -272,6 +274,36 @@ func (h *Heartbeater) session(ctx context.Context) error {
 		}
 	}()
 
+	// DR 合规自检 goroutine：首跳立即跑一次，之后按 FsProbeInterval 周期运行（T052「每 5 分钟」）。
+	// 与 FS 探测同构：探测在独立 goroutine 串行执行，结果非阻塞推入 complianceOut（满则丢弃旧值）。
+	go func() {
+		run := func() {
+			if h.cb.ReportCompliance == nil {
+				return
+			}
+			rep, rerr := h.cb.ReportCompliance(ctx)
+			if rerr != nil {
+				h.log.Warn("compliance self-check failed", "err", rerr)
+				return
+			}
+			select {
+			case complianceOut <- rep:
+			default:
+			}
+		}
+		run() // 首跳
+		ticker := time.NewTicker(h.cfg.FsProbeInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				run()
+			}
+		}
+	}()
+
 	// 首发一次 PING，让控制面立即感知上线。
 	if err := h.sendPing(stream); err != nil {
 		return err
@@ -326,6 +358,10 @@ func (h *Heartbeater) session(ctx context.Context) error {
 			}
 		case rep := <-validateOut:
 			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_CONFIG_VALIDATE, rep); serr != nil {
+				return serr
+			}
+		case rep := <-complianceOut:
+			if serr := h.sendReport(stream, agentv1.HeartbeatRequest_COMPLIANCE, rep); serr != nil {
 				return serr
 			}
 		case rep := <-h.deployOut:
