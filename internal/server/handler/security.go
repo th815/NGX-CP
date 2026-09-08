@@ -171,3 +171,12 @@ func (h *SecurityHandler) BlockEvent(c *gin.Context) {
 	}
 	response.OK(c, co)
 }
+
+// Rules 返回当前生效的攻击检测规则集（T066 DefaultRules）。只读展示用，
+// 阈值/动作编辑持久化属后续里程碑（见 docs/tasks/M6-logs-security.md T070）。
+//
+//	GET /api/v1/security/rules
+//	→ { code, data:[Rule] }
+func (h *SecurityHandler) Rules(c *gin.Context) {
+	response.OK(c, security.DefaultRules())
+}

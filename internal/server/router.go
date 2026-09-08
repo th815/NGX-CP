@@ -193,5 +193,6 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	v1.POST("/security/events/:id/block", auth, seh.BlockEvent)
 	v1.POST("/security/blocklist", auth, seh.Block)
 	v1.DELETE("/security/blocklist/:ip", auth, seh.Unblock)
+	v1.GET("/security/rules", seh.Rules)
 	return r
 }

@@ -519,6 +519,8 @@ cd web && npm run build && npm run typecheck
 # 期望：构建通过；点封禁触发变更单并出现在发布列表
 ```
 
+**状态（2026-09-08 已交付）**：日志中心 + 安全预警 UI 全部落地，`web/src/views/Logs.vue`(tab: 检索/聚合/追踪) 与 `web/src/views/Security.vue`(tab: 告警事件/防护规则)，子组件分别在 `components/logs/`(Search/Aggregate/TracePanel) 与 `components/security/`(Alerts/Rules)。前端 `api/logs.ts`/`api/security.ts` 对齐后端契约；后端补 `GET /api/v1/security/rules`（`handler/security.go` Rules 返回 `DefaultRules()`，只读）。router 将 `logs`/`security` 由 `Placeholder` 指向新视图。`npm run build`（含 `vue-tsc --noEmit` 类型检查）通过；`go build`/`go vet` 全过。**未真机验证**：UI 仅过 typecheck/build，未连真 ClickHouse/PG 跑真实数据；封禁按钮触发的真变更单流转未在真机验证（沙箱无浏览器/真机）。**AI 陷阱落实**：TracePanel 已附 NTP 时钟提示；原始 JSON 用 `<pre>` 文本（Search 与 Alerts 详情均如此，无 v-html）。**规则编辑持久化**：规格要求「阈值/动作可编辑」，本任务按约定做**只读监控**（页面已显式标注），编辑需新增规则覆盖存储，列为后续里程碑。
+
 **AI 陷阱**：
 - TracePanel 时间线排序依赖节点时钟同步（M7/T077），前端要标注「若时间乱序请检查 NTP」
 - 原始 JSON 展示注意 XSS，用 `<pre>` 文本而非 v-html
