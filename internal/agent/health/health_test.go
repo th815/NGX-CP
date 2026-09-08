@@ -201,6 +201,43 @@ func TestRunCompliance(t *testing.T) {
 			t.Error("NTP 同步应通过")
 		}
 	})
+
+	t.Run("holding_vip on non-lo (director holds VIP)", func(t *testing.T) {
+		f := newFake()
+		f.outputs[cmdKey("ip", "-o", "-4", "addr", "show")] =
+			"1: lo    inet 127.0.0.1/8 scope host\n2: eth0    inet 10.0.0.10/32 scope global\n"
+		rep, _ := health.RunCompliance(ctx, f, health.ComplianceOpts{VIPs: []string{"10.0.0.10/32"}, Role: "director"})
+		if !rep.GetHoldingVip() {
+			t.Error("VIP 绑在 eth0 上应判定持 VIP")
+		}
+	})
+
+	t.Run("holding_vip false when only on lo (RS)", func(t *testing.T) {
+		f := newFake()
+		f.outputs[cmdKey("ip", "-o", "-4", "addr", "show")] =
+			"1: lo    inet 127.0.0.1/8 scope host\n1: lo    inet 10.0.0.10/32 scope host\n"
+		rep, _ := health.RunCompliance(ctx, f, health.ComplianceOpts{VIPs: []string{"10.0.0.10/32"}, Role: "real_server"})
+		if rep.GetHoldingVip() {
+			t.Error("VIP 仅绑在 lo 上不应判定持 VIP")
+		}
+	})
+
+	t.Run("holding_vip false when no vips", func(t *testing.T) {
+		f := newFake()
+		rep, _ := health.RunCompliance(ctx, f, health.ComplianceOpts{})
+		if rep.GetHoldingVip() {
+			t.Error("未配置 VIP 不应判定持 VIP")
+		}
+	})
+
+	t.Run("holding_vip false on probe error", func(t *testing.T) {
+		f := newFake()
+		f.cmdErr[cmdKey("ip", "-o", "-4", "addr", "show")] = true
+		rep, _ := health.RunCompliance(ctx, f, health.ComplianceOpts{VIPs: []string{"10.0.0.10/32"}})
+		if rep.GetHoldingVip() {
+			t.Error("探测失败不应臆断持 VIP")
+		}
+	})
 }
 
 func TestRunFsProbe(t *testing.T) {

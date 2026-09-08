@@ -743,7 +743,26 @@ func (s *Service) SetCompliance(ctx context.Context, id int, report *agentv1.Com
 	s.compMu.Lock()
 	s.compReports[id] = report
 	s.compMu.Unlock()
+	// T056：把 Director 实时持 VIP 态落库（best-effort），供脑裂检测聚合。
+	// 非 Director 节点（无关联 Director 记录）自然跳过。
+	s.syncDirectorHoldingVip(ctx, id, report.GetHoldingVip())
 	return s.recomputeHealth(ctx, id)
+}
+
+// syncDirectorHoldingVip 把节点关联 Director 的 holding_vip 实时态写回（best-effort）。
+// 仅尽力而为：失败仅告警，不影响合规/健康主流程。
+func (s *Service) syncDirectorHoldingVip(ctx context.Context, nodeID int, holding bool) {
+	d, err := s.client.Director.Query().Where(entdirector.HasNodeWith(entnode.ID(nodeID))).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return // 非 Director 节点，跳过
+		}
+		slog.Default().Warn("query director for holding_vip failed", "node_id", nodeID, "err", err)
+		return
+	}
+	if _, err := s.client.Director.UpdateOneID(d.ID).SetHoldingVip(holding).Save(ctx); err != nil {
+		slog.Default().Warn("update director holding_vip failed", "node_id", nodeID, "err", err)
+	}
 }
 
 // GetCompliance 返回节点最近一次合规自检报告（内存态；无则 nil）。

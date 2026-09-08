@@ -160,6 +160,7 @@ message ComplianceReport {
   string role = 2;                     // real_server | director | director_and_rs | unknown
   repeated ComplianceItem items = 3;
   bool passed = 4;
+  bool holding_vip = 5;                // T056：Director 当前是否在非 lo 接口持有 VIP（脑裂检测输入）
 }
 
 message ComplianceItem {

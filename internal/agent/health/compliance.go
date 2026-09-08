@@ -75,7 +75,58 @@ func RunCompliance(ctx context.Context, exec hostexec.CommandExecutor, opts Comp
 		CheckedAt: time.Now().Unix(),
 		Role:      opts.Role,
 		Items:     items,
+		// T056：Director 当前是否在非 lo 接口持有 VIP（脑裂检测输入）。
+		// RS 的 VIP 绑在 lo 上，故对非 lo 接口的判断天然得 false；对 Director 则反映其是否持 VIP。
+		HoldingVip: checkHoldingVIP(exec, opts.VIPs),
 	}, nil
+}
+
+// checkHoldingVIP 判断任一配置 VIP 当前是否绑定在「非 lo」接口上（即 Director 实际持 VIP）。
+// 在 LVS-DR 中，Director 把 VIP 配在真实网卡（如 eth0），RS 把 VIP 配在 lo（/32）。
+// 故：VIP 出现在 lo → 非持（RS 常态）；出现在其他接口 → 持（Director 常态或脑裂时双持）。
+// VIPs 为空（非 LVS 节点）时返回 false（不适用）。
+func checkHoldingVIP(exec hostexec.CommandExecutor, vips []string) bool {
+	if len(vips) == 0 {
+		return false
+	}
+	out, err := exec.Output(context.Background(), "ip", "-o", "-4", "addr", "show")
+	if err != nil {
+		// 探测失败不臆断持 VIP，交由控制面按缺失处理。
+		return false
+	}
+	wantAddrs := make([]string, 0, len(vips))
+	for _, v := range vips {
+		base := strings.SplitN(strings.TrimSpace(v), "/", 2)[0]
+		if base != "" {
+			wantAddrs = append(wantAddrs, base)
+		}
+	}
+	if len(wantAddrs) == 0 {
+		return false
+	}
+	// 逐行解析：<idx>: <iface>    inet <addr>/<cidr> ...
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+		iface := fields[1]
+		if iface == "lo" {
+			continue
+		}
+		// fields[2] 应为 "inet"，fields[3] 为 "addr/cidr"
+		if len(fields) < 4 || fields[2] != "inet" {
+			continue
+		}
+		addr := strings.SplitN(fields[3], "/", 2)[0]
+		for _, w := range wantAddrs {
+			if addr == w {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // checkVIPOnLo 检查 VIP 是否绑定在 lo 接口且为 /32（LVS-DR 的 ARP 隔离前提）。

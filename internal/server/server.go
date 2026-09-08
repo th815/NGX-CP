@@ -104,6 +104,8 @@ func Run(cfg *config.Config) error {
 			logging.Ctx(nil).Debug().Int("node_id", id).Err(err).Msg("mark offline skipped")
 		}
 	})
+	// T056：启动脑裂周期监测（检测到双 Director 同时持 VIP 时打 CRITICAL 日志/告警），与进程同生命周期。
+	go lvsSvc.StartSplitBrainWatch(ctx, time.Minute, nil)
 
 	// T025 语义校验器：复用 cfgStore + ent 客户端，对节点当前配置跑规则引擎。
 	// rules.yaml 缺失时自动回退到内建默认规则，保证控制面始终可用。

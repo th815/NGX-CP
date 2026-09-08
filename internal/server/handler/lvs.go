@@ -20,6 +20,17 @@ func NewLVSHandler(svc *lvs.Service) *LVSHandler {
 	return &LVSHandler{svc: svc}
 }
 
+// SplitBrain 返回当前脑裂检测结果（实时聚合 Director 持 VIP 态，T056）。
+// GET /api/v1/lvs/split-brain
+func (h *LVSHandler) SplitBrain(c *gin.Context) {
+	alert, err := h.svc.CheckSplitBrain(c.Request.Context())
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, alert)
+}
+
 // Topology 返回 LVS 拓扑（Client → VIP → Director×2 → RS×N）。
 // GET /api/v1/lvs/topology
 func (h *LVSHandler) Topology(c *gin.Context) {

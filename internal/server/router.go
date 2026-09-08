@@ -163,5 +163,7 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	v1.POST("/lvs/real-servers/:id/drain", lvh.Drain)
 	v1.POST("/lvs/real-servers/:id/restore", lvh.Restore)
 	v1.POST("/lvs/real-servers/:id/weight", lvh.SetWeight)
+	// T056：脑裂检测（实时聚合 Director 持 VIP 态）。
+	v1.GET("/lvs/split-brain", lvh.SplitBrain)
 	return r
 }

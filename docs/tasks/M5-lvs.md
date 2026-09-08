@@ -137,7 +137,7 @@ sysctl -w net.ipv4.conf.all.arp_ignore=0
 - ARP 抑制是最易被忽略且最难排查的项（时通时断）
 - 这些检查是**运行时**的；vCenter 端口组安全策略（混杂/伪传输）Agent 测不到，见 T056/§16
 
-> **状态（2026-09-08）**：Agent 自检引擎（`health.RunCompliance` + 6/7 检查 + `compliance.Catalog` + 单测）与控制面落库/降级/门禁链路早已就绪。本任务此前卡在**接线缺口**——`runtime.HeartbeatCallbacks` 未赋值 `ReportCompliance`/`ReportFsProbe`，致自检永不在真机触发。现已补齐：运行时接入 `onReportCompliance`/`onReportFsProbe`，新增 `--vips` 配置，`heartbeat.go` 加周期合规 goroutine（周期+指令双路径上行 `COMPLIANCE`）。T055 门禁随之"接真实合规上报"（节点 degraded 由真实合规数据驱动）。详细见 README `## 状态`。T056 脑裂监测仍待做。
+> **状态（2026-09-08）**：Agent 自检引擎（`health.RunCompliance` + 6/7 检查 + `compliance.Catalog` + 单测）与控制面落库/降级/门禁链路早已就绪。本任务此前卡在**接线缺口**——`runtime.HeartbeatCallbacks` 未赋值 `ReportCompliance`/`ReportFsProbe`，致自检永不在真机触发。现已补齐：运行时接入 `onReportCompliance`/`onReportFsProbe`，新增 `--vips` 配置，`heartbeat.go` 加周期合规 goroutine（周期+指令双路径上行 `COMPLIANCE`）。T055 门禁随之"接真实合规上报"（节点 degraded 由真实合规数据驱动）。详细见 README `## 状态`。T056 脑裂监测已完成（见 T056 状态注）。
 
 ---
 
@@ -269,6 +269,8 @@ func DetectSplitBrain(reports []ComplianceReport) (bool, Alert)
 **AI 陷阱**：
 - 脑裂检测容忍窗口必须 > vMotion 中断时间，否则频繁误报
 - vCenter 三项策略 Agent 检测不到，只能做成清单强制项
+
+> **状态（2026-09-08）**：已完成。① proto 离线补 `ComplianceReport.holding_vip`（field 5）；② Agent `health.RunCompliance` 增 `checkHoldingVIP`（Director 角色下，VIP 绑在「非 lo」接口即持 VIP；RS 的 VIP 在 lo 故天然 false）；③ 控制面 `node.Service.SetCompliance` 把 `holding_vip` best-effort 回写关联 `Director.HoldingVip`；④ `internal/lvs/split_brain.go` 新增 `DetectSplitBrain`（纯函数，≥2 Director 同时持 VIP→脑裂，单测锁定）+ `CheckSplitBrain`（聚合 DB 全部 Director 实时态）+ `StartSplitBrainWatch`（周期 1min，检测到打 CRITICAL 日志，server.go 启动 watch goroutine）；⑤ `handler/lvs.go`+`router.go` 新增 `GET /api/v1/lvs/split-brain`；⑥ 新建 `deploy/checklist.md` 固化 vCenter 端口组三项强制项（混杂模式/MAC 地址更改/伪传输）+ 反亲和性 + 关 VMware Tools 时间同步 + LACP 基于 IP。`go build`/`go vet`/`go test ./internal/lvs/... ./internal/agent/health/... ./gen/agent/v1/...` 全过。**未真机验证**：Agent 真实 `ip addr` 探测、vCenter 端口组、lego/pebble 均未经真机验证；脑裂判定按布尔聚合（新鲜度由合规上报周期与 watch 间隔保证），未引入额外时间戳列。
 
 ---
 
