@@ -132,6 +132,12 @@ docker exec clickhouse clickhouse-client -q "SELECT count() FROM nginx_access"
 
 ---
 
+## T063 · 日志检索 API（完成，2026-09-08）
+
+> **状态（2026-09-08）**：已完成 `internal/logstore/query.go`（QueryParams/QueryResult/normalize/buildWhere 参数化防注入/escapeLike/MemStorage.Query 内存过滤+分页）+ `internal/server/handler/logs.go`（`POST /api/v1/logs/search`，多维筛选 status/nodes/uri/ip/rid/rt_min + regex 开关 + 分页，返回 `{code,data:{items,total,took_ms}}`）+ `router.go` 路由 + `server.go` 按 `NGXCP_LOGSTORE_DSN` 构造 `ClickHouseStorage`（缺省 `MemStorage`）。`Storage` 接口新增 `Query`；`ClickHouseStorage.Query` 复用 `buildWhere` 走参数化 SQL + 计数查询。`query_test.go`（参数化/escapeLike/MemStorage 多维过滤+分页+默认时间窗）+ `logs_test.go`（httptest 端点）共 11 类单测全过。**未做**：Agent→控制面日志传输通道（proto 无日志内容上报类型，需改 proto 且离线需再次 patch rawDesc），检索目前仅对测试/未来上报数据生效；生产 ClickHouse 实例与真机写入未验证。
+
+---
+
 ## T063 · 日志检索 API
 
 **目标**：多维筛选（时间/节点/状态码/URI/IP/rid/耗时）+ 保存查询。

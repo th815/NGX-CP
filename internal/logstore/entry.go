@@ -39,6 +39,7 @@ type Entry struct {
 // Storage 是日志落库的抽象。生产用 ClickHouseStorage；测试用 MemStorage。
 type Storage interface {
 	Ingest(ctx context.Context, entries []Entry) error
+	Query(ctx context.Context, p QueryParams) (*QueryResult, error)
 	Ping(ctx context.Context) error
 	Close() error
 }

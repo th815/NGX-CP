@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -81,6 +82,43 @@ func (s *ClickHouseStorage) Ping(ctx context.Context) error { return s.conn.Ping
 
 // Close 关闭连接。
 func (s *ClickHouseStorage) Close() error { return s.conn.Close() }
+
+// Query 执行多维检索（T063）。WHERE 与参数由 buildWhere 统一构造，全部走 ? 占位，
+// 杜绝 SQL 注入；先取分页数据，再取满足条件的总数。
+func (s *ClickHouseStorage) Query(ctx context.Context, p QueryParams) (*QueryResult, error) {
+	p = p.normalize()
+	start := time.Now()
+
+	dataQ, dataArgs := buildDataQuery(p)
+	rows, err := s.conn.Query(ctx, dataQ, dataArgs...)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]Entry, 0, p.Size)
+	for rows.Next() {
+		var e Entry
+		if err := rows.Scan(
+			&e.TS, &e.Node, &e.RID, &e.RemoteAddr, &e.Server, &e.URI,
+			&e.Status, &e.UpstreamAddr, &e.UpstreamStatus,
+			&e.UpstreamRT, &e.RequestRT, &e.Bytes, &e.UA, &e.Raw,
+		); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		items = append(items, e)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	countQ, countArgs := buildCountQuery(p)
+	var total int64
+	if err := s.conn.QueryRow(ctx, countQ, countArgs...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	return &QueryResult{Items: items, Total: total, TookMs: time.Since(start).Milliseconds()}, nil
+}
 
 // splitDDL 按 ';' 切分建表语句（DDL 内不含字符串字面量分号，安全）。
 func splitDDL(ddl string) []string {

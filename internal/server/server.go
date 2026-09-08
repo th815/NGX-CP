@@ -20,6 +20,7 @@ import (
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/domain/node"
 	"github.com/th/ngxcp/internal/lvs"
+	"github.com/th/ngxcp/internal/logstore"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/logging"
 	"github.com/th/ngxcp/internal/pkg/pki"
@@ -63,6 +64,29 @@ func Run(cfg *config.Config) error {
 
 	// M5 LVS 拓扑/渲染/门禁服务（复用同一 ent 客户端）。
 	lvsSvc := lvs.New(client)
+
+	// T063：日志检索依赖的落库后端。生产经 NGXCP_LOGSTORE_DSN 连 ClickHouse
+	// （建表 + 限内存 6G）；未配置时回落 MemStorage（检索可用但无真实数据，
+	// 待 Agent→控制面日志传输通道接通后才有内容）。绝不因缺 DSN 而阻断启动。
+	var logStore logstore.Storage
+	if dsn := os.Getenv("NGXCP_LOGSTORE_DSN"); dsn != "" {
+		memBytes, memErr := logstore.ParseMemLimit("6G")
+		if memErr != nil {
+			memBytes = 6 * 1024 * 1024 * 1024 // 解析失败回落 6G
+		}
+		ch, chErr := logstore.NewClickHouse(dsn, memBytes, 7)
+		if chErr != nil {
+			logging.Ctx(nil).Warn().Err(chErr).Msg("ClickHouse 连接失败，日志检索回落内存存储")
+			logStore = logstore.NewMemStorage()
+		} else {
+			if schemaErr := ch.ApplySchema(context.Background()); schemaErr != nil {
+				logging.Ctx(nil).Warn().Err(schemaErr).Msg("ClickHouse 建表失败，日志检索回落内存存储")
+			}
+			logStore = ch
+		}
+	} else {
+		logStore = logstore.NewMemStorage()
+	}
 
 	// T015 会话管理：会话表 + 心跳超时扫描器。
 	sessions := session.NewSessionManager(slog.Default())
@@ -178,7 +202,7 @@ func Run(cfg *config.Config) error {
 
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc, lvsSvc)
+	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc, lvsSvc, logStore)
 
 	// 首跑提示：尚未完成首次设置时，告知可从 Web 免 SSH 获取令牌（消除 grep config.yaml 痛点）。
 	if cfg.AuthAdminToken != "" && cfg.AuthAdminTokenAckFile != "" {
