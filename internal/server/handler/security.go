@@ -10,15 +10,16 @@ import (
 	"github.com/th/ngxcp/internal/server/response"
 )
 
-// SecurityHandler 暴露安全事件 API（T067）：事件流查询 + 处置状态机。
-// 只读列表/详情放开；处置（handle）是写操作，由 router 的 auth 中间件保护。
+// SecurityHandler 暴露安全事件 API（T067）与封禁变更单入口（T068）。
+// 只读列表/详情放开；处置（handle）与封禁（block/unblock）是写操作，由 router 的 auth 中间件保护。
 type SecurityHandler struct {
-	store security.EventStore
+	store    security.EventStore
+	blockSvc *security.BlockService
 }
 
 // NewSecurityHandler 构造安全事件处理器。
-func NewSecurityHandler(store security.EventStore) *SecurityHandler {
-	return &SecurityHandler{store: store}
+func NewSecurityHandler(store security.EventStore, blockSvc *security.BlockService) *SecurityHandler {
+	return &SecurityHandler{store: store, blockSvc: blockSvc}
 }
 
 // List 处理安全事件列表。
@@ -87,4 +88,86 @@ func (h *SecurityHandler) Handle(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"id": id, "handled": true, "action": req.Action})
+}
+
+// blockReq 是封禁/解封请求体。
+type blockReq struct {
+	IP       string `json:"ip"`
+	Reason   string `json:"reason"`
+	Operator string `json:"operator"`
+}
+
+// operatorOrDefault 取操作人，缺省用 "admin"。
+func operatorOrDefault(s string) string {
+	if s == "" {
+		return "admin"
+	}
+	return s
+}
+
+// Block 封禁一个 IP：生成 security_block 变更单并走 M3 发布流水线。
+//
+//	POST /api/v1/security/blocklist  { "ip":"1.2.3.4", "reason":"...", "operator":"admin" }
+//	→ { code, data: ChangeOrder }
+func (h *SecurityHandler) Block(c *gin.Context) {
+	var req blockReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "请求体格式错误"))
+		return
+	}
+	if req.IP == "" {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "ip 不能为空"))
+		return
+	}
+	co, err := h.blockSvc.BlockIP(c.Request.Context(), req.IP, req.Reason, operatorOrDefault(req.Operator))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, co)
+}
+
+// Unblock 解封一个 IP：同样走变更单（覆盖原封禁文件，移除 deny）。
+//
+//	DELETE /api/v1/security/blocklist/:ip  { "reason":"误报", "operator":"admin" }
+//	→ { code, data: ChangeOrder }
+func (h *SecurityHandler) Unblock(c *gin.Context) {
+	ip := c.Param("ip")
+	if ip == "" {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "ip 不能为空"))
+		return
+	}
+	var req blockReq
+	_ = c.ShouldBindJSON(&req) // 可选体：reason / operator
+	co, err := h.blockSvc.UnblockIP(c.Request.Context(), ip, req.Reason, operatorOrDefault(req.Operator))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, co)
+}
+
+// BlockEvent 从安全事件一键封禁：提取样本中的来源 IP → 生成 security_block 变更单。
+//
+//	POST /api/v1/security/events/:id/block  { "operator":"admin" }
+//	→ { code, data: ChangeOrder }
+func (h *SecurityHandler) BlockEvent(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.Fail(c, apperr.New(apperr.CodeInvalid, "非法事件 ID"))
+		return
+	}
+	ev, err := h.store.Get(c.Request.Context(), id)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	var req blockReq
+	_ = c.ShouldBindJSON(&req)
+	co, err := h.blockSvc.BlockEvent(c.Request.Context(), ev, operatorOrDefault(req.Operator))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, co)
 }

@@ -398,27 +398,64 @@ internal/security/block.go
 internal/security/block_test.go
 ```
 
-**契约**：
+**契约（实际落地，2026-09-08）**：
 ```go
-func BlockIP(ctx, ip string, reason string) (*ChangeOrder, error) {
-    frag := fmt.Sprintf("deny %s;\n", ip)   // 默认放 http 块
-    return createChangeOrder(type="security_block", fragment=frag,
-                             strategy=lvs_graceful, auto_rollback=true)
-}
-// 解封 DELETE /security/blocklist/:ip 同样走流水线
+// internal/security/block.go
+type BlockService struct{ client *ent.Client; deploy *deploy.Service }
+func NewBlockService(client *ent.Client, d *deploy.Service) *BlockService
+
+// 封禁：为每个 Nginx RS 节点生成 conf.d/zz-block-<ip>.conf（deny <ip>;），
+// 经 config_blob(SHA256 去重) + config_revision(source=security_block) 落库，
+// 再建 security_block draft 变更单(lvs_graceful + AutoRollback) 并 deploy.Submit 进 M3 管线。
+func (s *BlockService) BlockIP(ctx, ip, reason, operator string) (*ent.ChangeOrder, error)
+
+// 解封：生成「已解封」标记文件(不含 deny)，同样走变更单，覆盖原文件使 deny 消失。
+func (s *BlockService) UnblockIP(ctx, ip, reason, operator string) (*ent.ChangeOrder, error)
+
+// 从安全事件 sample 提取首个合法 IP 后封禁（事件一键封禁）。
+func (s *BlockService) BlockEvent(ctx, evt *security.Event, operator string) (*ent.ChangeOrder, error)
+func ExtractIP(sample string) (string, bool)  // 从日志/证据文本取首个合法 IP
+```
+
+> **偏离草案的关键决策**：草案为单文件 `zz-blocklist.conf`；实际改为**每 IP 独立文件** `conf.d/zz-block-<ip>.conf`。理由：解封时无需重写整张封禁表、按 IP 精确解封互不干扰、各自独立可回滚，比「整表重算下发」更安全简洁。
+
+**涉及文件（实际）**：
+```
+internal/security/block.go          # BlockService + BlockIP/UnblockIP/BlockEvent/ExtractIP
+internal/security/block_test.go     # 8 例：封禁建单/无节点报错/非法IP/解封移除deny/事件无IP/事件样本提取/ExtractIP/内容去重
+internal/server/handler/security.go # BlockService 字段 + BlockEvent/Block/Unblock 三方法
+internal/server/router.go           # buildRouter 加 blockSvc 参数 + 三路由
+internal/server/server.go           # blockSvc := security.NewBlockService(client, deploySvc)
+```
+
+**路由（均挂 auth 中间件）**：
+```
+POST /api/v1/security/events/:id/block   # 事件一键封禁（从 sample 提取 IP）
+POST /api/v1/security/blocklist          # body: {"ip":..., "reason":...} 直接封禁
+DELETE /api/v1/security/blocklist/:ip    # 解封
 ```
 
 **验收命令**：
 ```bash
-curl -s -X POST localhost:8080/api/v1/security/events/1/block
-# 期望：创建一条 security_block 变更单，下发后 deny 生效
+# 事件一键封禁（:id 为安全事件 ID，IP 从 sample 提取）
+curl -s -X POST localhost:8080/api/v1/security/events/1/block \
+  -H "Authorization: Bearer $TOKEN"
+# 期望：返回一条 security_block 变更单，下发后 deny 生效
 # 误伤后点「回滚」→ 片段移除，配置恢复
+
+# 直接按 IP 封禁 / 解封
+curl -s -X POST localhost:8080/api/v1/security/blocklist -H "Authorization: Bearer $TOKEN" \
+  -d '{"ip":"203.0.113.99","reason":"cc-flood"}'
+curl -s -X DELETE localhost:8080/api/v1/security/blocklist/203.0.113.99 -H "Authorization: Bearer $TOKEN"
 ```
+
+**状态（2026-09-08 已交付）**：`block.go` + `block_test.go`(8 例) + handler/router/server 接线全部完成，`go build`/`go vet`/`go test ./...` 全过。handler 端到端测试 `TestBlockEndpoints` 覆盖三端点（封禁→返回变更单含 security_block 类型与修订、解封→新变更单、非法IP→400）。**未真机验证**：实际字节下发依赖 T039 执行器读取 config_revision（T068 只负责生产正确变更单+修订，不重造下发路径）；Agent 真机下发 deny、lvs_graceful 灰度、auto_rollback 均未经真机验证。
 
 **AI 陷阱**：
 - 封禁**绝不**直接改线上配置，必须走变更单（可回滚/可灰度/有审批）
 - `deny` 放 `http` 块对全 server 生效；要按 server 粒度需更细片段
 - 解封也是变更单，不能旁路
+- 只下发到 online 且承担 Nginx 的节点（`real_server`/`director_and_rs`），director 不跑 Nginx 故不在封禁目标内——误把 director 当目标会静默不生效
 
 ---
 

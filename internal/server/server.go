@@ -228,9 +228,12 @@ func Run(cfg *config.Config) error {
 	secSched := security.NewScheduler(secEngine, secSvc, secAlerts, security.DefaultRules())
 	go secSched.Start(ctx, 30*time.Second)
 
+	// T068 封禁变更单：把「封禁/解封 IP」转换为走 M3 流水线的 security_block 变更单。
+	blockSvc := security.NewBlockService(client, deploySvc)
+
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc, lvsSvc, logStore, secSvc)
+	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc, lvsSvc, logStore, secSvc, blockSvc)
 
 	// 首跑提示：尚未完成首次设置时，告知可从 Web 免 SSH 获取令牌（消除 grep config.yaml 痛点）。
 	if cfg.AuthAdminToken != "" && cfg.AuthAdminTokenAckFile != "" {
