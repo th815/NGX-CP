@@ -202,6 +202,8 @@ curl -s localhost:8080/api/v1/logs/trace/8f3c1a9b | jq '.data.spans | length'
 - TraceID 依赖 T060 的 `$request_id` 写入日志；若节点没应用格式，追踪为空
 - 跨节点聚合要注意**时钟同步**（见 M7/T077），否则顺序错乱
 
+> **状态（2026-09-08）**：已完成 `internal/server/handler/logs.go` 的 `Trace`（`GET /api/v1/logs/trace/:request_id`，复用 T063 `Storage.Query(RID)` 取该 rid 全部 span，按 ts 升序还原链路，计算 `nodes`/`first_hop`(最早 span 节点)/`bottleneck`(upstream_rt 最大节点)）+ `router.go` 路由注册。`logs_test.go` 加 `TestLogsHandler_Trace`（跨 2 节点升序/节点集合/首跳/瓶颈 + 不存在 rid 空结果）。`go build`/`go vet`/`go test ./internal/server/handler/...` 全过。**未真机验证**：依赖 T060 把 `$request_id` 写进节点日志格式，节点未应用标准格式时追踪为空（同 T061 缺真实数据来源）。
+
 ---
 
 ## T065 · 聚合分析 API

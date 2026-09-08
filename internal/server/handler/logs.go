@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -77,5 +78,68 @@ func (h *LogsHandler) Search(c *gin.Context) {
 		"items":   res.Items,
 		"total":   res.Total,
 		"took_ms": res.TookMs,
+	})
+}
+
+// Trace 处理 TraceID 全链路追踪（T064）。
+//
+//	GET /api/v1/logs/trace/:request_id
+//	→ { code, data:{ rid, spans:[Entry ordered by ts ASC], nodes, first_hop, bottleneck, took_ms } }
+//
+// 同一次请求经 LVS/反向代理跨节点时，各节点以同一 $request_id（rid）记录日志；
+// 本接口按 rid 聚合全部 span，按时间升序还原链路，标出首跳节点与瓶颈节点
+// （upstream_rt 最大者），供运维定位"慢在哪一跳 / 落在哪个后端"。
+func (h *LogsHandler) Trace(c *gin.Context) {
+	rid := c.Param("request_id")
+	if rid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "request_id 不能为空"})
+		return
+	}
+
+	// 取该 rid 的全部 span（单请求跨节点通常 1–3 条，Size 500 足够覆盖）。
+	res, err := h.store.Query(c.Request.Context(), logstore.QueryParams{
+		RID:   rid,
+		Size:  500,
+		Page:  1,
+		Regex: false,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+
+	// 链路视角：时间升序（从首跳到末跳）。
+	spans := make([]logstore.Entry, len(res.Items))
+	copy(spans, res.Items)
+	sort.SliceStable(spans, func(i, j int) bool {
+		return spans[i].TS.Before(spans[j].TS)
+	})
+
+	nodes := make([]string, 0, len(spans))
+	seen := make(map[string]struct{}, len(spans))
+	firstHop := ""
+	bottleneck := ""
+	var bottleneckRT float32
+	for i, s := range spans {
+		if _, ok := seen[s.Node]; !ok {
+			seen[s.Node] = struct{}{}
+			nodes = append(nodes, s.Node)
+		}
+		if i == 0 {
+			firstHop = s.Node
+		}
+		if s.UpstreamRT > bottleneckRT {
+			bottleneckRT = s.UpstreamRT
+			bottleneck = s.Node
+		}
+	}
+
+	response.OK(c, gin.H{
+		"rid":        rid,
+		"spans":      spans,
+		"nodes":      nodes,
+		"first_hop":  firstHop,
+		"bottleneck": bottleneck,
+		"took_ms":    res.TookMs,
 	})
 }

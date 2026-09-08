@@ -170,5 +170,6 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	// T063：日志检索 API（多维筛选 + 分页；依赖 T062 落库 Storage）。
 	loh := handler.NewLogsHandler(logStore)
 	v1.POST("/logs/search", loh.Search)
+	v1.GET("/logs/trace/:request_id", loh.Trace)
 	return r
 }
