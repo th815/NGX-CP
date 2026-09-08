@@ -85,6 +85,8 @@ go test ./internal/agent/logtail/...
 - 大流量时降采样，但安全相关（4xx/5xx）样本不全丢
 - offset 持久化失败不能丢数据，用原子写
 
+> **状态（2026-09-08）**：已完成 `internal/agent/logtail/`（line.go/offset.go/queue.go/tail.go + tail_test.go）。`Tailer.Run(ctx, emit)` 从 offset 续读、inode 变化应对 logrotate、同 inode 截断重置、按 SampleRate 降采样（4xx/5xx 与无法解析行恒保留）、攒批调用注入式 emit；emit 失败进磁盘队列 store-forward（JSONL、保留 24h、启动回放），offset 原子写。六类单测全过。**未接线 runtime**：下游经控制面上报 ClickHouse 属 T062，故 T061 暂不启动 goroutine，避免半接线。
+
 ---
 
 ## T062 · ClickHouse schema + 批量入库
