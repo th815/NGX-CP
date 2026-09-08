@@ -46,7 +46,7 @@ func TestBlockIP_CreatesSecurityBlockOrder(t *testing.T) {
 	ctx := context.Background()
 	seedNode(t, client, "rs-nginx-01", "real_server", "10.0.1.11")
 
-	co, err := bs.BlockIP(ctx, "203.0.113.45", "SQL 注入爆破", "admin")
+	co, err := bs.BlockIP(ctx, "203.0.113.45", "SQL 注入爆破", "admin", false)
 	require.NoError(t, err)
 	require.NotNil(t, co)
 
@@ -79,14 +79,14 @@ func TestBlockIP_CreatesSecurityBlockOrder(t *testing.T) {
 func TestBlockIP_NoNodes(t *testing.T) {
 	_, bs := newTestBlockEnv(t)
 	// 不建任何节点 → 无可用 Nginx RS 目标 → 应报错
-	co, err := bs.BlockIP(context.Background(), "203.0.113.99", "x", "admin")
+	co, err := bs.BlockIP(context.Background(), "203.0.113.99", "x", "admin", false)
 	require.Error(t, err)
 	require.Nil(t, co)
 }
 
 func TestBlockIP_InvalidIP(t *testing.T) {
 	_, bs := newTestBlockEnv(t)
-	_, err := bs.BlockIP(context.Background(), "not-an-ip", "x", "admin")
+	_, err := bs.BlockIP(context.Background(), "not-an-ip", "x", "admin", false)
 	require.Error(t, err)
 }
 
@@ -95,7 +95,7 @@ func TestUnblockIP_RemovesDeny(t *testing.T) {
 	ctx := context.Background()
 	seedNode(t, client, "rs-nginx-01", "real_server", "10.0.1.11")
 
-	_, err := bs.BlockIP(ctx, "198.51.100.7", "扫描", "admin")
+	_, err := bs.BlockIP(ctx, "198.51.100.7", "扫描", "admin", false)
 	require.NoError(t, err)
 
 	unCo, err := bs.UnblockIP(ctx, "198.51.100.7", "误报", "admin")
@@ -117,7 +117,7 @@ func TestUnblockIP_RemovesDeny(t *testing.T) {
 func TestBlockEvent_NoIP(t *testing.T) {
 	_, bs := newTestBlockEnv(t)
 	evt := &Event{ID: 1, RuleName: "sql_injection", Sample: "正常流量，无攻击特征"}
-	co, err := bs.BlockEvent(context.Background(), evt, "admin")
+	co, err := bs.BlockEvent(context.Background(), evt, "admin", false)
 	require.Error(t, err)
 	require.Nil(t, co)
 }
@@ -128,7 +128,7 @@ func TestBlockEvent_FromSample(t *testing.T) {
 	seedNode(t, client, "rs-nginx-01", "real_server", "10.0.1.11")
 
 	evt := &Event{ID: 7, RuleName: "cc_flood", Sample: "client 192.0.2.33 hit 700 req/min from /login"}
-	co, err := bs.BlockEvent(ctx, evt, "admin")
+	co, err := bs.BlockEvent(ctx, evt, "admin", false)
 	require.NoError(t, err)
 	require.NotNil(t, co)
 	require.Equal(t, changeorder.TypeSecurityBlock, co.Type)
@@ -161,10 +161,10 @@ func TestBlockIP_BlobDedup(t *testing.T) {
 	ctx := context.Background()
 	seedNode(t, client, "rs-nginx-01", "real_server", "10.0.1.11")
 
-	_, err := bs.BlockIP(ctx, "203.0.113.45", "first", "admin")
+	_, err := bs.BlockIP(ctx, "203.0.113.45", "first", "admin", false)
 	require.NoError(t, err)
 	// 同一 IP 再封一次（内容相同）→ blob 应复用
-	_, err = bs.BlockIP(ctx, "203.0.113.45", "second", "admin")
+	_, err = bs.BlockIP(ctx, "203.0.113.45", "second", "admin", false)
 	require.NoError(t, err)
 
 	blobs, err := client.ConfigBlob.Query().All(ctx)
@@ -187,7 +187,7 @@ func TestBlockIP_DeliveryChainClosed(t *testing.T) {
 	ctx := context.Background()
 	seedNode(t, client, "rs-nginx-01", "real_server", "10.0.1.11")
 
-	_, err := bs.BlockIP(ctx, "203.0.113.45", "SQL 注入爆破", "admin")
+	_, err := bs.BlockIP(ctx, "203.0.113.45", "SQL 注入爆破", "admin", false)
 	require.NoError(t, err)
 
 	cfg := configstore.New(client)

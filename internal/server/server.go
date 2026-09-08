@@ -225,11 +225,15 @@ func Run(cfg *config.Config) error {
 		secAlerts = security.NewCHAlertStore(ch)
 	}
 	secEngine := security.NewEngine(secBackend)
-	secSched := security.NewScheduler(secEngine, secSvc, secAlerts, security.DefaultRules())
-	go secSched.Start(ctx, 30*time.Second)
 
 	// T068 封禁变更单：把「封禁/解封 IP」转换为走 M3 流水线的 security_block 变更单。
+	// 必须早于 secSched（T069 调度器要注入 blockSvc 启用自动处置）。
 	blockSvc := security.NewBlockService(client, deploySvc, cfgStore)
+
+	// T069 分级处置：把 blockSvc 作为 BlockExecutor 注入调度器，命中后按规则动作
+	// auto 直接封禁 / semi 建审批单 / alert 只留事件。
+	secSched := security.NewScheduler(secEngine, secSvc, secAlerts, security.DefaultRules(), blockSvc)
+	go secSched.Start(ctx, 30*time.Second)
 
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。

@@ -154,7 +154,7 @@ func TestSecurityHandler_SchedulerDedup(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	store := security.NewMemEventStore()
 	engine := security.NewEngine(&security.FakeBackend{Count: 999}) // 恒定超过所有阈值
-	sched := security.NewScheduler(engine, store, nil, security.DefaultRules())
+	sched := security.NewScheduler(engine, store, nil, security.DefaultRules(), nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go sched.Start(ctx, 30*time.Millisecond) // 约 5 个周期

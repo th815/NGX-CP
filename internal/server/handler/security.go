@@ -119,7 +119,7 @@ func (h *SecurityHandler) Block(c *gin.Context) {
 		response.Fail(c, apperr.New(apperr.CodeInvalid, "ip 不能为空"))
 		return
 	}
-	co, err := h.blockSvc.BlockIP(c.Request.Context(), req.IP, req.Reason, operatorOrDefault(req.Operator))
+	co, err := h.blockSvc.BlockIP(c.Request.Context(), req.IP, req.Reason, operatorOrDefault(req.Operator), false)
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -164,7 +164,7 @@ func (h *SecurityHandler) BlockEvent(c *gin.Context) {
 	}
 	var req blockReq
 	_ = c.ShouldBindJSON(&req)
-	co, err := h.blockSvc.BlockEvent(c.Request.Context(), ev, operatorOrDefault(req.Operator))
+	co, err := h.blockSvc.BlockEvent(c.Request.Context(), ev, operatorOrDefault(req.Operator), false)
 	if err != nil {
 		response.Fail(c, err)
 		return

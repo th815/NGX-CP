@@ -9,18 +9,21 @@ import (
 	"github.com/th/ngxcp/internal/logstore"
 )
 
-// Scheduler 周期跑规则引擎（T066），命中 → 建 SecurityEvent（PG）+ 落库 security_alerts（CH）。
+// Scheduler 周期跑规则引擎（T066），命中 → 建 SecurityEvent（PG）+ 落库 security_alerts（CH）
+// + 按 T069 分级策略处置（auto 直接封禁 / semi 建审批单 / alert 只留事件）。
 // 与 ctx 同生命周期；首次立即跑一次，之后按 interval 周期执行。
 type Scheduler struct {
 	engine *Engine
 	events EventStore
 	alerts AlertStore // 可 nil（无 ClickHouse 时静默跳过落库）
 	rules  []Rule
+	block  BlockExecutor // 可 nil（无需自动封禁时，命中只建事件不处置）
 }
 
 // NewScheduler 构造调度器。engine 已内含 Backend（生产为 ClickHouse，无 CH 时为 NoopBackend）。
-func NewScheduler(engine *Engine, events EventStore, alerts AlertStore, rules []Rule) *Scheduler {
-	return &Scheduler{engine: engine, events: events, alerts: alerts, rules: rules}
+// block 传入封禁执行器（*BlockService）即启用 T069 自动处置；传 nil 则只建事件、不自动封禁。
+func NewScheduler(engine *Engine, events EventStore, alerts AlertStore, rules []Rule, block BlockExecutor) *Scheduler {
+	return &Scheduler{engine: engine, events: events, alerts: alerts, rules: rules, block: block}
 }
 
 // Start 启动周期调度。interval<=0 回落 30s。
@@ -70,7 +73,8 @@ func (s *Scheduler) runOnce(ctx context.Context) {
 			Sample:   sampleOf(hit.Sample),
 			Action:   "pending",
 		}
-		if _, cerr := s.events.Create(ctx, ev); cerr != nil {
+		id, cerr := s.events.Create(ctx, ev)
+		if cerr != nil {
 			slog.Default().Warn("创建安全事件失败", "rule", rule.ID, "err", cerr)
 			continue
 		}
@@ -85,6 +89,20 @@ func (s *Scheduler) runOnce(ctx context.Context) {
 				SampleRaw: sampleOf(hit.Sample),
 				Ts:        now,
 			})
+		}
+		// 分级处置策略（T069）：alert 只留事件；semi/auto 走封禁（semi 需审批）。
+		if s.block != nil && rule.Action != ActionAlert {
+			applied, perr := ApplyPolicy(ctx, rule, ev, s.block, "system(policy)")
+			if perr != nil {
+				slog.Default().Warn("安全策略自动处置失败",
+					"rule", rule.ID, "action", rule.Action, "err", perr)
+			} else if herr := s.events.Handle(ctx, id, "blocked"); herr != nil {
+				slog.Default().Warn("标记安全事件已处置失败", "id", id, "err", herr)
+			} else {
+				slog.Default().Info("安全策略自动处置成功",
+					"rule", rule.ID, "action", applied, "event", id)
+				continue
+			}
 		}
 		slog.Default().Info("安全规则命中，已建事件",
 			"rule", rule.ID, "level", hit.Level, "count", hit.Count)

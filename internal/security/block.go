@@ -71,8 +71,10 @@ func (s *BlockService) nginxRSNodes(ctx context.Context) ([]*ent.Node, error) {
 // 建 security_block 变更单（LVS 优雅灰度 + 自动回滚）并提交进入管线。
 //
 // operator 写入变更单 created_by 与修订 author；reason 记入变更单 comment。
+// requireApproval=true 时变更单进入「待审批」状态机，需人工批准才执行（对应 T069 的
+// semi 动作）；false 为直接执行（人工点封禁 / 高置信 auto 动作，均有 AutoRollback 兜底）。
 // 返回已进入 draft→pending/pending_approval 状态机的变更单。
-func (s *BlockService) BlockIP(ctx context.Context, ip, reason, operator string) (*ent.ChangeOrder, error) {
+func (s *BlockService) BlockIP(ctx context.Context, ip, reason, operator string, requireApproval bool) (*ent.ChangeOrder, error) {
 	if err := validateIP(ip); err != nil {
 		return nil, err
 	}
@@ -93,7 +95,7 @@ func (s *BlockService) BlockIP(ctx context.Context, ip, reason, operator string)
 		Strategy: schema.DeployStrategy{
 			Mode:             "lvs_graceful",
 			AutoRollback:     true,
-			ApprovalRequired: false,
+			ApprovalRequired: requireApproval,
 		},
 		CreatedBy: operator,
 		Comment:   reason,
@@ -169,13 +171,15 @@ func (s *BlockService) UnblockIP(ctx context.Context, ip, reason, operator strin
 // BlockEvent 基于一条安全事件封禁其样本中的来源 IP（一键封禁）。
 // 攻击者 IP 在样本里（不在节点字段里），故从 sample 提取第一个合法 IP。
 // 若样本中无法提取合法 IP，返回 CodeInvalid。
-func (s *BlockService) BlockEvent(ctx context.Context, evt *Event, operator string) (*ent.ChangeOrder, error) {
+// requireApproval 透传给 BlockIP：UI 人工点封禁传 false（直接执行），T069 策略里
+// semi 动作传 true（进入待审批）。
+func (s *BlockService) BlockEvent(ctx context.Context, evt *Event, operator string, requireApproval bool) (*ent.ChangeOrder, error) {
 	ip, ok := ExtractIP(evt.Sample)
 	if !ok {
 		return nil, apperr.New(apperr.CodeInvalid, "安全事件样本中未找到可封禁的 IP 地址")
 	}
 	reason := fmt.Sprintf("来自安全事件 #%d（%s）的自动封禁", evt.ID, evt.RuleName)
-	return s.BlockIP(ctx, ip, reason, operator)
+	return s.BlockIP(ctx, ip, reason, operator, requireApproval)
 }
 
 // ExtractIP 从任意文本（日志样本 / 证据）中提取第一个合法 IPv4/IPv6 地址。

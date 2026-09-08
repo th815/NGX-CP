@@ -490,6 +490,8 @@ go test ./internal/security/... -run Policy
 - auto 规则误伤面大，默认只对极高置信（如明确注入 payload）开放
 - 任何 auto 动作都要有对应回滚路径
 
+**状态（2026-09-08 已交付）**：`policy.go` + `policy_test.go`(5 例) + `scheduler.go`/`block.go` 改造全部完成，`go build`/`go vet`/`go test ./...` 全过（0 FAIL）。`block.go` 的 `BlockIP`/`BlockEvent` 增加 `requireApproval bool` 参数（UI 人工点封禁/解封仍传 `false` 免审批；策略里 `semi` 传 `true`）；scheduler 把 `blockSvc` 作 `BlockExecutor` 注入 `NewScheduler`，命中后按动作分流（alert 只留事件 / semi 建审批单 / auto 直接封禁），成功置事件 `blocked`。**未真机验证**：策略自动封禁在真机上的审批流/灰度/回滚未经真机验证；默认仅 `r-cc-flood`(auto) 直接封禁，semi 一律需审批。
+
 ---
 
 ## T070 · 日志中心 + 安全预警 UI
