@@ -204,6 +204,8 @@ curl -s localhost:8080/api/v1/logs/trace/8f3c1a9b | jq '.data.spans | length'
 
 > **状态（2026-09-08）**：已完成 `internal/server/handler/logs.go` 的 `Trace`（`GET /api/v1/logs/trace/:request_id`，复用 T063 `Storage.Query(RID)` 取该 rid 全部 span，按 ts 升序还原链路，计算 `nodes`/`first_hop`(最早 span 节点)/`bottleneck`(upstream_rt 最大节点)）+ `router.go` 路由注册。`logs_test.go` 加 `TestLogsHandler_Trace`（跨 2 节点升序/节点集合/首跳/瓶颈 + 不存在 rid 空结果）。`go build`/`go vet`/`go test ./internal/server/handler/...` 全过。**未真机验证**：依赖 T060 把 `$request_id` 写进节点日志格式，节点未应用标准格式时追踪为空（同 T061 缺真实数据来源）。
 
+> **状态（2026-09-08）**：已完成 `internal/logstore/aggregate.go`（AggMetric/AggParams/AggRow/AggResult + 纯函数 `computeAgg`：top_uri/top_ip/top_ua 计数+错误数 TopN、status_dist 状态码分布、rt_percentile 插值法 P50/P95/P99 + `parseWindow`("1h/24h/7d"，Go 标准库不支持 "d" 故单独处理) + `aggregateFromQuery`）+ `Storage` 接口加 `Aggregate`（`MemStorage`/`ClickHouseStorage` 均经 Query 取行后调 `computeAgg`，刻意不引入未经真机验证的 CH GROUP BY SQL）。`handler/logs.go` 加 `Aggregate`（`POST /api/v1/logs/aggregate`，body 绑定 metric/window/nodes/status/uri/ip/rid/rt_min/regex/top_n`）+ `router.go` 注册；`aggregate_test.go`（top_uri/status_dist/rt_percentile/topN 上限/空数据/parseWindow）+ `logs_test.go`（`TestLogsHandler_Aggregate` 三类指标 + 非法指标 400）共覆盖。`go build`/`go vet`/`go test ./internal/logstore/... ./internal/server/handler/...` 全过。生产 ClickHouse 与真机写入未验证；聚合准确性已通过 MemStorage 单测验证。
+
 ---
 
 ## T065 · 聚合分析 API

@@ -40,6 +40,7 @@ type Entry struct {
 type Storage interface {
 	Ingest(ctx context.Context, entries []Entry) error
 	Query(ctx context.Context, p QueryParams) (*QueryResult, error)
+	Aggregate(ctx context.Context, p AggParams) (*AggResult, error)
 	Ping(ctx context.Context) error
 	Close() error
 }

@@ -143,3 +143,59 @@ func (h *LogsHandler) Trace(c *gin.Context) {
 		"took_ms":    res.TookMs,
 	})
 }
+
+// aggReq 是 POST /api/v1/logs/aggregate 的请求体（字段与 T065 契约对齐）。
+type aggReq struct {
+	Metric string   `json:"metric"` // top_uri | top_ip | top_ua | status_dist | rt_percentile
+	Window string   `json:"window"` // "1h" | "24h" | "7d"，缺省 24h
+	Nodes  []string `json:"nodes"`
+	Status []uint16 `json:"status"`
+	URI    string   `json:"uri"`
+	IP     string   `json:"ip"`
+	RID    string   `json:"rid"`
+	RTMin  float32  `json:"rt_min"`
+	Regex  bool     `json:"regex"`
+	TopN   int      `json:"top_n"`
+}
+
+// Aggregate 处理日志聚合分析（T065）。
+//
+//	POST /api/v1/logs/aggregate
+//	→ { code, data:{ rows:[{key,count,err,p50,p95,p99}], total, took_ms } }
+//
+// 聚合引擎（logstore.ComputeAgg）先经 Query 取过滤+时间窗行集再在内存聚合，
+// 单一可测代码路径，避免引入未经真机验证的 ClickHouse GROUP BY SQL。
+func (h *LogsHandler) Aggregate(c *gin.Context) {
+	var req aggReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求体格式错误", "detail": err.Error()})
+		return
+	}
+	if !logstore.ValidAggMetric(logstore.AggMetric(req.Metric)) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "不支持的聚合指标", "detail": req.Metric})
+		return
+	}
+
+	p := logstore.AggParams{
+		Metric: logstore.AggMetric(req.Metric),
+		Window: req.Window,
+		Nodes:  req.Nodes,
+		Status: req.Status,
+		URI:    req.URI,
+		IP:     req.IP,
+		RID:    req.RID,
+		RTMin:  req.RTMin,
+		Regex:  req.Regex,
+		TopN:   req.TopN,
+	}
+	res, err := h.store.Aggregate(c.Request.Context(), p)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{
+		"rows":    res.Rows,
+		"total":   res.Total,
+		"took_ms": res.TookMs,
+	})
+}

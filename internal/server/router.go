@@ -171,5 +171,6 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	loh := handler.NewLogsHandler(logStore)
 	v1.POST("/logs/search", loh.Search)
 	v1.GET("/logs/trace/:request_id", loh.Trace)
+	v1.POST("/logs/aggregate", loh.Aggregate)
 	return r
 }

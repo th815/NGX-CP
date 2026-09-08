@@ -19,6 +19,7 @@ func newTestLogsServer(store logstore.Storage) *gin.Engine {
 	h := NewLogsHandler(store)
 	r.POST("/api/v1/logs/search", h.Search)
 	r.GET("/api/v1/logs/trace/:request_id", h.Trace)
+	r.POST("/api/v1/logs/aggregate", h.Aggregate)
 	return r
 }
 
@@ -170,5 +171,85 @@ func TestLogsHandler_Trace(t *testing.T) {
 	}
 	if len(resp2.Data.Spans) != 0 {
 		t.Fatalf("missing rid spans = %d, want 0", len(resp2.Data.Spans))
+	}
+}
+
+// TestLogsHandler_Aggregate 覆盖 top_uri / status_dist / rt_percentile 与非法指标。
+func TestLogsHandler_Aggregate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	now := time.Now()
+	store := logstore.NewMemStorage()
+	rows := []logstore.Entry{
+		{TS: now.Add(-10 * time.Minute), Node: "web1", Status: 200, URI: "/a", RemoteAddr: "10.0.0.1", RequestRT: 0.10},
+		{TS: now.Add(-9 * time.Minute), Node: "web1", Status: 200, URI: "/a", RemoteAddr: "10.0.0.2", RequestRT: 0.20},
+		{TS: now.Add(-8 * time.Minute), Node: "web1", Status: 404, URI: "/a", RemoteAddr: "10.0.0.3", RequestRT: 0.30},
+		{TS: now.Add(-7 * time.Minute), Node: "web1", Status: 500, URI: "/b", RemoteAddr: "10.0.0.4", RequestRT: 2.00},
+		{TS: now.Add(-6 * time.Minute), Node: "web1", Status: 200, URI: "/b", RemoteAddr: "10.0.0.5", RequestRT: 0.40},
+	}
+	if err := store.Ingest(context.Background(), rows); err != nil {
+		t.Fatalf("ingest: %v", err)
+	}
+	srv := newTestLogsServer(store)
+
+	callAgg := func(metric string) (int, map[string]any) {
+		body, _ := json.Marshal(map[string]any{"metric": metric, "window": "24h"})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/logs/aggregate", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+		var resp struct {
+			Code int `json:"code"`
+			Data struct {
+				Rows  []logstore.AggRow `json:"rows"`
+				Total int64             `json:"total"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("decode %s: %v body=%s", metric, err, w.Body.String())
+		}
+		return w.Code, map[string]any{"code": resp.Code, "rows": resp.Data.Rows, "total": resp.Data.Total}
+	}
+
+	// top_uri：/a 3 条排第一，/b 2 条；/a 含 1 条 404。
+	code, r := callAgg("top_uri")
+	if code != http.StatusOK {
+		t.Fatalf("top_uri status = %d body=%s", code, r)
+	}
+	rowsOut := r["rows"].([]logstore.AggRow)
+	if len(rowsOut) != 2 {
+		t.Fatalf("top_uri rows = %d, want 2", len(rowsOut))
+	}
+	if rowsOut[0].Key != "/a" || rowsOut[0].Count != 3 || rowsOut[0].Err != 1 {
+		t.Errorf("top_uri row0 = %+v, want /a count 3 err 1", rowsOut[0])
+	}
+
+	// status_dist：200×3、404×1、500×1。
+	_, r = callAgg("status_dist")
+	sdRows := r["rows"].([]logstore.AggRow)
+	if len(sdRows) != 3 {
+		t.Fatalf("status_dist rows = %d, want 3", len(sdRows))
+	}
+	if sdRows[0].Key != "200" || sdRows[0].Count != 3 {
+		t.Errorf("status_dist row0 = %+v, want 200 count 3", sdRows[0])
+	}
+
+	// rt_percentile：RequestRT=[0.1,0.2,0.3,2.0,0.4]，排序后 [0.1,0.2,0.3,0.4,2.0]，
+	//   P95 = idx 3.8 → 0.4+0.8*(2.0-0.4)=1.68。
+	_, r = callAgg("rt_percentile")
+	rtRows := r["rows"].([]logstore.AggRow)
+	if len(rtRows) != 1 {
+		t.Fatalf("rt_percentile rows = %d, want 1", len(rtRows))
+	}
+	if rtRows[0].P95 < 1.6 || rtRows[0].P95 > 1.76 {
+		t.Errorf("rt_percentile P95 = %v, want ~1.68", rtRows[0].P95)
+	}
+	if r["total"].(int64) != 5 {
+		t.Errorf("total = %v, want 5", r["total"])
+	}
+
+	// 非法指标 → 错误。
+	codeBad, _ := callAgg("bogus")
+	if codeBad != http.StatusBadRequest {
+		t.Fatalf("bogus metric status = %d, want 400", codeBad)
 	}
 }
