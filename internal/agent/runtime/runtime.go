@@ -273,6 +273,7 @@ func (r *Runtime) onStartLogTail(ctx context.Context, emit func([]byte) error) e
 			OffsetFile: base + ".offset",
 			QueueDir:   base + ".queue",
 			Node:       r.cfg.Hostname,
+			Format:     t.GetFormat(), // 透传日志格式：空=combined（存量业务），json=T060 标准格式
 		}
 		wg.Add(1)
 		go func() {

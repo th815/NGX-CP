@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -25,6 +26,12 @@ type Tailer struct {
 	QueueDir   string // store-forward 队列目录，默认 Path+".queue"
 
 	Node string // 注入到每条 LogLine.Node 的节点标识
+
+	// Format 指定日志格式，由 runtime 从 CollectLogTargets 透传：
+	//   "json"  → JSON 访问日志（T060 下发的标准格式）
+	//   "combined" / "main" / "" → 标准 Nginx 文本格式（默认，存量业务最常见）
+	//   其他未知值 → ParseLine 自动探测（以 '{' 开头按 JSON，否则按文本）
+	Format string
 
 	SampleRate float64 // 采样率 [0,1]，1=全采；error 类恒保留
 	BatchSize  int     // 攒批大小，默认 1000
@@ -85,6 +92,24 @@ func (t *Tailer) openAt(offset int64) (*os.File, uint64, error) {
 		return nil, 0, err
 	}
 	return f, ino, nil
+}
+
+// parseLine 按 Tailer.Format 选择解析器：
+//   - "json"            → JSON 解析（T060 下发的标准格式）
+//   - "combined"/"main" → 标准 Nginx 文本解析
+//   - "" 或其他未知值   → 自动探测（以 '{' 开头按 JSON，否则按文本）
+//
+// 注意：combined 目标的 Format 在 capability 中为空串（nginx 默认），
+// 故 "" 走自动探测即可正确解析存量业务文本日志，无需显式标记。
+func (t *Tailer) parseLine(raw string) LogLine {
+	switch strings.ToLower(strings.TrimSpace(t.Format)) {
+	case "json":
+		return parseJSONLine(raw, t.Node)
+	case "combined", "main":
+		return parseStandardLine(raw, t.Node)
+	default:
+		return ParseLine(raw, t.Node) // 自动探测兜底（含 Format==""）
+	}
 }
 
 // Run 启动采集循环，直到 ctx 取消。emit 用于把攒好的批次送出（下游可能
@@ -250,7 +275,7 @@ func (t *Tailer) readAvailable(f *os.File, r *bufio.Reader, pos *int64, batch *[
 		if len(line) > 0 {
 			trimmed := trimNewline(line)
 			if trimmed != "" {
-				l := ParseLine(trimmed, t.Node)
+				l := t.parseLine(trimmed)
 				if sampleKeep(l, t.SampleRate, t.Rand) {
 					*batch = append(*batch, l)
 				}

@@ -85,7 +85,7 @@ go test ./internal/agent/logtail/...
 - 大流量时降采样，但安全相关（4xx/5xx）样本不全丢
 - offset 持久化失败不能丢数据，用原子写
 
-> **状态（2026-09-08）**：已完成 `internal/agent/logtail/`（line.go/offset.go/queue.go/tail.go + tail_test.go）。`Tailer.Run(ctx, emit)` 从 offset 续读、inode 变化应对 logrotate、同 inode 截断重置、按 SampleRate 降采样（4xx/5xx 与无法解析行恒保留）、攒批调用注入式 emit；emit 失败进磁盘队列 store-forward（JSONL、保留 24h、启动回放），offset 原子写。六类单测全过。**T063-补 已接线**：`batch.go` 加 `MarshalBatch/UnmarshalBatch`，`runtime.go` 经 `CollectLogTargets` 取目标起 `Tailer` 并把 `[]LogLine` 打包经心跳流 `LOG_BATCH` 上行控制面 → `Ingester.Accept`，端到端可验证（见 T063 补做状态）。
+> **状态（2026-09-08）**：已完成 `internal/agent/logtail/`（line.go/offset.go/queue.go/tail.go + tail_test.go）。`Tailer.Run(ctx, emit)` 从 offset 续读、inode 变化应对 logrotate、同 inode 截断重置、按 SampleRate 降采样（4xx/5xx 与无法解析行恒保留）、攒批调用注入式 emit；emit 失败进磁盘队列 store-forward（JSONL、保留 24h、启动回放），offset 原子写。六类单测全过。**T063-补 已接线**：`batch.go` 加 `MarshalBatch/UnmarshalBatch`，`runtime.go` 经 `CollectLogTargets` 取目标起 `Tailer` 并把 `[]LogLine` 打包经心跳流 `LOG_BATCH` 上行控制面 → `Ingester.Accept`，端到端可验证（见 T063 补做状态）。**T061-补（2026-09-08）用户实测反馈**：存量 Nginx 业务日志是**标准文本格式（非 JSON）**，原 `ParseLine` 仅解 JSON 致真机读不出。已补标准 `combined` 文本正则（`combinedRe`+`trailingRe` 匹配 `request_time/upstream_addr/upstream_status/upstream_rt/request_id` 后缀），`ParseLine` 改 JSON/文本自动探测（文本行不可能以 `{` 开头，探测安全），`Tailer.Format` 透传 capability `LogTarget.Format`（`""`=combined 存量/`"json"`=T060 标准/未知回退自动探测）。关键修复：combined 用 `$time_local`(CLF)，解析后转 RFC3339 存 `TS` 否则控制面 `DefaultParseTS` 失败→全变 1970，`convert_test.go` 端到端锁。各用户自定义非标准 log_format 仍可能匹配不上（T060 下发 JSON 彻底解决）。
 
 ---
 
