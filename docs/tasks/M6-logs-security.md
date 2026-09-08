@@ -356,6 +356,34 @@ curl -s "localhost:8080/api/v1/security/events?level=CRITICAL" | jq '.data.items
 - 证据样本要存原始日志片段，方便事后复盘
 - 事件一旦处置（封禁/忽略）状态要锁，避免重复动作
 
+> **状态（2026-09-08）**：已完成「检测→事件→处置」闭环。
+>
+> **相对上方草案的字段偏离（必要，勿回退）**：草案 `SecurityEvent` 用 `NodeID int` / `RuleID int`，但实际落库为 `rule_id string` + `node string`——原因：① T066 规则 ID 是字符串（`r-sql-injection` 等），不是 ent 自增 int；② 命中来自日志的 `node` 字段（节点标识字符串），不是 ent 节点自增 ID。故 `ent/schema/security_event.go` 收敛为 `rule_id`(string)/`rule_name`(string)/`level`(Enum INFO|WARN|CRITICAL)/`node`(Optional string)/`sample`(Optional Text 证据)/`handled`(Bool 默认 false)/`action`(Enum pending|blocked|ignored 默认 pending)/`created_at`(Time 默认 now, Immutable)，索引 handled/level/rule_id。`go generate ./ent` 生成 `ent/securityevent/`（常量 `LevelINFO/LevelWARN/LevelCRITICAL`、`ActionPending/ActionBlocked/ActionIgnored`、谓词 `ID/RuleID/Handled/LevelEQ/ActionEQ`）。
+>
+> **数据分层（T066 已定）**：ClickHouse `security_alerts`（TTL 30d）管命中时序；PG `security_event` ent 管处置状态机。二者经 `SecurityEvent.Handle` 处置锁关联。
+>
+> **涉及文件**：
+> ```
+> ent/schema/security_event.go                     # 处置状态机 schema + go generate
+> internal/security/eventstore.go                  # EntEventStore：Create/Get/List/Handle/HasActive
+> internal/security/alertstore.go                  # CHAlertStore：RecordAlert 参数化 INSERT → security_alerts
+> internal/security/scheduler.go                   # Scheduler：周期跑规则→命中→去重建事件+落库；NoopBackend 兜底
+> internal/security/memstore.go                    # MemEventStore：测试用（验证去重/处置锁）
+> internal/logstore/clickhouse.go                  # 加 QueryCount/Exec 供 security 复用（*ClickHouseStorage 满足 security.Backend）
+> internal/server/handler/security.go             # GET /security/events、GET /security/events/:id、POST /security/events/:id/handle(挂 auth)
+> internal/server/router.go / server.go           # 接线：有 CH 用 CH 后端+落库，无 CH 回落 NoopBackend
+> ```
+>
+> **调度去重（关键，防刷屏）**：`Scheduler.runOnce` 逐规则 `engine.Evaluate` → 命中且 `HasActive(ruleID)` 为 false 才 `Create` 事件 + `RecordAlert`；同一持续攻击只建一条 pending，直到被处置。无 ClickHouse 时 `NoopBackend.QueryCount` 恒返回 0（不误报、不阻断启动），且无 CH 时 `alerts` 为 nil 静默跳过落库。调度与 ctx 同生命周期、启动即跑一次（`go secSched.Start(ctx, 30*time.Second)`，沿用 T045 调度范式）。
+>
+> **处置锁**：`Handle(id, action)` 仅接受 `blocked`/`ignored`；已处置返回 `CodeConflict`(409) 防重复动作、非法动作返回 `CodeInvalid`(400)。`MemEventStore`/`EntEventStore` 行为一致（`handler/security_test.go` 锁定）。
+>
+> **API**：`GET /api/v1/security/events?level=&handled=&page=&size=`（多维筛选+分页，返回 `{code,data:{items,total}}`）、`GET /api/v1/security/events/:id`、`POST /api/v1/security/events/:id/handle`（写操作，router 挂 `RequireAuth` 中间件）。
+>
+> **测试**：`handler/security_test.go`（`TestSecurityHandler_List` 筛选 level+handled、`TestSecurityHandler_GetNotFound` 404、`TestSecurityHandler_HandleFlow` 成功→200/重复→409/非法→400、`TestSecurityHandler_SchedulerDedup` 多周期仅每规则一条 pending）共 4 例。`go build`/`go vet`/`go test ./...` 全过（security 12 + handler 4）。
+>
+> **未真机验证**：PG ent 行为、ClickHouse `security_alerts` 落库、调度在真机周期运行，均仅经单测 + 编译验证（沙箱无 PG/CH 实例）；阈值调参延续 T066 声明（上线后观测微调）。
+
 ---
 
 ## T068 · 封禁变更单（复用发布流水线）

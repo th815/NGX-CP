@@ -273,6 +273,18 @@ func (f RealServerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RealServerMutation", m)
 }
 
+// The SecurityEventFunc type is an adapter to allow the use of ordinary
+// function as SecurityEvent mutator.
+type SecurityEventFunc func(context.Context, *ent.SecurityEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SecurityEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SecurityEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SecurityEventMutation", m)
+}
+
 // The VirtualServiceFunc type is an adapter to allow the use of ordinary
 // function as VirtualService mutator.
 type VirtualServiceFunc func(context.Context, *ent.VirtualServiceMutation) (ent.Value, error)

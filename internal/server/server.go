@@ -13,18 +13,19 @@ import (
 	"github.com/th/ngxcp/internal/agent/session"
 	"github.com/th/ngxcp/internal/agent/transport"
 	"github.com/th/ngxcp/internal/config"
-	configstore "github.com/th/ngxcp/internal/domain/config"
-	"github.com/th/ngxcp/internal/domain/config/rules"
 	"github.com/th/ngxcp/internal/crypto"
 	certdom "github.com/th/ngxcp/internal/domain/cert"
+	configstore "github.com/th/ngxcp/internal/domain/config"
+	"github.com/th/ngxcp/internal/domain/config/rules"
 	"github.com/th/ngxcp/internal/domain/deploy"
 	"github.com/th/ngxcp/internal/domain/node"
-	"github.com/th/ngxcp/internal/lvs"
 	"github.com/th/ngxcp/internal/logstore"
+	"github.com/th/ngxcp/internal/lvs"
 	"github.com/th/ngxcp/internal/pkg/apperr"
 	"github.com/th/ngxcp/internal/pkg/logging"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"github.com/th/ngxcp/internal/repo"
+	"github.com/th/ngxcp/internal/security"
 )
 
 // Run 启动控制面：HTTP 服务（M1 节点域骨架 + 鉴权 + 审计）+ Agent gRPC 服务（T014 注册 / T015 心跳）。
@@ -69,20 +70,25 @@ func Run(cfg *config.Config) error {
 	// （建表 + 限内存 6G）；未配置时回落 MemStorage（检索可用但无真实数据，
 	// 待 Agent→控制面日志传输通道接通后才有内容）。绝不因缺 DSN 而阻断启动。
 	var logStore logstore.Storage
+	var ch *logstore.ClickHouseStorage
 	if dsn := os.Getenv("NGXCP_LOGSTORE_DSN"); dsn != "" {
 		memBytes, memErr := logstore.ParseMemLimit("6G")
 		if memErr != nil {
 			memBytes = 6 * 1024 * 1024 * 1024 // 解析失败回落 6G
 		}
-		ch, chErr := logstore.NewClickHouse(dsn, memBytes, 7)
+		c, chErr := logstore.NewClickHouse(dsn, memBytes, 7)
 		if chErr != nil {
 			logging.Ctx(nil).Warn().Err(chErr).Msg("ClickHouse 连接失败，日志检索回落内存存储")
 			logStore = logstore.NewMemStorage()
 		} else {
+			ch = c
 			if schemaErr := ch.ApplySchema(context.Background()); schemaErr != nil {
 				logging.Ctx(nil).Warn().Err(schemaErr).Msg("ClickHouse 建表失败，日志检索回落内存存储")
+				ch = nil
+				logStore = logstore.NewMemStorage()
+			} else {
+				logStore = ch
 			}
-			logStore = ch
 		}
 	} else {
 		logStore = logstore.NewMemStorage()
@@ -208,9 +214,23 @@ func Run(cfg *config.Config) error {
 		}
 	}()
 
+	// T067 告警中心：把 T066 规则引擎接调度，命中 → 建 SecurityEvent（PG）+ 落库 security_alerts（CH）。
+	// 无 ClickHouse（未配 NGXCP_LOGSTORE_DSN）时 backend=NoopBackend（恒返回 0，不误报），
+	// 不阻断启动；配了 CH 才真正跑检测与落库。
+	secSvc := security.NewEntEventStore(client)
+	var secBackend security.Backend = security.NewNoopBackend()
+	var secAlerts security.AlertStore
+	if ch != nil {
+		secBackend = ch // *ClickHouseStorage 满足 security.Backend（新增 QueryCount 方法）
+		secAlerts = security.NewCHAlertStore(ch)
+	}
+	secEngine := security.NewEngine(secBackend)
+	secSched := security.NewScheduler(secEngine, secSvc, secAlerts, security.DefaultRules())
+	go secSched.Start(ctx, 30*time.Second)
+
 	// HTTP 控制面（阻塞，直到进程退出）。
 	// agentSrv 同时作为 T024 校验触发入口（实现 handler.ConfigValidator），经心跳命令流驱动 Agent 跑 nginx -t。
-	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc, lvsSvc, logStore)
+	r := buildRouter(cfg, ca, nodeSvc, cfgStore, sessions, agentSrv, semantic, driftDetector, tmplSvc, deploySvc, hub, certSvc, lvsSvc, logStore, secSvc)
 
 	// 首跑提示：尚未完成首次设置时，告知可从 Web 免 SSH 获取令牌（消除 grep config.yaml 痛点）。
 	if cfg.AuthAdminToken != "" && cfg.AuthAdminTokenAckFile != "" {

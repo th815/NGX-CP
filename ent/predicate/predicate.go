@@ -72,5 +72,8 @@ type NodeLogTarget func(*sql.Selector)
 // RealServer is the predicate function for realserver builders.
 type RealServer func(*sql.Selector)
 
+// SecurityEvent is the predicate function for securityevent builders.
+type SecurityEvent func(*sql.Selector)
+
 // VirtualService is the predicate function for virtualservice builders.
 type VirtualService func(*sql.Selector)

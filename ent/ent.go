@@ -34,6 +34,7 @@ import (
 	"github.com/th/ngxcp/ent/nodeconfigfile"
 	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
+	"github.com/th/ngxcp/ent/securityevent"
 	"github.com/th/ngxcp/ent/virtualservice"
 )
 
@@ -117,6 +118,7 @@ func checkColumn(t, c string) error {
 			nodeconfigfile.Table: nodeconfigfile.ValidColumn,
 			nodelogtarget.Table:  nodelogtarget.ValidColumn,
 			realserver.Table:     realserver.ValidColumn,
+			securityevent.Table:  securityevent.ValidColumn,
 			virtualservice.Table: virtualservice.ValidColumn,
 		})
 	})

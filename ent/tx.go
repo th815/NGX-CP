@@ -56,6 +56,8 @@ type Tx struct {
 	NodeLogTarget *NodeLogTargetClient
 	// RealServer is the client for interacting with the RealServer builders.
 	RealServer *RealServerClient
+	// SecurityEvent is the client for interacting with the SecurityEvent builders.
+	SecurityEvent *SecurityEventClient
 	// VirtualService is the client for interacting with the VirtualService builders.
 	VirtualService *VirtualServiceClient
 
@@ -211,6 +213,7 @@ func (tx *Tx) init() {
 	tx.NodeConfigFile = NewNodeConfigFileClient(tx.config)
 	tx.NodeLogTarget = NewNodeLogTargetClient(tx.config)
 	tx.RealServer = NewRealServerClient(tx.config)
+	tx.SecurityEvent = NewSecurityEventClient(tx.config)
 	tx.VirtualService = NewVirtualServiceClient(tx.config)
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
 	"github.com/th/ngxcp/ent/schema"
+	"github.com/th/ngxcp/ent/securityevent"
 	"github.com/th/ngxcp/ent/virtualservice"
 )
 
@@ -354,6 +355,16 @@ func init() {
 	realserver.DefaultUpdatedAt = realserverDescUpdatedAt.Default.(func() time.Time)
 	// realserver.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	realserver.UpdateDefaultUpdatedAt = realserverDescUpdatedAt.UpdateDefault.(func() time.Time)
+	securityeventFields := schema.SecurityEvent{}.Fields()
+	_ = securityeventFields
+	// securityeventDescHandled is the schema descriptor for handled field.
+	securityeventDescHandled := securityeventFields[5].Descriptor()
+	// securityevent.DefaultHandled holds the default value on creation for the handled field.
+	securityevent.DefaultHandled = securityeventDescHandled.Default.(bool)
+	// securityeventDescCreatedAt is the schema descriptor for created_at field.
+	securityeventDescCreatedAt := securityeventFields[7].Descriptor()
+	// securityevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	securityevent.DefaultCreatedAt = securityeventDescCreatedAt.Default.(func() time.Time)
 	virtualserviceFields := schema.VirtualService{}.Fields()
 	_ = virtualserviceFields
 	// virtualserviceDescEnabled is the schema descriptor for enabled field.

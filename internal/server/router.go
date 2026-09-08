@@ -14,6 +14,7 @@ import (
 	"github.com/th/ngxcp/internal/lvs"
 	"github.com/th/ngxcp/internal/pkg/pki"
 	"github.com/th/ngxcp/internal/pkg/version"
+	"github.com/th/ngxcp/internal/security"
 	"github.com/th/ngxcp/internal/server/handler"
 	"github.com/th/ngxcp/internal/server/middleware"
 	"github.com/th/ngxcp/internal/server/response"
@@ -32,7 +33,7 @@ import (
 // tmplSvc 为 T027 模板与三级变量服务（复用 ent 客户端，提供配置模板渲染与变量解析）。
 // agentSrv 为 *transport.Server：既作为 T024 校验触发入口（实现 handler.ConfigValidator，
 // 经心跳命令流驱动 Agent 跑 nginx -t），又作为 T044 证书分发下发通道（实现 cert.Deployer）。
-func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, agentSrv *transport.Server, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub, certSvc *cert.Service, lvsSvc *lvs.Service, logStore logstore.Storage) *gin.Engine {
+func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore *configstore.ConfigStore, sessions *session.SessionManager, agentSrv *transport.Server, semantic *configstore.SemanticChecker, drift *configstore.DriftDetector, tmplSvc *configstore.TemplateService, deploySvc *deploy.Service, hub *Hub, certSvc *cert.Service, lvsSvc *lvs.Service, logStore logstore.Storage, secSvc security.EventStore) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.Recovery())
@@ -182,5 +183,12 @@ func buildRouter(cfg *config.Config, ca *pki.CA, nodeSvc *node.Service, cfgStore
 	v1.GET("/logs/format", lfh.Contract)
 	v1.POST("/logs/format/preview", auth, lfh.Preview)
 	v1.POST("/logs/format/apply", auth, lfh.Apply)
+
+	// T067：告警中心——安全事件流查询 + 处置状态机（证据样本随事件返回）。
+	// 列表/详情只读放开；处置（handle）是写操作，由 auth 中间件保护。
+	seh := handler.NewSecurityHandler(secSvc)
+	v1.GET("/security/events", seh.List)
+	v1.GET("/security/events/:id", seh.Get)
+	v1.POST("/security/events/:id/handle", auth, seh.Handle)
 	return r
 }

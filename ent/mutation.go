@@ -35,6 +35,7 @@ import (
 	"github.com/th/ngxcp/ent/predicate"
 	"github.com/th/ngxcp/ent/realserver"
 	"github.com/th/ngxcp/ent/schema"
+	"github.com/th/ngxcp/ent/securityevent"
 	"github.com/th/ngxcp/ent/virtualservice"
 )
 
@@ -69,6 +70,7 @@ const (
 	TypeNodeConfigFile = "NodeConfigFile"
 	TypeNodeLogTarget  = "NodeLogTarget"
 	TypeRealServer     = "RealServer"
+	TypeSecurityEvent  = "SecurityEvent"
 	TypeVirtualService = "VirtualService"
 )
 
@@ -21159,6 +21161,751 @@ func (m *RealServerMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown RealServer edge %s", name)
+}
+
+// SecurityEventMutation represents an operation that mutates the SecurityEvent nodes in the graph.
+type SecurityEventMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	rule_id       *string
+	rule_name     *string
+	level         *securityevent.Level
+	node          *string
+	sample        *string
+	handled       *bool
+	action        *securityevent.Action
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*SecurityEvent, error)
+	predicates    []predicate.SecurityEvent
+}
+
+var _ ent.Mutation = (*SecurityEventMutation)(nil)
+
+// securityeventOption allows management of the mutation configuration using functional options.
+type securityeventOption func(*SecurityEventMutation)
+
+// newSecurityEventMutation creates new mutation for the SecurityEvent entity.
+func newSecurityEventMutation(c config, op Op, opts ...securityeventOption) *SecurityEventMutation {
+	m := &SecurityEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSecurityEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSecurityEventID sets the ID field of the mutation.
+func withSecurityEventID(id int) securityeventOption {
+	return func(m *SecurityEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SecurityEvent
+		)
+		m.oldValue = func(ctx context.Context) (*SecurityEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SecurityEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSecurityEvent sets the old SecurityEvent of the mutation.
+func withSecurityEvent(node *SecurityEvent) securityeventOption {
+	return func(m *SecurityEventMutation) {
+		m.oldValue = func(context.Context) (*SecurityEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SecurityEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SecurityEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SecurityEventMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SecurityEventMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SecurityEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRuleID sets the "rule_id" field.
+func (m *SecurityEventMutation) SetRuleID(s string) {
+	m.rule_id = &s
+}
+
+// RuleID returns the value of the "rule_id" field in the mutation.
+func (m *SecurityEventMutation) RuleID() (r string, exists bool) {
+	v := m.rule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleID returns the old "rule_id" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldRuleID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleID: %w", err)
+	}
+	return oldValue.RuleID, nil
+}
+
+// ResetRuleID resets all changes to the "rule_id" field.
+func (m *SecurityEventMutation) ResetRuleID() {
+	m.rule_id = nil
+}
+
+// SetRuleName sets the "rule_name" field.
+func (m *SecurityEventMutation) SetRuleName(s string) {
+	m.rule_name = &s
+}
+
+// RuleName returns the value of the "rule_name" field in the mutation.
+func (m *SecurityEventMutation) RuleName() (r string, exists bool) {
+	v := m.rule_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleName returns the old "rule_name" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldRuleName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleName: %w", err)
+	}
+	return oldValue.RuleName, nil
+}
+
+// ResetRuleName resets all changes to the "rule_name" field.
+func (m *SecurityEventMutation) ResetRuleName() {
+	m.rule_name = nil
+}
+
+// SetLevel sets the "level" field.
+func (m *SecurityEventMutation) SetLevel(s securityevent.Level) {
+	m.level = &s
+}
+
+// Level returns the value of the "level" field in the mutation.
+func (m *SecurityEventMutation) Level() (r securityevent.Level, exists bool) {
+	v := m.level
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLevel returns the old "level" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldLevel(ctx context.Context) (v securityevent.Level, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLevel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLevel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLevel: %w", err)
+	}
+	return oldValue.Level, nil
+}
+
+// ResetLevel resets all changes to the "level" field.
+func (m *SecurityEventMutation) ResetLevel() {
+	m.level = nil
+}
+
+// SetNode sets the "node" field.
+func (m *SecurityEventMutation) SetNode(s string) {
+	m.node = &s
+}
+
+// Node returns the value of the "node" field in the mutation.
+func (m *SecurityEventMutation) Node() (r string, exists bool) {
+	v := m.node
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNode returns the old "node" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldNode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNode: %w", err)
+	}
+	return oldValue.Node, nil
+}
+
+// ClearNode clears the value of the "node" field.
+func (m *SecurityEventMutation) ClearNode() {
+	m.node = nil
+	m.clearedFields[securityevent.FieldNode] = struct{}{}
+}
+
+// NodeCleared returns if the "node" field was cleared in this mutation.
+func (m *SecurityEventMutation) NodeCleared() bool {
+	_, ok := m.clearedFields[securityevent.FieldNode]
+	return ok
+}
+
+// ResetNode resets all changes to the "node" field.
+func (m *SecurityEventMutation) ResetNode() {
+	m.node = nil
+	delete(m.clearedFields, securityevent.FieldNode)
+}
+
+// SetSample sets the "sample" field.
+func (m *SecurityEventMutation) SetSample(s string) {
+	m.sample = &s
+}
+
+// Sample returns the value of the "sample" field in the mutation.
+func (m *SecurityEventMutation) Sample() (r string, exists bool) {
+	v := m.sample
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSample returns the old "sample" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldSample(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSample is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSample requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSample: %w", err)
+	}
+	return oldValue.Sample, nil
+}
+
+// ClearSample clears the value of the "sample" field.
+func (m *SecurityEventMutation) ClearSample() {
+	m.sample = nil
+	m.clearedFields[securityevent.FieldSample] = struct{}{}
+}
+
+// SampleCleared returns if the "sample" field was cleared in this mutation.
+func (m *SecurityEventMutation) SampleCleared() bool {
+	_, ok := m.clearedFields[securityevent.FieldSample]
+	return ok
+}
+
+// ResetSample resets all changes to the "sample" field.
+func (m *SecurityEventMutation) ResetSample() {
+	m.sample = nil
+	delete(m.clearedFields, securityevent.FieldSample)
+}
+
+// SetHandled sets the "handled" field.
+func (m *SecurityEventMutation) SetHandled(b bool) {
+	m.handled = &b
+}
+
+// Handled returns the value of the "handled" field in the mutation.
+func (m *SecurityEventMutation) Handled() (r bool, exists bool) {
+	v := m.handled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHandled returns the old "handled" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldHandled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHandled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHandled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHandled: %w", err)
+	}
+	return oldValue.Handled, nil
+}
+
+// ResetHandled resets all changes to the "handled" field.
+func (m *SecurityEventMutation) ResetHandled() {
+	m.handled = nil
+}
+
+// SetAction sets the "action" field.
+func (m *SecurityEventMutation) SetAction(s securityevent.Action) {
+	m.action = &s
+}
+
+// Action returns the value of the "action" field in the mutation.
+func (m *SecurityEventMutation) Action() (r securityevent.Action, exists bool) {
+	v := m.action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAction returns the old "action" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldAction(ctx context.Context) (v securityevent.Action, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAction: %w", err)
+	}
+	return oldValue.Action, nil
+}
+
+// ResetAction resets all changes to the "action" field.
+func (m *SecurityEventMutation) ResetAction() {
+	m.action = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SecurityEventMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SecurityEventMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SecurityEvent entity.
+// If the SecurityEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityEventMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SecurityEventMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the SecurityEventMutation builder.
+func (m *SecurityEventMutation) Where(ps ...predicate.SecurityEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SecurityEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SecurityEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SecurityEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SecurityEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SecurityEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SecurityEvent).
+func (m *SecurityEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SecurityEventMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.rule_id != nil {
+		fields = append(fields, securityevent.FieldRuleID)
+	}
+	if m.rule_name != nil {
+		fields = append(fields, securityevent.FieldRuleName)
+	}
+	if m.level != nil {
+		fields = append(fields, securityevent.FieldLevel)
+	}
+	if m.node != nil {
+		fields = append(fields, securityevent.FieldNode)
+	}
+	if m.sample != nil {
+		fields = append(fields, securityevent.FieldSample)
+	}
+	if m.handled != nil {
+		fields = append(fields, securityevent.FieldHandled)
+	}
+	if m.action != nil {
+		fields = append(fields, securityevent.FieldAction)
+	}
+	if m.created_at != nil {
+		fields = append(fields, securityevent.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SecurityEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case securityevent.FieldRuleID:
+		return m.RuleID()
+	case securityevent.FieldRuleName:
+		return m.RuleName()
+	case securityevent.FieldLevel:
+		return m.Level()
+	case securityevent.FieldNode:
+		return m.Node()
+	case securityevent.FieldSample:
+		return m.Sample()
+	case securityevent.FieldHandled:
+		return m.Handled()
+	case securityevent.FieldAction:
+		return m.Action()
+	case securityevent.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SecurityEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case securityevent.FieldRuleID:
+		return m.OldRuleID(ctx)
+	case securityevent.FieldRuleName:
+		return m.OldRuleName(ctx)
+	case securityevent.FieldLevel:
+		return m.OldLevel(ctx)
+	case securityevent.FieldNode:
+		return m.OldNode(ctx)
+	case securityevent.FieldSample:
+		return m.OldSample(ctx)
+	case securityevent.FieldHandled:
+		return m.OldHandled(ctx)
+	case securityevent.FieldAction:
+		return m.OldAction(ctx)
+	case securityevent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SecurityEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SecurityEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case securityevent.FieldRuleID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleID(v)
+		return nil
+	case securityevent.FieldRuleName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleName(v)
+		return nil
+	case securityevent.FieldLevel:
+		v, ok := value.(securityevent.Level)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLevel(v)
+		return nil
+	case securityevent.FieldNode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNode(v)
+		return nil
+	case securityevent.FieldSample:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSample(v)
+		return nil
+	case securityevent.FieldHandled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHandled(v)
+		return nil
+	case securityevent.FieldAction:
+		v, ok := value.(securityevent.Action)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAction(v)
+		return nil
+	case securityevent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SecurityEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SecurityEventMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SecurityEventMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SecurityEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SecurityEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SecurityEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(securityevent.FieldNode) {
+		fields = append(fields, securityevent.FieldNode)
+	}
+	if m.FieldCleared(securityevent.FieldSample) {
+		fields = append(fields, securityevent.FieldSample)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SecurityEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SecurityEventMutation) ClearField(name string) error {
+	switch name {
+	case securityevent.FieldNode:
+		m.ClearNode()
+		return nil
+	case securityevent.FieldSample:
+		m.ClearSample()
+		return nil
+	}
+	return fmt.Errorf("unknown SecurityEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SecurityEventMutation) ResetField(name string) error {
+	switch name {
+	case securityevent.FieldRuleID:
+		m.ResetRuleID()
+		return nil
+	case securityevent.FieldRuleName:
+		m.ResetRuleName()
+		return nil
+	case securityevent.FieldLevel:
+		m.ResetLevel()
+		return nil
+	case securityevent.FieldNode:
+		m.ResetNode()
+		return nil
+	case securityevent.FieldSample:
+		m.ResetSample()
+		return nil
+	case securityevent.FieldHandled:
+		m.ResetHandled()
+		return nil
+	case securityevent.FieldAction:
+		m.ResetAction()
+		return nil
+	case securityevent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SecurityEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SecurityEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SecurityEventMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SecurityEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SecurityEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SecurityEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SecurityEventMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SecurityEventMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SecurityEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SecurityEventMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SecurityEvent edge %s", name)
 }
 
 // VirtualServiceMutation represents an operation that mutates the VirtualService nodes in the graph.

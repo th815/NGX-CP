@@ -131,3 +131,18 @@ func splitDDL(ddl string) []string {
 	}
 	return out
 }
+
+// QueryCount 参数化执行查询并返回 float64（供 internal/security 规则引擎后端）。
+// 规则 SQL 一律返回 toFloat64(...)，故 Scan 到 float64 安全。
+func (s *ClickHouseStorage) QueryCount(ctx context.Context, query string, args ...any) (float64, error) {
+	var v float64
+	if err := s.conn.QueryRow(ctx, query, args...).Scan(&v); err != nil {
+		return 0, err
+	}
+	return v, nil
+}
+
+// Exec 执行任意参数化语句（如 security_alerts 落库 INSERT）。
+func (s *ClickHouseStorage) Exec(ctx context.Context, query string, args ...any) error {
+	return s.conn.Exec(ctx, query, args...)
+}

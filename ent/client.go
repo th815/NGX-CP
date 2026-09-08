@@ -37,6 +37,7 @@ import (
 	"github.com/th/ngxcp/ent/nodeconfigfile"
 	"github.com/th/ngxcp/ent/nodelogtarget"
 	"github.com/th/ngxcp/ent/realserver"
+	"github.com/th/ngxcp/ent/securityevent"
 	"github.com/th/ngxcp/ent/virtualservice"
 )
 
@@ -89,6 +90,8 @@ type Client struct {
 	NodeLogTarget *NodeLogTargetClient
 	// RealServer is the client for interacting with the RealServer builders.
 	RealServer *RealServerClient
+	// SecurityEvent is the client for interacting with the SecurityEvent builders.
+	SecurityEvent *SecurityEventClient
 	// VirtualService is the client for interacting with the VirtualService builders.
 	VirtualService *VirtualServiceClient
 }
@@ -124,6 +127,7 @@ func (c *Client) init() {
 	c.NodeConfigFile = NewNodeConfigFileClient(c.config)
 	c.NodeLogTarget = NewNodeLogTargetClient(c.config)
 	c.RealServer = NewRealServerClient(c.config)
+	c.SecurityEvent = NewSecurityEventClient(c.config)
 	c.VirtualService = NewVirtualServiceClient(c.config)
 }
 
@@ -239,6 +243,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		NodeConfigFile: NewNodeConfigFileClient(cfg),
 		NodeLogTarget:  NewNodeLogTargetClient(cfg),
 		RealServer:     NewRealServerClient(cfg),
+		SecurityEvent:  NewSecurityEventClient(cfg),
 		VirtualService: NewVirtualServiceClient(cfg),
 	}, nil
 }
@@ -281,6 +286,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		NodeConfigFile: NewNodeConfigFileClient(cfg),
 		NodeLogTarget:  NewNodeLogTargetClient(cfg),
 		RealServer:     NewRealServerClient(cfg),
+		SecurityEvent:  NewSecurityEventClient(cfg),
 		VirtualService: NewVirtualServiceClient(cfg),
 	}, nil
 }
@@ -315,7 +321,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Cluster, c.ConfigBlob, c.ConfigFile, c.ConfigRevision, c.ConfigSnapshot,
 		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask, c.Director,
 		c.EnrollToken, c.JoinToken, c.Node, c.NodeCapability, c.NodeConfigFile,
-		c.NodeLogTarget, c.RealServer, c.VirtualService,
+		c.NodeLogTarget, c.RealServer, c.SecurityEvent, c.VirtualService,
 	} {
 		n.Use(hooks...)
 	}
@@ -329,7 +335,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Cluster, c.ConfigBlob, c.ConfigFile, c.ConfigRevision, c.ConfigSnapshot,
 		c.ConfigTemplate, c.ConfigVariable, c.DeployNodeLock, c.DeployTask, c.Director,
 		c.EnrollToken, c.JoinToken, c.Node, c.NodeCapability, c.NodeConfigFile,
-		c.NodeLogTarget, c.RealServer, c.VirtualService,
+		c.NodeLogTarget, c.RealServer, c.SecurityEvent, c.VirtualService,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -382,6 +388,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.NodeLogTarget.mutate(ctx, m)
 	case *RealServerMutation:
 		return c.RealServer.mutate(ctx, m)
+	case *SecurityEventMutation:
+		return c.SecurityEvent.mutate(ctx, m)
 	case *VirtualServiceMutation:
 		return c.VirtualService.mutate(ctx, m)
 	default:
@@ -3779,6 +3787,139 @@ func (c *RealServerClient) mutate(ctx context.Context, m *RealServerMutation) (V
 	}
 }
 
+// SecurityEventClient is a client for the SecurityEvent schema.
+type SecurityEventClient struct {
+	config
+}
+
+// NewSecurityEventClient returns a client for the SecurityEvent from the given config.
+func NewSecurityEventClient(c config) *SecurityEventClient {
+	return &SecurityEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `securityevent.Hooks(f(g(h())))`.
+func (c *SecurityEventClient) Use(hooks ...Hook) {
+	c.hooks.SecurityEvent = append(c.hooks.SecurityEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `securityevent.Intercept(f(g(h())))`.
+func (c *SecurityEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SecurityEvent = append(c.inters.SecurityEvent, interceptors...)
+}
+
+// Create returns a builder for creating a SecurityEvent entity.
+func (c *SecurityEventClient) Create() *SecurityEventCreate {
+	mutation := newSecurityEventMutation(c.config, OpCreate)
+	return &SecurityEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SecurityEvent entities.
+func (c *SecurityEventClient) CreateBulk(builders ...*SecurityEventCreate) *SecurityEventCreateBulk {
+	return &SecurityEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SecurityEventClient) MapCreateBulk(slice any, setFunc func(*SecurityEventCreate, int)) *SecurityEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SecurityEventCreateBulk{err: fmt.Errorf("calling to SecurityEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SecurityEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SecurityEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SecurityEvent.
+func (c *SecurityEventClient) Update() *SecurityEventUpdate {
+	mutation := newSecurityEventMutation(c.config, OpUpdate)
+	return &SecurityEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SecurityEventClient) UpdateOne(_m *SecurityEvent) *SecurityEventUpdateOne {
+	mutation := newSecurityEventMutation(c.config, OpUpdateOne, withSecurityEvent(_m))
+	return &SecurityEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SecurityEventClient) UpdateOneID(id int) *SecurityEventUpdateOne {
+	mutation := newSecurityEventMutation(c.config, OpUpdateOne, withSecurityEventID(id))
+	return &SecurityEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SecurityEvent.
+func (c *SecurityEventClient) Delete() *SecurityEventDelete {
+	mutation := newSecurityEventMutation(c.config, OpDelete)
+	return &SecurityEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SecurityEventClient) DeleteOne(_m *SecurityEvent) *SecurityEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SecurityEventClient) DeleteOneID(id int) *SecurityEventDeleteOne {
+	builder := c.Delete().Where(securityevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SecurityEventDeleteOne{builder}
+}
+
+// Query returns a query builder for SecurityEvent.
+func (c *SecurityEventClient) Query() *SecurityEventQuery {
+	return &SecurityEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSecurityEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SecurityEvent entity by its id.
+func (c *SecurityEventClient) Get(ctx context.Context, id int) (*SecurityEvent, error) {
+	return c.Query().Where(securityevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SecurityEventClient) GetX(ctx context.Context, id int) *SecurityEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SecurityEventClient) Hooks() []Hook {
+	return c.hooks.SecurityEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *SecurityEventClient) Interceptors() []Interceptor {
+	return c.inters.SecurityEvent
+}
+
+func (c *SecurityEventClient) mutate(ctx context.Context, m *SecurityEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SecurityEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SecurityEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SecurityEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SecurityEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SecurityEvent mutation op: %q", m.Op())
+	}
+}
+
 // VirtualServiceClient is a client for the VirtualService schema.
 type VirtualServiceClient struct {
 	config
@@ -3934,14 +4075,14 @@ type (
 		Approval, AuditLog, CertDeployment, Certificate, ChangeOrder, Cluster,
 		ConfigBlob, ConfigFile, ConfigRevision, ConfigSnapshot, ConfigTemplate,
 		ConfigVariable, DeployNodeLock, DeployTask, Director, EnrollToken, JoinToken,
-		Node, NodeCapability, NodeConfigFile, NodeLogTarget, RealServer,
+		Node, NodeCapability, NodeConfigFile, NodeLogTarget, RealServer, SecurityEvent,
 		VirtualService []ent.Hook
 	}
 	inters struct {
 		Approval, AuditLog, CertDeployment, Certificate, ChangeOrder, Cluster,
 		ConfigBlob, ConfigFile, ConfigRevision, ConfigSnapshot, ConfigTemplate,
 		ConfigVariable, DeployNodeLock, DeployTask, Director, EnrollToken, JoinToken,
-		Node, NodeCapability, NodeConfigFile, NodeLogTarget, RealServer,
+		Node, NodeCapability, NodeConfigFile, NodeLogTarget, RealServer, SecurityEvent,
 		VirtualService []ent.Interceptor
 	}
 )
