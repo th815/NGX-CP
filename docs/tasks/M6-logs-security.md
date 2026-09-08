@@ -295,6 +295,30 @@ go test ./internal/security/... -run Rules
 - 规则是 SQL，**必须用参数化**，防止规则文本注入
 - 阈值要可配，别写死；误报率高的规则默认 `alert` 而非 `auto`
 
+> **状态（2026-09-08）**：已完成 `internal/security/rules.go`（Rule 结构体 / `DefaultRules()` 10 条 / `Engine` + `EvaluateMem` 内存评估 + `CHBackend` 参数化后端）+ `internal/security/rules_test.go`（12 例）+ `deploy/clickhouse/security.sql`（security_alerts 落库表，TTL 30d；与 PG 的 security_event ent schema 分层——CH 管命中时序、PG 管处置状态机）。
+>
+> **双轨可验设计（关键，防「规则即 SQL」变黑盒）**：生产走 ClickHouse，每条规则是一条 `SELECT toFloat64(count()) FROM nginx_access WHERE ts BETWEEN ? AND ? AND <特征>` 滑动窗口查询，窗口起止用 `?` 占位参数化绑定、阈值只在 Go 侧 `count >= Threshold` 比较——绝不拼接用户输入防注入；沙箱/测试/MemStorage 模式走 `EvaluateMem(rule, entries, now)`，用同一语义的 `Rule.Eval` 内存统计。两条路径对同一组构造样本必须一致：测试 `TestRules_EvalMatchesSQLIntent` 用表面特征哨兵（如注入规则 SQL 必须含 `union select`、爆破规则必须含 `status = 404` + `count(distinct uri)`）锁死 Eval 与 SQL 不漂移。
+>
+> **10 条规则与动作分级**（误报面大的默认 `alert`，仅「单 IP 高频 CC」这种极高置信才默认 `auto`，符合 T069 纪律）：
+> | ID | 名称 | Level | Action | 窗口 | 阈值(初值) | 检测语义 |
+> |---|---|---|---|---|---|---|
+> | r-sql-injection | SQL 注入特征 | CRITICAL | semi | 5m | 1 | uri/ua 含 union select / or 1=1 / select from / `' or '` / `-- ` / `/**/` / `<script` |
+> | r-scanner-ua | 扫描器指纹 UA | INFO | alert | 5m | 5 | ua 命中 sqlmap/nmap/nuclei/gobuster/... 列表 |
+> | r-dir-brute | 目录爆破 | WARN | semi | 5m | 30 | 单 IP 在窗口内尝试的不同 404 路径数 |
+> | r-cc-flood | CC 洪水 | CRITICAL | **auto** | 1m | 600 | 单 IP 在窗口内总请求数（max over group） |
+> | r-slowloris | Slowloris 慢速 | WARN | semi | 5m | 10 | request_rt>10s 且 bytes<1024 |
+> | r-5xx-spike | 5xx 突增 | WARN | alert | 5m | 100 | 窗口内 5xx 总数（可能是后端故障非攻击） |
+> | r-4xx-spike | 4xx 突增 | INFO | alert | 5m | 500 | 窗口内 4xx 总数 |
+> | r-sensitive-path | 敏感路径探测 | WARN | alert | 5m | 5 | uri 命中 /wp-admin /.env /phpmyadmin /etc/passwd /... |
+> | r-odd-ua | 非常规 UA | INFO | alert | 5m | 50 | ua 为空/`-`/命中 curl/wget/python/go-http-client/... |
+> | r-single-ip-broad | 单 IP 高频遍历 | WARN | alert | 5m | 200 | 单 IP 在窗口内访问的不同 URI 数（max over group） |
+>
+> **阈值初值依据**：自用规模 2 RS、百万级日访问，单 IP 1 分钟 600 请求已明显异常（CC），爆破 30 个不同 404 路径/5m 是扫描特征，遍历 200 个不同 URI/5m 偏激进故仅 alert。均为可调初值，上线后按真实流量在 T067 观测误报/漏报微调。
+>
+> **测试**：`TestDefaultRules_Structure`(10 条字段合法/SQL 含 ≥2 个 `?`/Eval 非 nil) + `TestParseWindow` + `TestSQLInjection_TriggersCRITICAL`(注入样本→CRITICAL+sample) + `TestCCFlood_Auto`(700 条→auto，70 条→不触发) + `TestDirBrute_Triggers`(单 IP 50 个 404 路径→触发，50 IP 各 1 个→不触发) + `TestSingleIPBroad_Triggers`(220 个不同 URI→触发) + `TestFalseNegative_NormalTraffic`(正常流量不触发 critical/auto) + `TestEngine_EvaluateViaBackend`(FakeBackend 超/低阈值、后端报错上抛) + `TestRules_SQLUsesParameters`(防拼接) + `TestRules_EvalMatchesSQLIntent`(双轨不漂移)。`go build`/`go vet`/`go test ./...` 全过。
+>
+> **未真机验证**：SQL 在真 ClickHouse 上的执行结果未验（沙箱无 CH 实例，仅验证了语法层面 `positionCaseInsensitive`/`coalesce(max())` 等函数用法合理）；阈值需按真实流量调参。规则引擎本身（含 EvalMem 语义、Engine 后端抽象）已通过测试验证。
+
 ---
 
 ## T067 · 告警中心
